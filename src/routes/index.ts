@@ -1,0 +1,24 @@
+import { Router } from 'express';
+import { authRouter } from './auth.routes';
+import { institutionRouter } from './institution.routes';
+import { courseRouter } from './course.routes';
+import { activityRouter } from './activity.routes';
+import { resultRouter } from './result.routes';
+import { complianceRouter } from './compliance.routes';
+import { subscriptionRouter } from './subscription.routes';
+import { oauthRouter } from './oauth.routes';
+import { monitoringRouter } from './monitoring.routes';
+import { feedbackRouter } from './feedback.routes';
+
+export const apiRouter = Router();
+
+apiRouter.use('/auth', authRouter);
+apiRouter.use('/institutions', institutionRouter);
+apiRouter.use('/courses', courseRouter);
+apiRouter.use('/activities', activityRouter);
+apiRouter.use('/results', resultRouter);
+apiRouter.use('/compliance', complianceRouter);
+apiRouter.use('/subscriptions', subscriptionRouter);
+apiRouter.use('/oauth', oauthRouter);
+apiRouter.use('/monitoring', monitoringRouter);
+apiRouter.use('/feedback', feedbackRouter);
