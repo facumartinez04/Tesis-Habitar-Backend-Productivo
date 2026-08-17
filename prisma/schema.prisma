@@ -1,0 +1,378 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  DOCENTE
+  COORDINADOR
+  ADMIN
+}
+
+enum OAuthProvider {
+  GOOGLE
+  MICROSOFT
+}
+
+enum EducationLevel {
+  PRIMARIO
+  SECUNDARIO
+}
+
+enum InstitutionStatus {
+  ACTIVO
+  PILOTO_NO_CONFIRMADO
+}
+
+enum ComprehensionAxis {
+  LITERAL
+  INFERENCIAL
+  CRITICO
+}
+
+enum AttemptPolicy {
+  UNICO
+  REINTENTOS
+}
+
+enum ActivityStatus {
+  BORRADOR
+  PROGRAMADA
+  PUBLICADA
+  CERRADA
+}
+
+enum AlertSeverity {
+  CRITICA
+  ADVERTENCIA
+  RESUELTA
+}
+
+enum AuditOperation {
+  EXPORTACION
+  ELIMINACION
+  CONSENTIMIENTO
+}
+
+enum SubscriptionManagementStatus {
+  EN_NEGOCIACION
+  CONFIRMADO
+}
+
+enum ComponentHealth {
+  OPERATIVO
+  DEGRADADO
+  CAIDO
+}
+
+enum IncidentStatus {
+  RESUELTO
+  PLANIFICADO
+  EN_CURSO
+}
+
+model Institution {
+  id               String              @id @default(cuid())
+  slug             String              @unique
+  name             String
+  domain           String
+  status           InstitutionStatus   @default(ACTIVO)
+  coordinatorEmail String
+  enabledAxesCsv   String              @default("LITERAL,INFERENCIAL,CRITICO")
+  aiMonthlyQuota   Int                 @default(200)
+  createdAt        DateTime            @default(now())
+
+  levels             InstitutionLevel[]
+  users              User[]
+  courses            Course[]
+  consentAcceptances ConsentAcceptance[]
+  subscription       Subscription?
+  oauthIntegration   OAuthIntegration?
+  retentionPolicy    RetentionPolicy?
+  aiUsageEvents      AiUsageEvent[]
+}
+
+model InstitutionLevel {
+  id            String         @id @default(cuid())
+  institutionId String
+  level         EducationLevel
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, level])
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String
+  initials      String
+  email         String        @unique
+  role          Role
+  provider      OAuthProvider
+  institutionId String
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+
+  institution Institution     @relation(fields: [institutionId], references: [id])
+  courses     Course[]
+  auditLogs   AuditLogEntry[]
+  feedbacks   Feedback[]
+
+  @@index([institutionId])
+}
+
+model Course {
+  id            String @id @default(cuid())
+  name          String
+  subject       String
+  institutionId String
+  teacherId     String
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+  teacher     User        @relation(fields: [teacherId], references: [id])
+  students    Student[]
+  activities  Activity[]
+  alerts      PerformanceAlert[]
+
+  @@index([institutionId])
+  @@index([teacherId])
+}
+
+model Student {
+  id        String   @id @default(cuid())
+  name      String
+  initials  String
+  courseId  String
+  createdAt DateTime @default(now())
+
+  course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  responses Response[]
+  results   StudentResult[]
+  auditLogs AuditLogEntry[]
+  feedbacks Feedback[]
+
+  @@index([courseId])
+}
+
+model Activity {
+  id             String         @id @default(cuid())
+  code           String         @unique
+  name           String
+  educationLevel String
+  axis           ComprehensionAxis
+  sourceText     String
+  availableFrom  String
+  startTime      String
+  endTime        String
+  attemptPolicy  AttemptPolicy  @default(UNICO)
+  status         ActivityStatus @default(PUBLICADA)
+  qrValidUntil   String         @default("4 hs")
+  courseId       String
+  createdAt      DateTime       @default(now())
+
+  course    Course          @relation(fields: [courseId], references: [id])
+  questions Question[]
+  responses Response[]
+  results   StudentResult[]
+
+  @@index([courseId])
+}
+
+model Question {
+  id             String            @id @default(cuid())
+  activityId     String
+  axis           ComprehensionAxis
+  prompt         String
+  expectedAnswer String
+  optionsJson    String?
+  correctOption  String?
+  edited         Boolean           @default(false)
+  approved       Boolean           @default(false)
+  order          Int               @default(0)
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  answers  Answer[]
+
+  @@index([activityId])
+}
+
+model Response {
+  id               String   @id @default(cuid())
+  activityId       String
+  studentId        String?
+  studentDisplayName String
+  submittedAt      DateTime @default(now())
+
+  activity Activity @relation(fields: [activityId], references: [id])
+  student  Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answers  Answer[]
+  result   StudentResult?
+
+  @@index([activityId])
+  @@index([studentId])
+}
+
+model Answer {
+  id              String @id @default(cuid())
+  responseId      String
+  questionId      String
+  selectedOption  String
+
+  response Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([responseId, questionId])
+}
+
+model StudentResult {
+  id               String   @id @default(cuid())
+  studentId        String
+  activityId       String
+  responseId        String   @unique
+  literalScore     Int
+  inferencialScore Int
+  criticoScore     Int
+  createdAt        DateTime @default(now())
+
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  activity Activity @relation(fields: [activityId], references: [id])
+  response Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([activityId])
+}
+
+model PerformanceAlert {
+  id           String        @id @default(cuid())
+  courseId     String
+  axis         ComprehensionAxis
+  currentValue Int
+  threshold    Int
+  severity     AlertSeverity
+  detectedAt   String
+  message      String
+
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@index([courseId])
+}
+
+model AuditLogEntry {
+  id           String         @id @default(cuid())
+  studentId    String?
+  studentName  String
+  operation    AuditOperation
+  performedBy  String
+  performedById String?
+  date         DateTime       @default(now())
+
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  performer User?    @relation(fields: [performedById], references: [id])
+}
+
+model ConsentDocument {
+  id              String   @id @default(cuid())
+  version         String   @unique
+  publishedAt     String
+  dataController  String
+  dataProcessor   String
+}
+
+model ConsentAcceptance {
+  id                String   @id @default(cuid())
+  institutionId     String
+  acceptedBy        String
+  acceptedAt        DateTime @default(now())
+  documentVersion   String
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionId])
+}
+
+model Plan {
+  id               String @id @default(cuid())
+  name             String
+  monthlyPriceArs  Int
+  maxUsers         Int    @default(50)
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                String                       @id @default(cuid())
+  institutionId     String                       @unique
+  planId            String
+  monthlyPriceArs   Int
+  expiresAt         String
+  managementStatus  SubscriptionManagementStatus @default(EN_NEGOCIACION)
+  durationMonths    Int                          @default(12)
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+  plan        Plan        @relation(fields: [planId], references: [id])
+}
+
+model OAuthIntegration {
+  id                String        @id @default(cuid())
+  institutionId     String        @unique
+  provider          OAuthProvider
+  clientId          String
+  currentStepIndex  Int           @default(1)
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+}
+
+model MonitoringComponent {
+  id             String          @id @default(cuid())
+  name           String
+  health         ComponentHealth @default(OPERATIVO)
+  uptimePercent  Float
+}
+
+model Incident {
+  id        String         @id @default(cuid())
+  date      String
+  component String
+  duration  String
+  status    IncidentStatus
+}
+
+model Feedback {
+  id         String   @id @default(cuid())
+  studentId  String
+  authorId   String
+  message    String
+  createdAt  DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id])
+
+  @@index([studentId])
+}
+
+model RetentionPolicy {
+  id                String    @id @default(cuid())
+  institutionId     String    @unique
+  retentionMonths   Int       @default(24)
+  lastPurgeAt       DateTime?
+  updatedAt         DateTime  @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+}
+
+model AiUsageEvent {
+  id            String   @id @default(cuid())
+  institutionId String
+  provider      String   @default("deepseek")
+  success       Boolean  @default(true)
+  wordCount     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionId])
+}
