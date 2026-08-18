@@ -11,6 +11,10 @@ export const env = {
   jwtSecret: requireEnv('JWT_SECRET'),
   databaseUrl: requireEnv('DATABASE_URL'),
   frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:4321',
+  superAdminEmails: (process.env.SUPER_ADMIN_EMAILS ?? 'mahadaconfigs@gmail.com')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean),
   deepseek: {
     apiKey: process.env.DEEPSEEK_API_KEY ?? '',
     apiUrl: process.env.DEEPSEEK_API_URL ?? 'https://api.deepseek.com/chat/completions',

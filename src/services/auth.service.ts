@@ -3,8 +3,10 @@ import { institutionRepository } from '../repositories/institution.repository';
 import { signToken } from '../utils/jwt';
 import { ForbiddenError, UnauthorizedError } from '../utils/http-error';
 import { getProviderConfig, getRedirectUri, loadClient } from './oidc-providers';
+import { env } from '../config/env';
 import type { OAuthProviderId, Role } from '../domain/enums';
 import type { Session } from '../domain/auth';
+import type { Institution } from '../domain/institution';
 
 const providerDefaultRole: Record<OAuthProviderId, Role> = {
   GOOGLE: 'DOCENTE',
@@ -112,8 +114,10 @@ export class DefaultAuthService implements AuthService {
     const email = claims?.email as string | undefined;
     if (!email) throw new UnauthorizedError('La cuenta no expone un email verificado');
 
-    const domain = emailDomain(email);
-    const institution = await institutionRepository.findByDomain(domain);
+    const isSuperAdmin = env.superAdminEmails.includes(email.toLowerCase());
+    const institution = isSuperAdmin
+      ? await this.getOrCreateSuperAdminInstitution(email)
+      : await institutionRepository.findByDomain(emailDomain(email));
     if (!institution || institution.status !== 'ACTIVO') {
       throw new ForbiddenError('Tu institución no está habilitada en Habitar. Contactá a tu coordinador/a.');
     }
@@ -124,7 +128,7 @@ export class DefaultAuthService implements AuthService {
       user = await userRepository.create({
         name,
         email,
-        role: providerDefaultRole[input.provider],
+        role: isSuperAdmin ? 'ADMIN' : providerDefaultRole[input.provider],
         provider: input.provider,
         institutionId: institution.id,
       });
@@ -138,6 +142,20 @@ export class DefaultAuthService implements AuthService {
 
     const token = signToken({ sub: user.id, role: user.role, institutionId: user.institutionId, provider: user.provider });
     return { token, user };
+  }
+
+  /** Da de alta (una única vez) el tenant interno usado por los emails listados en SUPER_ADMIN_EMAILS,
+   *  para poder entrar como ADMIN sin depender de tener un dominio institucional registrado. */
+  private async getOrCreateSuperAdminInstitution(email: string): Promise<Institution> {
+    const existing = await institutionRepository.findBySlug('habitar-admin');
+    if (existing) return existing;
+    return institutionRepository.create({
+      name: 'Habitar Admin',
+      domain: 'habitar-admin.internal',
+      status: 'ACTIVO',
+      coordinatorEmail: email,
+      levels: ['PRIMARIO', 'SECUNDARIO'],
+    });
   }
 }
 
