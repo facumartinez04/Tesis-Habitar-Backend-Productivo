@@ -5,7 +5,7 @@ import { resultController } from '../controllers/result.controller';
 import { userController } from '../controllers/user.controller';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware';
 import { validateBody } from '../middlewares/validate.middleware';
-import { createInstitutionSchema, updateInstitutionConfigSchema } from '../dto/institution.dto';
+import { createInstitutionSchema, updateInstitutionConfigSchema, updateInstitutionStatusSchema } from '../dto/institution.dto';
 import { createInstitutionUserSchema, setUserActiveSchema, updateUserRoleSchema } from '../dto/user.dto';
 
 export const institutionRouter = Router();
@@ -41,6 +41,14 @@ institutionRouter.patch(
   requireRole('COORDINADOR', 'ADMIN'),
   validateBody(updateInstitutionConfigSchema),
   institutionController.updateConfig.bind(institutionController),
+);
+
+institutionRouter.patch(
+  '/:institutionId/status',
+  requireAuth,
+  requireRole('ADMIN'),
+  validateBody(updateInstitutionStatusSchema),
+  institutionController.updateStatus.bind(institutionController),
 );
 
 institutionRouter.get(

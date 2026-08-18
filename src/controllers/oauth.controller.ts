@@ -2,19 +2,19 @@ import type { Request, Response } from 'express';
 import { oauthService } from '../services/oauth.service';
 
 export class OAuthController {
-  async getIntegration(req: Request, res: Response): Promise<void> {
-    const integration = await oauthService.getIntegration(String(req.params.institutionId));
-    res.json(integration);
+  async getStatus(req: Request, res: Response): Promise<void> {
+    const status = await oauthService.getAccessStatus(String(req.params.institutionId));
+    res.json(status);
   }
 
-  async verify(req: Request, res: Response): Promise<void> {
-    const integration = await oauthService.verifyIntegration(String(req.params.institutionId));
-    res.json(integration);
+  async activate(req: Request, res: Response): Promise<void> {
+    const status = await oauthService.activate(String(req.params.institutionId));
+    res.json(status);
   }
 
-  async resend(req: Request, res: Response): Promise<void> {
-    await oauthService.resendInvitation(String(req.params.institutionId));
-    res.status(204).send();
+  async deactivate(req: Request, res: Response): Promise<void> {
+    const status = await oauthService.deactivate(String(req.params.institutionId));
+    res.json(status);
   }
 }
 
