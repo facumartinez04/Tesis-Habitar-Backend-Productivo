@@ -1,17 +1,10 @@
-import type { OAuthProviderId } from './enums';
+import type { InstitutionStatus } from './enums';
 
-export type IntegrationStepState = 'DONE' | 'WAIT' | 'TODO';
-
-export interface IntegrationStep {
-  id: string;
-  label: string;
-  state: IntegrationStepState;
-  note?: string;
-}
-
-export interface OAuthIntegration {
+export interface OAuthAccessStatus {
   institutionId: string;
-  provider: OAuthProviderId;
-  clientId: string;
-  steps: IntegrationStep[];
+  domain: string;
+  coordinatorEmail: string;
+  institutionStatus: InstitutionStatus;
+  googleConfigured: boolean;
+  microsoftConfigured: boolean;
 }

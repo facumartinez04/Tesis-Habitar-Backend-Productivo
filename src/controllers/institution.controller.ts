@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { institutionService } from '../services/institution.service';
 import { aiUsageService } from '../services/aiUsage.service';
-import type { CreateInstitutionDto, UpdateInstitutionConfigDto } from '../dto/institution.dto';
+import type { CreateInstitutionDto, UpdateInstitutionConfigDto, UpdateInstitutionStatusDto } from '../dto/institution.dto';
 
 export class InstitutionController {
   async list(_req: Request, res: Response): Promise<void> {
@@ -28,6 +28,12 @@ export class InstitutionController {
   async updateConfig(req: Request, res: Response): Promise<void> {
     const input = req.body as UpdateInstitutionConfigDto;
     const institution = await institutionService.updateConfig(String(req.params.institutionId), input);
+    res.json(institution);
+  }
+
+  async updateStatus(req: Request, res: Response): Promise<void> {
+    const input = req.body as UpdateInstitutionStatusDto;
+    const institution = await institutionService.updateStatus(String(req.params.institutionId), input.status);
     res.json(institution);
   }
 

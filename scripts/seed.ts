@@ -269,12 +269,6 @@ async function main() {
       [sanMartin.id, planEstandar.id, 130000, '2026-08-15', 'EN_NEGOCIACION', 12],
     );
 
-    await client.query(
-      `INSERT INTO "OAuthIntegration" ("institutionId", "provider", "clientId", "currentStepIndex")
-       VALUES ($1, $2, $3, $4)`,
-      [belgranoNorte.id, 'GOOGLE', 'habitar_belgrano_norte_20260601', 1],
-    );
-
     for (const c of [
       { name: 'API Backend (AWS ECS)', health: 'OPERATIVO', uptimePercent: 99.7 },
       { name: 'Base de datos PostgreSQL (RDS)', health: 'OPERATIVO', uptimePercent: 100 },

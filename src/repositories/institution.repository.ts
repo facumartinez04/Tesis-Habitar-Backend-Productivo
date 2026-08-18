@@ -55,6 +55,7 @@ export interface InstitutionRepository {
   findByDomain(domain: string): Promise<Institution | null>;
   create(input: CreateInstitutionInput): Promise<Institution>;
   updateConfig(id: string, input: UpdateInstitutionConfigInput): Promise<Institution>;
+  updateStatus(id: string, status: Institution['status']): Promise<Institution>;
   getAiMonthlyQuota(id: string): Promise<number>;
 }
 
@@ -126,6 +127,12 @@ export class SqlInstitutionRepository implements InstitutionRepository {
 
       return toDomain(rows[0], { query: runQuery });
     });
+  }
+
+  async updateStatus(id: string, status: Institution['status']): Promise<Institution> {
+    const row = await queryOne<InstitutionRow>('UPDATE "Institution" SET "status" = $1 WHERE "id" = $2 RETURNING *', [status, id]);
+    if (!row) throw new Error(`Institution ${id} no encontrada`);
+    return toDomain(row);
   }
 
   async getAiMonthlyQuota(id: string): Promise<number> {

@@ -8,6 +8,7 @@ export interface InstitutionService {
   getById(id: string): Promise<Institution>;
   create(input: CreateInstitutionInput): Promise<Institution>;
   updateConfig(id: string, input: UpdateInstitutionConfigInput): Promise<Institution>;
+  updateStatus(id: string, status: Institution['status']): Promise<Institution>;
 }
 
 export class DefaultInstitutionService implements InstitutionService {
@@ -35,6 +36,12 @@ export class DefaultInstitutionService implements InstitutionService {
     const existing = await institutionRepository.findById(id);
     if (!existing) throw new NotFoundError('Institución no encontrada');
     return institutionRepository.updateConfig(id, input);
+  }
+
+  async updateStatus(id: string, status: Institution['status']): Promise<Institution> {
+    const existing = await institutionRepository.findById(id);
+    if (!existing) throw new NotFoundError('Institución no encontrada');
+    return institutionRepository.updateStatus(id, status);
   }
 }
 

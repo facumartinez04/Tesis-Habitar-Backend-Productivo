@@ -20,3 +20,9 @@ export const updateInstitutionConfigSchema = z
   });
 
 export type UpdateInstitutionConfigDto = z.infer<typeof updateInstitutionConfigSchema>;
+
+export const updateInstitutionStatusSchema = z.object({
+  status: z.enum(['ACTIVO', 'PILOTO_NO_CONFIRMADO']),
+});
+
+export type UpdateInstitutionStatusDto = z.infer<typeof updateInstitutionStatusSchema>;

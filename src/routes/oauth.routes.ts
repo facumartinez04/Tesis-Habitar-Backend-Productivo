@@ -6,6 +6,6 @@ export const oauthRouter = Router();
 
 oauthRouter.use(requireAuth, requireRole('ADMIN'));
 
-oauthRouter.get('/:institutionId', oauthController.getIntegration.bind(oauthController));
-oauthRouter.post('/:institutionId/verify', oauthController.verify.bind(oauthController));
-oauthRouter.post('/:institutionId/resend', oauthController.resend.bind(oauthController));
+oauthRouter.get('/:institutionId', oauthController.getStatus.bind(oauthController));
+oauthRouter.post('/:institutionId/activate', oauthController.activate.bind(oauthController));
+oauthRouter.post('/:institutionId/deactivate', oauthController.deactivate.bind(oauthController));
