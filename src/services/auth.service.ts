@@ -1,9 +1,8 @@
-import * as client from 'openid-client';
 import { userRepository } from '../repositories/user.repository';
 import { institutionRepository } from '../repositories/institution.repository';
 import { signToken } from '../utils/jwt';
 import { ForbiddenError, UnauthorizedError } from '../utils/http-error';
-import { getProviderConfig, getRedirectUri } from './oidc-providers';
+import { getProviderConfig, getRedirectUri, loadClient } from './oidc-providers';
 import type { OAuthProviderId, Role } from '../domain/enums';
 import type { Session } from '../domain/auth';
 
@@ -65,6 +64,7 @@ export class DefaultAuthService implements AuthService {
 
   /** CU-01-01: arma la Authorization URL (Authorization Code + PKCE) para redirigir al usuario. */
   async buildAuthorizationRequest(provider: OAuthProviderId): Promise<OAuthAuthorizationRequest> {
+    const client = await loadClient();
     const config = await getProviderConfig(provider);
     const codeVerifier = client.randomPKCECodeVerifier();
     const codeChallenge = await client.calculatePKCECodeChallenge(codeVerifier);
@@ -86,6 +86,7 @@ export class DefaultAuthService implements AuthService {
    * por el dominio del email y busca/crea el usuario. Devuelve una sesión igual a la del login simulado.
    */
   async handleOAuthCallback(input: HandleOAuthCallbackInput): Promise<Session> {
+    const client = await loadClient();
     const config = await getProviderConfig(input.provider);
 
     let tokens;
