@@ -9,6 +9,7 @@ import { subscriptionRouter } from './subscription.routes';
 import { oauthRouter } from './oauth.routes';
 import { monitoringRouter } from './monitoring.routes';
 import { feedbackRouter } from './feedback.routes';
+import { statusRouter } from './status.routes';
 
 export const apiRouter = Router();
 
@@ -22,3 +23,4 @@ apiRouter.use('/subscriptions', subscriptionRouter);
 apiRouter.use('/oauth', oauthRouter);
 apiRouter.use('/monitoring', monitoringRouter);
 apiRouter.use('/feedback', feedbackRouter);
+apiRouter.use('/status', statusRouter);
