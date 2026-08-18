@@ -51,6 +51,8 @@ export interface InstitutionRepository {
   findAll(): Promise<Institution[]>;
   findById(id: string): Promise<Institution | null>;
   findBySlug(slug: string): Promise<Institution | null>;
+  /** CU-01-01: resuelve el tenant a partir del dominio del email institucional. */
+  findByDomain(domain: string): Promise<Institution | null>;
   create(input: CreateInstitutionInput): Promise<Institution>;
   updateConfig(id: string, input: UpdateInstitutionConfigInput): Promise<Institution>;
   getAiMonthlyQuota(id: string): Promise<number>;
@@ -69,6 +71,11 @@ export class SqlInstitutionRepository implements InstitutionRepository {
 
   async findBySlug(slug: string): Promise<Institution | null> {
     const row = await queryOne<InstitutionRow>('SELECT * FROM "Institution" WHERE "slug" = $1', [slug]);
+    return row ? toDomain(row) : null;
+  }
+
+  async findByDomain(domain: string): Promise<Institution | null> {
+    const row = await queryOne<InstitutionRow>('SELECT * FROM "Institution" WHERE lower("domain") = lower($1)', [domain]);
     return row ? toDomain(row) : null;
   }
 

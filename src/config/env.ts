@@ -10,9 +10,23 @@ export const env = {
   port: Number(process.env.PORT ?? 4000),
   jwtSecret: requireEnv('JWT_SECRET'),
   databaseUrl: requireEnv('DATABASE_URL'),
+  frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:4321',
   deepseek: {
     apiKey: process.env.DEEPSEEK_API_KEY ?? '',
     apiUrl: process.env.DEEPSEEK_API_URL ?? 'https://api.deepseek.com/chat/completions',
     model: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
+  },
+  oauth: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID ?? '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+      redirectUri: process.env.GOOGLE_REDIRECT_URI ?? '',
+    },
+    microsoft: {
+      clientId: process.env.MICROSOFT_CLIENT_ID ?? '',
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET ?? '',
+      tenantId: process.env.MICROSOFT_TENANT_ID ?? 'common',
+      redirectUri: process.env.MICROSOFT_REDIRECT_URI ?? '',
+    },
   },
 };
