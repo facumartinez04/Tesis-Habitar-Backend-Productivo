@@ -82,16 +82,20 @@ por una llamada real a un LLM sin tocar el resto de las capas.
 PostgreSQL vía Prisma (`prisma/schema.prisma`). No requiere nada instalado localmente: alcanza con
 apuntar `DATABASE_URL` a cualquier Postgres accesible (Coolify, Railway, RDS, un contenedor propio, etc).
 
-### Deploy en Coolify (o cualquier hosting con Postgres administrado)
+### Deploy en Coolify (con Neon como base de datos)
 
-1. Creá un recurso PostgreSQL en Coolify (o el hosting elegido) y copiá su cadena de conexión.
-2. En el servicio del backend, seteá `DATABASE_URL="postgresql://usuario:pass@host:5432/db?schema=public"`
-   junto con el resto de las variables de `.env.example` (`JWT_SECRET`, `DEEPSEEK_API_KEY`, etc).
-3. Aplicá el schema con **una** de estas dos opciones (son equivalentes):
-   - `npx prisma migrate deploy` — recomendado: usa las migraciones versionadas en
-     `prisma/migrations/` y deja la tabla `_prisma_migrations` lista para futuras migraciones.
-   - `psql "$DATABASE_URL" -f prisma/schema.postgresql.sql` — corre el `.sql` plano si preferís
-     ejecutarlo a mano (mismo contenido que la migración, sin el tracking de Prisma).
+La base de datos es **Neon** (neon.tech, Postgres administrado en la nube) — no requiere Postgres
+propio en Coolify.
+
+1. Creá un proyecto en Neon y copiá la connection string **"direct"** (no la "pooled"/PgBouncer,
+   que puede dar problemas con `prisma migrate deploy`). Tiene que incluir `sslmode=require`:
+   `postgresql://usuario:password@ep-xxxx.region.aws.neon.tech/neondb?sslmode=require`
+2. En el servicio del backend en Coolify (pestaña **Environment Variables**), seteá `DATABASE_URL`
+   con esa string, junto con `JWT_SECRET` (cualquier string random) y el resto de `.env.example`.
+3. El comando `start` (`prisma migrate deploy && node dist/server.js`) aplica las migraciones
+   automáticamente contra Neon en cada arranque — no hace falta correrlas a mano. Si preferís
+   aplicarlas manualmente antes del primer deploy: `npx prisma migrate deploy` (con `DATABASE_URL`
+   apuntando a Neon), o correr el `.sql` plano con `psql "$DATABASE_URL" -f prisma/schema.postgresql.sql`.
 4. (Opcional) `npx prisma db seed` para cargar los datos de ejemplo que usa el frontend.
 
 El SQL completo (23 tablas, enums nativos de Postgres, todas las foreign keys e índices) vive en
