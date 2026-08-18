@@ -62,6 +62,7 @@ export class AuthController {
     const { state, codeVerifier } = JSON.parse(raw) as { state: string; codeVerifier: string };
 
     const callbackUrl = new URL(req.originalUrl, `${req.protocol}://${req.get('host')}`);
+    console.log('[auth] callback recibido', { provider: providerParam, protocol: req.protocol, host: req.get('host'), url: callbackUrl.toString() });
 
     try {
       const session = await authService.handleOAuthCallback({

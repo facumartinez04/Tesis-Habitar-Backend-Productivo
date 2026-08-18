@@ -95,7 +95,16 @@ export class DefaultAuthService implements AuthService {
         pkceCodeVerifier: input.codeVerifier,
         expectedState: input.expectedState,
       });
-    } catch {
+    } catch (err) {
+      // El derived redirect_uri sale de `input.callbackUrl` (origin + pathname, sin query) —
+      // si no coincide EXACTO con GOOGLE_REDIRECT_URI/MICROSOFT_REDIRECT_URI, el proveedor
+      // rechaza el intercambio de code por tokens. Logueamos ambos para poder compararlos.
+      console.error('[auth] falló authorizationCodeGrant', {
+        provider: input.provider,
+        derivedRedirectUri: `${input.callbackUrl.origin}${input.callbackUrl.pathname}`,
+        configuredRedirectUri: getRedirectUri(input.provider),
+        error: err,
+      });
       throw new UnauthorizedError('No se pudo validar la respuesta del proveedor de login');
     }
 
