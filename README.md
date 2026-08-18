@@ -51,9 +51,29 @@ Otros scripts:
 
 ## Autenticación
 
-`POST /api/auth/login` con `{ "provider": "GOOGLE" | "MICROSOFT" }` simula el login OAuth (igual
-que hoy hace el frontend) y devuelve un JWT propio. `GOOGLE` resuelve al usuario docente semilla,
-`MICROSOFT` al coordinador. Las rutas protegidas requieren `Authorization: Bearer <token>`.
+### Login real (CU-01-01)
+
+`GET /api/auth/google` y `GET /api/auth/microsoft` arrancan el flujo real de OAuth 2.0 / OIDC
+(Authorization Code + PKCE, vía `openid-client`) — el navegador termina en la pantalla de login
+real de Google/Microsoft. El backend valida el `id_token`, resuelve la institución por el **dominio
+del email** (`Institution.domain`) y crea al usuario si no existía (rol DOCENTE por defecto). Si el
+dominio no corresponde a ninguna institución activa, o el usuario está desactivado, se rechaza.
+
+Requiere `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` y/o `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET`
+configurados (ver `.env.example`). Sin esas credenciales, esos endpoints devuelven error, pero el
+resto de la app sigue funcionando con el login simulado.
+
+- Google: credenciales en [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials),
+  tipo "Web application", con `GOOGLE_REDIRECT_URI` como Authorized redirect URI.
+- Microsoft: registrar la app en [Azure Portal → Microsoft Entra ID → App registrations](https://portal.azure.com),
+  con `MICROSOFT_REDIRECT_URI` como Redirect URI (tipo Web).
+
+### Login simulado (desarrollo/demo)
+
+`POST /api/auth/login` con `{ "provider": "GOOGLE" | "MICROSOFT" }` devuelve un JWT sin pasar por
+ningún proveedor real — resuelve a un usuario semilla fijo (`GOOGLE` → docente, `MICROSOFT` →
+coordinador). Útil para probar sin configurar credenciales OAuth. Las rutas protegidas requieren
+`Authorization: Bearer <token>` en ambos casos.
 
 ## Endpoints principales
 
