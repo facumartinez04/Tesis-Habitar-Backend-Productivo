@@ -1,31 +1,37 @@
 # Habitar — Backend
 
-API REST del proyecto Habitar, construida en capas con Node.js, Express, TypeScript y Prisma (PostgreSQL).
+API REST del proyecto Habitar, construida en capas con Node.js, Express, TypeScript y SQL plano
+(`pg`) sobre PostgreSQL.
 
 ## Arquitectura en capas
 
 ```
 src/
-  domain/         Entidades y tipos de negocio puros (sin dependencias de Prisma ni Express)
+  domain/         Entidades y tipos de negocio puros (sin dependencias de pg ni Express)
   dto/            Esquemas Zod para validar el body de las requests
-  repositories/   Acceso a datos (Prisma) detrás de interfaces — Data Access Layer
+  repositories/   Acceso a datos — SQL plano vía `pg` detrás de interfaces (Data Access Layer)
   services/       Lógica de negocio — orquesta repositorios, aplica reglas de dominio
   controllers/    Capa HTTP — parsea el request, llama al service, arma la respuesta
   routes/         Registro de rutas de Express, aplica middlewares por endpoint
   middlewares/    Auth (JWT), validación de body, manejo centralizado de errores
-  config/         Variables de entorno, cliente Prisma singleton
+  config/         Variables de entorno, pool de conexión (`config/db.ts`)
   utils/          JWT, errores HTTP tipados
+db/
+  migrations/     Migraciones SQL versionadas, numeradas y aplicadas en orden
+scripts/
+  migrate.ts      Corre las migraciones pendientes (tracking en la tabla "_migrations")
+  seed.ts         Carga los datos de ejemplo que usa el frontend
 ```
 
-Flujo de una request: `routes → middlewares → controller → service → repository → Prisma → PostgreSQL`.
+Flujo de una request: `routes → middlewares → controller → service → repository → pg → PostgreSQL`.
 
-Cada capa solo conoce la inmediatamente inferior. Los `domain/*.ts` no importan nada de Prisma —
-los repositorios son responsables de mapear el modelo de Prisma al tipo de dominio (`toDomain`).
+Cada capa solo conoce la inmediatamente inferior. Los `domain/*.ts` no importan nada de `pg` —
+los repositorios son responsables de mapear las filas devueltas por Postgres al tipo de dominio.
 
 ## Stack
 
 - **Express 5** — enrutamiento y HTTP
-- **Prisma + PostgreSQL** — ORM y base de datos
+- **pg (node-postgres) + PostgreSQL** — acceso a datos por SQL plano, sin ORM
 - **Zod** — validación de DTOs de entrada
 - **jsonwebtoken** — sesión vía JWT (login OAuth simulado, igual que el frontend)
 
@@ -34,14 +40,14 @@ los repositorios son responsables de mapear el modelo de Prisma al tipo de domin
 ```bash
 npm install
 # completá DATABASE_URL en .env (ver .env.example) apuntando a tu Postgres
-npm run prisma:migrate   # aplica las migraciones (o npx prisma migrate deploy en prod)
-npm run prisma:seed      # carga los mismos datos de ejemplo que usa el frontend
-npm run dev               # levanta la API en http://localhost:4000
+npm run db:migrate   # aplica las migraciones de db/migrations/ (idempotente)
+npm run db:seed      # carga los mismos datos de ejemplo que usa el frontend
+npm run dev            # levanta la API en http://localhost:4000
 ```
 
 Otros scripts:
-- `npm run build` / `npm start` — build de producción y ejecución de `dist/`
-- `npm run prisma:studio` — explorador visual de la base de datos
+- `npm run build` / `npm start` — build de producción y ejecución de `dist/` (`start` corre
+  `db:migrate` antes de levantar el server, así que las migraciones nuevas se aplican solas en cada deploy).
 
 ## Autenticación
 
@@ -70,40 +76,42 @@ que hoy hace el frontend) y devuelve un JWT propio. `GOOGLE` resuelve al usuario
 | GET/POST | `/api/oauth/:institutionId/*` | ADMIN |
 | GET | `/api/monitoring` | ADMIN |
 
-## Generación de preguntas (IA simulada)
+## Generación de preguntas con IA
 
-`question-generator.service.ts` expone la interfaz `QuestionGenerator`. La implementación actual
-(`TemplateQuestionGenerator`) genera preguntas de opción múltiple con distractores reales a partir
-del texto ingresado, sin depender de un proveedor externo. El puerto queda listo para reemplazarse
-por una llamada real a un LLM sin tocar el resto de las capas.
+`question-generator.service.ts` expone la interfaz `QuestionGenerator`. Si hay `DEEPSEEK_API_KEY`
+configurada, se usa la API real de DeepSeek (`deepseek-question-generator.service.ts`); si no, cae
+al `TemplateQuestionGenerator` (opción múltiple con distractores reales, sin proveedor externo).
 
 ## Base de datos
 
-PostgreSQL vía Prisma (`prisma/schema.prisma`). No requiere nada instalado localmente: alcanza con
-apuntar `DATABASE_URL` a cualquier Postgres accesible (Coolify, Railway, RDS, un contenedor propio, etc).
+PostgreSQL, sin ORM — las queries están escritas a mano en cada repository usando `pg`. No requiere
+nada instalado localmente: alcanza con apuntar `DATABASE_URL` a cualquier Postgres accesible
+(Neon, Coolify, Railway, RDS, un contenedor propio, etc).
+
+Los ids de todas las tablas se generan del lado de la base (`gen_random_uuid()`, vía la extensión
+`pgcrypto`) — los repositories no arman los ids en JS, solo hacen `INSERT ... RETURNING`.
+
+### Migraciones
+
+`db/migrations/*.sql`, aplicadas en orden por nombre de archivo. `npm run db:migrate` (o
+`tsx scripts/migrate.ts`) crea una tabla `_migrations` que trackea cuáles ya corrieron, así que es
+seguro correrlo en cada deploy — las que ya se aplicaron se saltean.
+
+Para agregar un cambio de schema: crear un nuevo archivo `db/migrations/00N_descripcion.sql` con el
+`ALTER TABLE`/`CREATE TABLE` que corresponda y correr `npm run db:migrate`.
 
 ### Deploy en Coolify (con Neon como base de datos)
 
-La base de datos es **Neon** (neon.tech, Postgres administrado en la nube) — no requiere Postgres
-propio en Coolify.
+La base de datos recomendada es **Neon** (neon.tech, Postgres administrado en la nube) — no
+requiere Postgres propio en Coolify.
 
-1. Creá un proyecto en Neon y copiá la connection string **"direct"** (no la "pooled"/PgBouncer,
-   que puede dar problemas con `prisma migrate deploy`). Tiene que incluir `sslmode=require`:
+1. Creá un proyecto en Neon y copiá la connection string **"direct"** (no la "pooled"/PgBouncer).
+   Tiene que incluir `sslmode=require`:
    `postgresql://usuario:password@ep-xxxx.region.aws.neon.tech/neondb?sslmode=require`
 2. En el servicio del backend en Coolify (pestaña **Environment Variables**), seteá `DATABASE_URL`
    con esa string, junto con `JWT_SECRET` (cualquier string random) y el resto de `.env.example`.
-3. El comando `start` (`prisma migrate deploy && node dist/server.js`) aplica las migraciones
-   automáticamente contra Neon en cada arranque — no hace falta correrlas a mano. Si preferís
-   aplicarlas manualmente antes del primer deploy: `npx prisma migrate deploy` (con `DATABASE_URL`
-   apuntando a Neon), o correr el `.sql` plano con `psql "$DATABASE_URL" -f prisma/schema.postgresql.sql`.
-4. (Opcional) `npx prisma db seed` para cargar los datos de ejemplo que usa el frontend.
-
-El SQL completo (23 tablas, enums nativos de Postgres, todas las foreign keys e índices) vive en
-[`prisma/schema.postgresql.sql`](prisma/schema.postgresql.sql) y en
-[`prisma/migrations/20260817180000_init_postgresql/migration.sql`](prisma/migrations/20260817180000_init_postgresql/migration.sql) —
-se generó con `prisma migrate diff --from-empty` (no necesita una base viva para generarse).
-
-Las migraciones viejas en SQLite quedaron archivadas en `prisma/migrations_sqlite_archive/`
-(no se aplican más — se conservan solo como historial de cambios de schema).
+3. El comando `start` (`npm run db:migrate && node dist/server.js`) aplica las migraciones
+   automáticamente contra Neon en cada arranque — no hace falta correrlas a mano.
+4. (Opcional) `npm run db:seed` para cargar los datos de ejemplo que usa el frontend.
 
 # Tesis-Habitar-Backend

@@ -1,19 +1,31 @@
-import type { Question as PrismaQuestion } from '@prisma/client';
-import { prisma } from '../config/prisma';
+import { query } from '../config/db';
 import type { Question } from '../domain/question';
 
-function toDomain(record: PrismaQuestion): Question {
+interface QuestionRow {
+  id: string;
+  activityId: string;
+  axis: Question['axis'];
+  prompt: string;
+  expectedAnswer: string;
+  optionsJson: string | null;
+  correctOption: string | null;
+  edited: boolean;
+  approved: boolean;
+  order: number;
+}
+
+function toDomain(row: QuestionRow): Question {
   return {
-    id: record.id,
-    activityId: record.activityId,
-    axis: record.axis,
-    prompt: record.prompt,
-    expectedAnswer: record.expectedAnswer,
-    options: record.optionsJson ? JSON.parse(record.optionsJson) : null,
-    correctOption: record.correctOption,
-    edited: record.edited,
-    approved: record.approved,
-    order: record.order,
+    id: row.id,
+    activityId: row.activityId,
+    axis: row.axis,
+    prompt: row.prompt,
+    expectedAnswer: row.expectedAnswer,
+    options: row.optionsJson ? JSON.parse(row.optionsJson) : null,
+    correctOption: row.correctOption,
+    edited: row.edited,
+    approved: row.approved,
+    order: row.order,
   };
 }
 
@@ -22,16 +34,17 @@ export interface QuestionRepository {
   findByIds(ids: string[]): Promise<Question[]>;
 }
 
-export class PrismaQuestionRepository implements QuestionRepository {
+export class SqlQuestionRepository implements QuestionRepository {
   async findByActivity(activityId: string): Promise<Question[]> {
-    const records = await prisma.question.findMany({ where: { activityId }, orderBy: { order: 'asc' } });
-    return records.map(toDomain);
+    const rows = await query<QuestionRow>('SELECT * FROM "Question" WHERE "activityId" = $1 ORDER BY "order" ASC', [activityId]);
+    return rows.map(toDomain);
   }
 
   async findByIds(ids: string[]): Promise<Question[]> {
-    const records = await prisma.question.findMany({ where: { id: { in: ids } } });
-    return records.map(toDomain);
+    if (ids.length === 0) return [];
+    const rows = await query<QuestionRow>('SELECT * FROM "Question" WHERE "id" = ANY($1)', [ids]);
+    return rows.map(toDomain);
   }
 }
 
-export const questionRepository = new PrismaQuestionRepository();
+export const questionRepository = new SqlQuestionRepository();

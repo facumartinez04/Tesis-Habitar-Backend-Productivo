@@ -1,4 +1,4 @@
-import { prisma } from '../config/prisma';
+import { query, queryOne } from '../config/db';
 
 export interface RawAxisAverages {
   literal: number;
@@ -29,98 +29,106 @@ export interface ResultRepository {
   getInstitutionAverages(institutionId: string): Promise<RawAxisAverages>;
   getInstitutionActivityCount(institutionId: string): Promise<number>;
   getStudentHistory(studentId: string): Promise<RawResultHistoryRow[]>;
-
   getCourseAveragesBetween(courseId: string, from: Date, to: Date): Promise<RawAxisAverages>;
 }
 
-function average(values: number[]): number {
-  if (values.length === 0) return 0;
-  return Math.round(values.reduce((sum, v) => sum + v, 0) / values.length);
+interface AveragesRow {
+  literal: string | null;
+  inferencial: string | null;
+  critico: string | null;
 }
 
-export class PrismaResultRepository implements ResultRepository {
+function toAverages(row: AveragesRow | null): RawAxisAverages {
+  return {
+    literal: row?.literal ? Math.round(Number(row.literal)) : 0,
+    inferencial: row?.inferencial ? Math.round(Number(row.inferencial)) : 0,
+    critico: row?.critico ? Math.round(Number(row.critico)) : 0,
+  };
+}
+
+export class SqlResultRepository implements ResultRepository {
   async getCourseAverages(courseId: string): Promise<RawAxisAverages> {
-    const results = await prisma.studentResult.findMany({
-      where: { activity: { courseId } },
-      select: { literalScore: true, inferencialScore: true, criticoScore: true },
-    });
-    return {
-      literal: average(results.map((r) => r.literalScore)),
-      inferencial: average(results.map((r) => r.inferencialScore)),
-      critico: average(results.map((r) => r.criticoScore)),
-    };
+    const row = await queryOne<AveragesRow>(
+      `SELECT AVG(sr."literalScore") AS literal, AVG(sr."inferencialScore") AS inferencial, AVG(sr."criticoScore") AS critico
+         FROM "StudentResult" sr
+         JOIN "Activity" a ON a."id" = sr."activityId"
+        WHERE a."courseId" = $1`,
+      [courseId],
+    );
+    return toAverages(row);
   }
 
   async getCourseActivityCount(courseId: string): Promise<number> {
-    return prisma.activity.count({ where: { courseId } });
+    const row = await queryOne<{ count: string }>('SELECT COUNT(*) FROM "Activity" WHERE "courseId" = $1', [courseId]);
+    return Number(row?.count ?? 0);
   }
 
   async getCourseLatestScoresPerStudent(courseId: string): Promise<RawStudentResult[]> {
-    const students = await prisma.student.findMany({
-      where: { courseId },
-      include: {
-        results: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
-      },
-    });
-
-    return students.map((student) => {
-      const latest = student.results[0];
-      return {
-        studentId: student.id,
-        studentName: student.name,
-        literal: latest?.literalScore ?? null,
-        inferencial: latest?.inferencialScore ?? null,
-        critico: latest?.criticoScore ?? null,
-      };
-    });
+    const rows = await query<RawStudentResult>(
+      `SELECT s."id" AS "studentId", s."name" AS "studentName",
+              lr."literalScore" AS literal, lr."inferencialScore" AS inferencial, lr."criticoScore" AS critico
+         FROM "Student" s
+         LEFT JOIN LATERAL (
+           SELECT "literalScore", "inferencialScore", "criticoScore"
+             FROM "StudentResult" sr
+            WHERE sr."studentId" = s."id"
+            ORDER BY sr."createdAt" DESC
+            LIMIT 1
+         ) lr ON true
+        WHERE s."courseId" = $1`,
+      [courseId],
+    );
+    return rows.map((r) => ({
+      studentId: r.studentId,
+      studentName: r.studentName,
+      literal: r.literal ?? null,
+      inferencial: r.inferencial ?? null,
+      critico: r.critico ?? null,
+    }));
   }
 
   async getInstitutionAverages(institutionId: string): Promise<RawAxisAverages> {
-    const results = await prisma.studentResult.findMany({
-      where: { activity: { course: { institutionId } } },
-      select: { literalScore: true, inferencialScore: true, criticoScore: true },
-    });
-    return {
-      literal: average(results.map((r) => r.literalScore)),
-      inferencial: average(results.map((r) => r.inferencialScore)),
-      critico: average(results.map((r) => r.criticoScore)),
-    };
+    const row = await queryOne<AveragesRow>(
+      `SELECT AVG(sr."literalScore") AS literal, AVG(sr."inferencialScore") AS inferencial, AVG(sr."criticoScore") AS critico
+         FROM "StudentResult" sr
+         JOIN "Activity" a ON a."id" = sr."activityId"
+         JOIN "Course" c ON c."id" = a."courseId"
+        WHERE c."institutionId" = $1`,
+      [institutionId],
+    );
+    return toAverages(row);
   }
 
   async getInstitutionActivityCount(institutionId: string): Promise<number> {
-    return prisma.activity.count({ where: { course: { institutionId } } });
+    const row = await queryOne<{ count: string }>(
+      `SELECT COUNT(*) FROM "Activity" a JOIN "Course" c ON c."id" = a."courseId" WHERE c."institutionId" = $1`,
+      [institutionId],
+    );
+    return Number(row?.count ?? 0);
   }
 
   async getCourseAveragesBetween(courseId: string, from: Date, to: Date): Promise<RawAxisAverages> {
-    const results = await prisma.studentResult.findMany({
-      where: { activity: { courseId }, createdAt: { gte: from, lte: to } },
-      select: { literalScore: true, inferencialScore: true, criticoScore: true },
-    });
-    return {
-      literal: average(results.map((r) => r.literalScore)),
-      inferencial: average(results.map((r) => r.inferencialScore)),
-      critico: average(results.map((r) => r.criticoScore)),
-    };
+    const row = await queryOne<AveragesRow>(
+      `SELECT AVG(sr."literalScore") AS literal, AVG(sr."inferencialScore") AS inferencial, AVG(sr."criticoScore") AS critico
+         FROM "StudentResult" sr
+         JOIN "Activity" a ON a."id" = sr."activityId"
+        WHERE a."courseId" = $1 AND sr."createdAt" >= $2 AND sr."createdAt" <= $3`,
+      [courseId, from, to],
+    );
+    return toAverages(row);
   }
 
   async getStudentHistory(studentId: string): Promise<RawResultHistoryRow[]> {
-    const results = await prisma.studentResult.findMany({
-      where: { studentId },
-      orderBy: { createdAt: 'desc' },
-      include: { activity: { select: { name: true } } },
-    });
-
-    return results.map((result) => ({
-      activityName: result.activity.name,
-      date: result.createdAt,
-      literal: result.literalScore,
-      inferencial: result.inferencialScore,
-      critico: result.criticoScore,
-    }));
+    return query<RawResultHistoryRow>(
+      `SELECT a."name" AS "activityName", sr."createdAt" AS date,
+              sr."literalScore" AS literal, sr."inferencialScore" AS inferencial, sr."criticoScore" AS critico
+         FROM "StudentResult" sr
+         JOIN "Activity" a ON a."id" = sr."activityId"
+        WHERE sr."studentId" = $1
+        ORDER BY sr."createdAt" DESC`,
+      [studentId],
+    );
   }
 }
 
-export const resultRepository = new PrismaResultRepository();
+export const resultRepository = new SqlResultRepository();

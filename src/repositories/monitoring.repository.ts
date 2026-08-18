@@ -1,4 +1,4 @@
-import { prisma } from '../config/prisma';
+import { query } from '../config/db';
 import type { IncidentRecord, SystemComponentStatus } from '../domain/monitoring';
 
 export interface MonitoringRepository {
@@ -6,16 +6,14 @@ export interface MonitoringRepository {
   listIncidents(): Promise<IncidentRecord[]>;
 }
 
-export class PrismaMonitoringRepository implements MonitoringRepository {
+export class SqlMonitoringRepository implements MonitoringRepository {
   async listComponents(): Promise<SystemComponentStatus[]> {
-    const records = await prisma.monitoringComponent.findMany();
-    return records.map((r) => ({ id: r.id, name: r.name, health: r.health, uptimePercent: r.uptimePercent }));
+    return query<SystemComponentStatus>('SELECT "id", "name", "health", "uptimePercent" FROM "MonitoringComponent"');
   }
 
   async listIncidents(): Promise<IncidentRecord[]> {
-    const records = await prisma.incident.findMany();
-    return records.map((r) => ({ id: r.id, date: r.date, component: r.component, duration: r.duration, status: r.status }));
+    return query<IncidentRecord>('SELECT "id", "date", "component", "duration", "status" FROM "Incident"');
   }
 }
 
-export const monitoringRepository = new PrismaMonitoringRepository();
+export const monitoringRepository = new SqlMonitoringRepository();

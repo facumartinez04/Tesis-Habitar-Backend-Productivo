@@ -1,4 +1,4 @@
-import { prisma } from '../config/prisma';
+import { withTransaction } from '../config/db';
 import type { AxisScores } from '../domain/result';
 
 export interface CreateResponseInput {
@@ -13,37 +13,34 @@ export interface ResponseRepository {
   create(input: CreateResponseInput): Promise<{ responseId: string; resultId: string }>;
 }
 
-export class PrismaResponseRepository implements ResponseRepository {
+export class SqlResponseRepository implements ResponseRepository {
   async create(input: CreateResponseInput): Promise<{ responseId: string; resultId: string }> {
-    return prisma.$transaction(async (tx) => {
-      const response = await tx.response.create({
-        data: {
-          activityId: input.activityId,
-          studentId: input.studentId,
-          studentDisplayName: input.studentDisplayName,
-          answers: {
-            create: input.answers.map((answer) => ({
-              questionId: answer.questionId,
-              selectedOption: answer.selectedOption,
-            })),
-          },
-        },
-      });
+    return withTransaction(async (client) => {
+      const { rows: responseRows } = await client.query<{ id: string }>(
+        `INSERT INTO "Response" ("activityId", "studentId", "studentDisplayName")
+         VALUES ($1, $2, $3)
+         RETURNING "id"`,
+        [input.activityId, input.studentId, input.studentDisplayName],
+      );
+      const responseId = responseRows[0].id;
 
-      const result = await tx.studentResult.create({
-        data: {
-          studentId: input.studentId,
-          activityId: input.activityId,
-          responseId: response.id,
-          literalScore: input.scores.literal,
-          inferencialScore: input.scores.inferencial,
-          criticoScore: input.scores.critico,
-        },
-      });
+      for (const answer of input.answers) {
+        await client.query(
+          `INSERT INTO "Answer" ("responseId", "questionId", "selectedOption") VALUES ($1, $2, $3)`,
+          [responseId, answer.questionId, answer.selectedOption],
+        );
+      }
 
-      return { responseId: response.id, resultId: result.id };
+      const { rows: resultRows } = await client.query<{ id: string }>(
+        `INSERT INTO "StudentResult" ("studentId", "activityId", "responseId", "literalScore", "inferencialScore", "criticoScore")
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING "id"`,
+        [input.studentId, input.activityId, responseId, input.scores.literal, input.scores.inferencial, input.scores.critico],
+      );
+
+      return { responseId, resultId: resultRows[0].id };
     });
   }
 }
 
-export const responseRepository = new PrismaResponseRepository();
+export const responseRepository = new SqlResponseRepository();

@@ -1,4 +1,4 @@
-import { prisma } from '../config/prisma';
+import { queryOne } from '../config/db';
 import type { OAuthProviderId } from '../domain/enums';
 
 export interface RawOAuthIntegration {
@@ -13,31 +13,17 @@ export interface OAuthIntegrationRepository {
   advanceStep(institutionId: string, nextStepIndex: number): Promise<RawOAuthIntegration | null>;
 }
 
-export class PrismaOAuthIntegrationRepository implements OAuthIntegrationRepository {
+export class SqlOAuthIntegrationRepository implements OAuthIntegrationRepository {
   async findByInstitution(institutionId: string): Promise<RawOAuthIntegration | null> {
-    const record = await prisma.oAuthIntegration.findUnique({ where: { institutionId } });
-    return record
-      ? {
-          institutionId: record.institutionId,
-          provider: record.provider,
-          clientId: record.clientId,
-          currentStepIndex: record.currentStepIndex,
-        }
-      : null;
+    return queryOne<RawOAuthIntegration>('SELECT * FROM "OAuthIntegration" WHERE "institutionId" = $1', [institutionId]);
   }
 
   async advanceStep(institutionId: string, nextStepIndex: number): Promise<RawOAuthIntegration | null> {
-    const record = await prisma.oAuthIntegration.update({
-      where: { institutionId },
-      data: { currentStepIndex: nextStepIndex },
-    });
-    return {
-      institutionId: record.institutionId,
-      provider: record.provider,
-      clientId: record.clientId,
-      currentStepIndex: record.currentStepIndex,
-    };
+    return queryOne<RawOAuthIntegration>(
+      'UPDATE "OAuthIntegration" SET "currentStepIndex" = $1 WHERE "institutionId" = $2 RETURNING *',
+      [nextStepIndex, institutionId],
+    );
   }
 }
 
-export const oauthIntegrationRepository = new PrismaOAuthIntegrationRepository();
+export const oauthIntegrationRepository = new SqlOAuthIntegrationRepository();

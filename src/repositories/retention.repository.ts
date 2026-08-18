@@ -1,56 +1,57 @@
-import { prisma } from '../config/prisma';
+import { query, queryOne } from '../config/db';
 import type { RetentionPolicy } from '../domain/compliance';
-
-function toDomain(record: { institutionId: string; retentionMonths: number; lastPurgeAt: Date | null }): RetentionPolicy {
-  return { institutionId: record.institutionId, retentionMonths: record.retentionMonths, lastPurgeAt: record.lastPurgeAt };
-}
 
 export interface RetentionRepository {
   get(institutionId: string): Promise<RetentionPolicy>;
   setRetentionMonths(institutionId: string, months: number): Promise<RetentionPolicy>;
   markPurged(institutionId: string): Promise<void>;
-
   findStudentsEligibleForPurge(institutionId: string, cutoff: Date): Promise<{ id: string; name: string }[]>;
   deleteStudents(ids: string[]): Promise<number>;
 }
 
 const DEFAULT_RETENTION_MONTHS = 24;
 
-export class PrismaRetentionRepository implements RetentionRepository {
+export class SqlRetentionRepository implements RetentionRepository {
   async get(institutionId: string): Promise<RetentionPolicy> {
-    const record = await prisma.retentionPolicy.upsert({
-      where: { institutionId },
-      create: { institutionId, retentionMonths: DEFAULT_RETENTION_MONTHS },
-      update: {},
-    });
-    return toDomain(record);
+    const row = await queryOne<RetentionPolicy>(
+      `INSERT INTO "RetentionPolicy" ("institutionId", "retentionMonths")
+       VALUES ($1, $2)
+       ON CONFLICT ("institutionId") DO UPDATE SET "institutionId" = EXCLUDED."institutionId"
+       RETURNING "institutionId", "retentionMonths", "lastPurgeAt"`,
+      [institutionId, DEFAULT_RETENTION_MONTHS],
+    );
+    return row!;
   }
 
   async setRetentionMonths(institutionId: string, months: number): Promise<RetentionPolicy> {
-    const record = await prisma.retentionPolicy.upsert({
-      where: { institutionId },
-      create: { institutionId, retentionMonths: months },
-      update: { retentionMonths: months },
-    });
-    return toDomain(record);
+    const row = await queryOne<RetentionPolicy>(
+      `INSERT INTO "RetentionPolicy" ("institutionId", "retentionMonths")
+       VALUES ($1, $2)
+       ON CONFLICT ("institutionId") DO UPDATE SET "retentionMonths" = EXCLUDED."retentionMonths", "updatedAt" = now()
+       RETURNING "institutionId", "retentionMonths", "lastPurgeAt"`,
+      [institutionId, months],
+    );
+    return row!;
   }
 
   async markPurged(institutionId: string): Promise<void> {
-    await prisma.retentionPolicy.update({ where: { institutionId }, data: { lastPurgeAt: new Date() } });
+    await query('UPDATE "RetentionPolicy" SET "lastPurgeAt" = now() WHERE "institutionId" = $1', [institutionId]);
   }
 
   async findStudentsEligibleForPurge(institutionId: string, cutoff: Date): Promise<{ id: string; name: string }[]> {
-    return prisma.student.findMany({
-      where: { course: { institutionId }, createdAt: { lt: cutoff } },
-      select: { id: true, name: true },
-    });
+    return query<{ id: string; name: string }>(
+      `SELECT s."id", s."name" FROM "Student" s
+         JOIN "Course" c ON c."id" = s."courseId"
+        WHERE c."institutionId" = $1 AND s."createdAt" < $2`,
+      [institutionId, cutoff],
+    );
   }
 
   async deleteStudents(ids: string[]): Promise<number> {
     if (ids.length === 0) return 0;
-    const result = await prisma.student.deleteMany({ where: { id: { in: ids } } });
-    return result.count;
+    const result = await query('DELETE FROM "Student" WHERE "id" = ANY($1) RETURNING "id"', [ids]);
+    return result.length;
   }
 }
 
-export const retentionRepository = new PrismaRetentionRepository();
+export const retentionRepository = new SqlRetentionRepository();
