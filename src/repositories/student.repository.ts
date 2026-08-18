@@ -1,15 +1,5 @@
-import type { Student as PrismaStudent } from '@prisma/client';
-import { prisma } from '../config/prisma';
+import { query, queryOne } from '../config/db';
 import type { Student } from '../domain/student';
-
-function toDomain(record: PrismaStudent): Student {
-  return {
-    id: record.id,
-    name: record.name,
-    initials: record.initials,
-    courseId: record.courseId,
-  };
-}
 
 export interface StudentRepository {
   findById(id: string): Promise<Student | null>;
@@ -26,40 +16,39 @@ function initialsOf(name: string): string {
   return (first + last).toUpperCase();
 }
 
-export class PrismaStudentRepository implements StudentRepository {
+export class SqlStudentRepository implements StudentRepository {
   async findById(id: string): Promise<Student | null> {
-    const record = await prisma.student.findUnique({ where: { id } });
-    return record ? toDomain(record) : null;
+    return queryOne<Student>('SELECT "id", "name", "initials", "courseId" FROM "Student" WHERE "id" = $1', [id]);
   }
 
   async findByCourse(courseId: string): Promise<Student[]> {
-    const records = await prisma.student.findMany({ where: { courseId } });
-    return records.map(toDomain);
+    return query<Student>('SELECT "id", "name", "initials", "courseId" FROM "Student" WHERE "courseId" = $1', [courseId]);
   }
 
-  async searchByName(query: string): Promise<Student[]> {
-    const records = await prisma.student.findMany({
-      where: query ? { name: { contains: query } } : undefined,
-    });
-    return records.map(toDomain);
+  async searchByName(search: string): Promise<Student[]> {
+    if (!search) return query<Student>('SELECT "id", "name", "initials", "courseId" FROM "Student"');
+    return query<Student>('SELECT "id", "name", "initials", "courseId" FROM "Student" WHERE "name" LIKE $1', [`%${search}%`]);
   }
 
   async findOrCreateByName(courseId: string, name: string): Promise<Student> {
     const trimmedName = name.trim();
-    const existing = await prisma.student.findFirst({
-      where: { courseId, name: { equals: trimmedName } },
-    });
-    if (existing) return toDomain(existing);
+    const existing = await queryOne<Student>(
+      'SELECT "id", "name", "initials", "courseId" FROM "Student" WHERE "courseId" = $1 AND "name" = $2',
+      [courseId, trimmedName],
+    );
+    if (existing) return existing;
 
-    const created = await prisma.student.create({
-      data: { courseId, name: trimmedName, initials: initialsOf(trimmedName) },
-    });
-    return toDomain(created);
+    const created = await queryOne<Student>(
+      `INSERT INTO "Student" ("courseId", "name", "initials") VALUES ($1, $2, $3)
+       RETURNING "id", "name", "initials", "courseId"`,
+      [courseId, trimmedName, initialsOf(trimmedName)],
+    );
+    return created!;
   }
 
   async delete(id: string): Promise<void> {
-    await prisma.student.delete({ where: { id } });
+    await query('DELETE FROM "Student" WHERE "id" = $1', [id]);
   }
 }
 
-export const studentRepository = new PrismaStudentRepository();
+export const studentRepository = new SqlStudentRepository();

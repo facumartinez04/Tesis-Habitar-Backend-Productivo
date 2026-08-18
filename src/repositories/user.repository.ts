@@ -1,5 +1,4 @@
-import type { User as PrismaUser } from '@prisma/client';
-import { prisma } from '../config/prisma';
+import { query, queryOne } from '../config/db';
 import type { CreateInstitutionUserInput, User } from '../domain/user';
 import type { OAuthProviderId, Role } from '../domain/enums';
 
@@ -12,18 +11,7 @@ function initialsOf(name: string): string {
     .join('');
 }
 
-function toDomain(record: PrismaUser): User {
-  return {
-    id: record.id,
-    name: record.name,
-    initials: record.initials,
-    email: record.email,
-    role: record.role,
-    provider: record.provider,
-    institutionId: record.institutionId,
-    active: record.active,
-  };
-}
+const COLUMNS = '"id", "name", "initials", "email", "role", "provider", "institutionId", "active"';
 
 export interface UserRepository {
   findById(id: string): Promise<User | null>;
@@ -37,59 +25,59 @@ export interface UserRepository {
   setActive(id: string, active: boolean): Promise<User>;
 }
 
-export class PrismaUserRepository implements UserRepository {
+export class SqlUserRepository implements UserRepository {
   async findById(id: string): Promise<User | null> {
-    const record = await prisma.user.findUnique({ where: { id } });
-    return record ? toDomain(record) : null;
+    return queryOne<User>(`SELECT ${COLUMNS} FROM "User" WHERE "id" = $1`, [id]);
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const record = await prisma.user.findUnique({ where: { email } });
-    return record ? toDomain(record) : null;
+    return queryOne<User>(`SELECT ${COLUMNS} FROM "User" WHERE "email" = $1`, [email]);
   }
 
   async findFirstByProviderAndRole(provider: OAuthProviderId, role: Role): Promise<User | null> {
-    const record = await prisma.user.findFirst({ where: { provider, role }, orderBy: { createdAt: 'asc' } });
-    return record ? toDomain(record) : null;
+    return queryOne<User>(
+      `SELECT ${COLUMNS} FROM "User" WHERE "provider" = $1 AND "role" = $2 ORDER BY "createdAt" ASC LIMIT 1`,
+      [provider, role],
+    );
   }
 
   async findFirstByRole(role: Role): Promise<User | null> {
-    const record = await prisma.user.findFirst({ where: { role }, orderBy: { createdAt: 'asc' } });
-    return record ? toDomain(record) : null;
+    return queryOne<User>(`SELECT ${COLUMNS} FROM "User" WHERE "role" = $1 ORDER BY "createdAt" ASC LIMIT 1`, [role]);
   }
 
   async findByInstitution(institutionId: string): Promise<User[]> {
-    const records = await prisma.user.findMany({ where: { institutionId }, orderBy: { createdAt: 'asc' } });
-    return records.map(toDomain);
+    return query<User>(`SELECT ${COLUMNS} FROM "User" WHERE "institutionId" = $1 ORDER BY "createdAt" ASC`, [institutionId]);
   }
 
   async countActiveByInstitution(institutionId: string): Promise<number> {
-    return prisma.user.count({ where: { institutionId, active: true } });
+    const row = await queryOne<{ count: string }>(
+      'SELECT COUNT(*) FROM "User" WHERE "institutionId" = $1 AND "active" = true',
+      [institutionId],
+    );
+    return Number(row?.count ?? 0);
   }
 
   async create(input: CreateInstitutionUserInput): Promise<User> {
-    const record = await prisma.user.create({
-      data: {
-        name: input.name,
-        initials: initialsOf(input.name),
-        email: input.email,
-        role: input.role,
-        provider: input.provider,
-        institutionId: input.institutionId,
-      },
-    });
-    return toDomain(record);
+    const row = await queryOne<User>(
+      `INSERT INTO "User" ("name", "initials", "email", "role", "provider", "institutionId")
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING ${COLUMNS}`,
+      [input.name, initialsOf(input.name), input.email, input.role, input.provider, input.institutionId],
+    );
+    return row!;
   }
 
   async updateRole(id: string, role: Role): Promise<User> {
-    const record = await prisma.user.update({ where: { id }, data: { role } });
-    return toDomain(record);
+    const row = await queryOne<User>(`UPDATE "User" SET "role" = $1 WHERE "id" = $2 RETURNING ${COLUMNS}`, [role, id]);
+    if (!row) throw new Error(`User ${id} no encontrado`);
+    return row;
   }
 
   async setActive(id: string, active: boolean): Promise<User> {
-    const record = await prisma.user.update({ where: { id }, data: { active } });
-    return toDomain(record);
+    const row = await queryOne<User>(`UPDATE "User" SET "active" = $1 WHERE "id" = $2 RETURNING ${COLUMNS}`, [active, id]);
+    if (!row) throw new Error(`User ${id} no encontrado`);
+    return row;
   }
 }
 
-export const userRepository = new PrismaUserRepository();
+export const userRepository = new SqlUserRepository();

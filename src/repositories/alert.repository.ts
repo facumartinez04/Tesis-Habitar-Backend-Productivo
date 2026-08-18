@@ -1,22 +1,21 @@
-import type { PerformanceAlert as PrismaAlert } from '@prisma/client';
-import { prisma } from '../config/prisma';
+import { query, queryOne } from '../config/db';
 import type { PerformanceAlert } from '../domain/alert';
 
-type PrismaAlertWithCourse = PrismaAlert & { course: { name: string; teacher: { name: string } } };
+interface AlertRow {
+  id: string;
+  courseId: string;
+  courseName: string;
+  teacherName: string;
+  axis: PerformanceAlert['axis'];
+  currentValue: number;
+  threshold: number;
+  severity: PerformanceAlert['severity'];
+  detectedAt: string;
+  message: string;
+}
 
-function toDomain(record: PrismaAlertWithCourse): PerformanceAlert {
-  return {
-    id: record.id,
-    courseId: record.courseId,
-    courseName: record.course.name,
-    teacherName: record.course.teacher.name,
-    axis: record.axis,
-    currentValue: record.currentValue,
-    threshold: record.threshold,
-    severity: record.severity,
-    detectedAt: record.detectedAt,
-    message: record.message,
-  };
+function toDomain(row: AlertRow): PerformanceAlert {
+  return { ...row };
 }
 
 export interface AlertRepository {
@@ -24,20 +23,28 @@ export interface AlertRepository {
   countOpenByInstitution(institutionId: string): Promise<number>;
 }
 
-export class PrismaAlertRepository implements AlertRepository {
+export class SqlAlertRepository implements AlertRepository {
   async findByInstitution(institutionId: string): Promise<PerformanceAlert[]> {
-    const records = await prisma.performanceAlert.findMany({
-      where: { course: { institutionId } },
-      include: { course: { select: { name: true, teacher: { select: { name: true } } } } },
-    });
-    return records.map(toDomain);
+    const rows = await query<AlertRow>(
+      `SELECT pa.*, c."name" AS "courseName", u."name" AS "teacherName"
+         FROM "PerformanceAlert" pa
+         JOIN "Course" c ON c."id" = pa."courseId"
+         JOIN "User" u ON u."id" = c."teacherId"
+        WHERE c."institutionId" = $1`,
+      [institutionId],
+    );
+    return rows.map(toDomain);
   }
 
   async countOpenByInstitution(institutionId: string): Promise<number> {
-    return prisma.performanceAlert.count({
-      where: { course: { institutionId }, severity: { not: 'RESUELTA' } },
-    });
+    const row = await queryOne<{ count: string }>(
+      `SELECT COUNT(*) FROM "PerformanceAlert" pa
+         JOIN "Course" c ON c."id" = pa."courseId"
+        WHERE c."institutionId" = $1 AND pa."severity" <> 'RESUELTA'`,
+      [institutionId],
+    );
+    return Number(row?.count ?? 0);
   }
 }
 
-export const alertRepository = new PrismaAlertRepository();
+export const alertRepository = new SqlAlertRepository();
