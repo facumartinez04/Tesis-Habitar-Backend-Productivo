@@ -32,7 +32,12 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
     throw new UnauthorizedError('La cuenta fue desactivada');
   }
 
-  req.auth = payload;
+  // El JWT se firma al momento del login y no se re-emite hasta que expira (7 días). Si acá
+  // usáramos el "role"/"institutionId" que trae el token, un cambio de rol hecho por un admin
+  // no tendría efecto hasta que ese token venza o el usuario cierre sesión manualmente. En vez
+  // de confiar en el claim firmado, pisamos esos campos con el valor actual de la fila en DB en
+  // cada request — el token solo sirve para identificar "quién es" (sub/provider), no "qué puede hacer".
+  req.auth = { ...payload, role: user.role, institutionId: user.institutionId };
   next();
 }
 
