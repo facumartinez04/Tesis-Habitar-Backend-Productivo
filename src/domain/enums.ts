@@ -1,4 +1,4 @@
-export type Role = 'DOCENTE' | 'COORDINADOR' | 'ADMIN';
+export type Role = 'DOCENTE' | 'COORDINADOR' | 'DIRECTOR' | 'ADMIN';
 
 export type OAuthProviderId = 'GOOGLE' | 'MICROSOFT';
 

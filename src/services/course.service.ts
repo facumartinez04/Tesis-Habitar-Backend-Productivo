@@ -9,6 +9,9 @@ export interface CourseService {
   getByQrCode(qrCode: string): Promise<Course>;
   create(input: CreateCourseInput): Promise<Course>;
   setActiveActivity(courseId: string, activityId: string): Promise<void>;
+  assignTeacher(courseId: string, teacherId: string): Promise<Course>;
+  setTeacherCourses(institutionId: string, teacherId: string, courseIds: string[]): Promise<Course[]>;
+  getTeacherCourses(teacherId: string): Promise<Course[]>;
 }
 
 export class DefaultCourseService implements CourseService {
@@ -41,6 +44,19 @@ export class DefaultCourseService implements CourseService {
 
   async setActiveActivity(courseId: string, activityId: string): Promise<void> {
     return courseRepository.setActiveActivity(courseId, activityId);
+  }
+
+  async assignTeacher(courseId: string, teacherId: string): Promise<Course> {
+    await this.getById(courseId); // Verifica que exista
+    return courseRepository.assignTeacher(courseId, teacherId);
+  }
+
+  async setTeacherCourses(institutionId: string, teacherId: string, courseIds: string[]): Promise<Course[]> {
+    return courseRepository.setTeacherCourses(institutionId, teacherId, courseIds);
+  }
+
+  async getTeacherCourses(teacherId: string): Promise<Course[]> {
+    return courseRepository.findByTeacher(teacherId);
   }
 }
 

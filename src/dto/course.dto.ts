@@ -11,3 +11,13 @@ export const createCourseSchema = z.object({
 });
 
 export type CreateCourseDto = z.infer<typeof createCourseSchema>;
+
+export const assignCourseTeacherSchema = z.object({
+  teacherId: z.string().min(1, 'El ID del docente es obligatorio'),
+});
+export type AssignCourseTeacherDto = z.infer<typeof assignCourseTeacherSchema>;
+
+export const setTeacherCoursesSchema = z.object({
+  courseIds: z.array(z.string()),
+});
+export type SetTeacherCoursesDto = z.infer<typeof setTeacherCoursesSchema>;
