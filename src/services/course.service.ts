@@ -8,7 +8,13 @@ export interface CourseService {
 
 export class DefaultCourseService implements CourseService {
   async listForUser(userId: string, role: Role, institutionId: string): Promise<Course[]> {
-    if (role === 'DOCENTE') return courseRepository.findByTeacher(userId);
+    if (role === 'DOCENTE') {
+      const teacherCourses = await courseRepository.findByTeacher(userId);
+      if (teacherCourses.length === 0 && institutionId) {
+        return courseRepository.findByInstitution(institutionId);
+      }
+      return teacherCourses;
+    }
     return courseRepository.findByInstitution(institutionId);
   }
 }
