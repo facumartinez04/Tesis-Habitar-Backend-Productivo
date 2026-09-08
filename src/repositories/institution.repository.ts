@@ -12,7 +12,20 @@ interface InstitutionRow {
   coordinatorEmail: string;
   enabledAxesCsv: string;
   aiMonthlyQuota: number;
+  aiProvider?: string | null;
+  aiKeySource?: string | null;
+  aiCustomApiKey?: string | null;
+  aiModel?: string | null;
   createdAt: Date;
+}
+
+function maskApiKey(key: string | null | undefined): string | null {
+  if (!key || key.trim() === '') return null;
+  const trimmed = key.trim();
+  if (trimmed.length <= 8) return '••••••••';
+  const prefix = trimmed.slice(0, 4);
+  const suffix = trimmed.slice(-4);
+  return `${prefix}••••••••${suffix}`;
 }
 
 function parseAxes(csv: string): ComprehensionAxis[] {
@@ -33,6 +46,10 @@ function slugify(name: string): string {
 
 async function toDomain(row: InstitutionRow, runner: { query: typeof query } = { query }): Promise<Institution> {
   const levels = await runner.query<{ level: EducationLevel }>('SELECT "level" FROM "InstitutionLevel" WHERE "institutionId" = $1', [row.id]);
+  const rawKey = row.aiCustomApiKey ?? null;
+  const provider = (row.aiProvider === 'OPENAI' ? 'OPENAI' : 'DEEPSEEK') as 'DEEPSEEK' | 'OPENAI';
+  const keySource = (row.aiKeySource === 'CUSTOM' ? 'CUSTOM' : 'PLATFORM') as 'PLATFORM' | 'CUSTOM';
+
   return {
     id: row.id,
     slug: row.slug,
@@ -43,6 +60,12 @@ async function toDomain(row: InstitutionRow, runner: { query: typeof query } = {
     levels: levels.map((l) => l.level),
     enabledAxes: parseAxes(row.enabledAxesCsv),
     aiMonthlyQuota: row.aiMonthlyQuota,
+    aiProvider: provider,
+    aiKeySource: keySource,
+    aiCustomApiKey: rawKey,
+    aiCustomApiKeyMasked: maskApiKey(rawKey),
+    hasCustomApiKey: Boolean(rawKey && rawKey.trim().length > 0),
+    aiModel: row.aiModel ?? null,
     createdAt: row.createdAt,
   };
 }
@@ -118,12 +141,48 @@ export class SqlInstitutionRepository implements InstitutionRepository {
       const runQuery = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) =>
         (client as PoolClient).query<T>(text, params).then((r) => r.rows);
 
-      const rows = input.enabledAxes
-        ? await runQuery<InstitutionRow>('UPDATE "Institution" SET "enabledAxesCsv" = $1 WHERE "id" = $2 RETURNING *', [
-            input.enabledAxes.join(','),
-            id,
-          ])
-        : await runQuery<InstitutionRow>('SELECT * FROM "Institution" WHERE "id" = $1', [id]);
+      const updates: string[] = [];
+      const values: unknown[] = [];
+      let paramIndex = 1;
+
+      if (input.enabledAxes) {
+        updates.push(`"enabledAxesCsv" = $${paramIndex++}`);
+        values.push(input.enabledAxes.join(','));
+      }
+
+      if (input.aiProvider) {
+        updates.push(`"aiProvider" = $${paramIndex++}`);
+        values.push(input.aiProvider);
+      }
+
+      if (input.aiKeySource) {
+        updates.push(`"aiKeySource" = $${paramIndex++}`);
+        values.push(input.aiKeySource);
+      }
+
+      if (input.aiCustomApiKey !== undefined) {
+        if (input.aiCustomApiKey === null || input.aiCustomApiKey.trim() === '') {
+          updates.push(`"aiCustomApiKey" = $${paramIndex++}`);
+          values.push(null);
+        } else if (!input.aiCustomApiKey.includes('••••')) {
+          updates.push(`"aiCustomApiKey" = $${paramIndex++}`);
+          values.push(input.aiCustomApiKey.trim());
+        }
+      }
+
+      if (input.aiModel !== undefined) {
+        updates.push(`"aiModel" = $${paramIndex++}`);
+        values.push(input.aiModel ? input.aiModel.trim() : null);
+      }
+
+      let rows: InstitutionRow[];
+      if (updates.length > 0) {
+        values.push(id);
+        const queryText = `UPDATE "Institution" SET ${updates.join(', ')} WHERE "id" = $${paramIndex} RETURNING *`;
+        rows = await runQuery<InstitutionRow>(queryText, values);
+      } else {
+        rows = await runQuery<InstitutionRow>('SELECT * FROM "Institution" WHERE "id" = $1', [id]);
+      }
 
       return toDomain(rows[0], { query: runQuery });
     });
