@@ -15,9 +15,11 @@ Este documento recopila de manera cronológica y detallada todas las implementac
 8. [Acceso 100% Público a la Privacidad y Consentimiento Escolar](#8-acceso-100-público-a-la-privacidad-y-consentimiento-escolar)
 9. [Asignación y Delegación de Aulas a Docentes por Directores y Coordinadores](#9-asignación-y-delegación-de-aulas-a-docentes-por-directores-y-coordinadores)
 10. [Conexión con Resend para Envíos de Notificaciones e Invitaciones Institucionales](#10-conexión-con-resend-para-envíos-de-notificaciones-e-invitaciones-institucionales)
-11. [Resumen de Despliegue en Producción (Coolify & GitHub)](#11-resumen-de-despliegue-en-producción-coolify--github)
+11. [Soporte Multimodelo de IA (DeepSeek y OpenAI) y Gestión de Claves por Institución (BYOK)](#11-soporte-multimodelo-de-ia-deepseek-y-openai-y-gestión-de-claves-por-institución-byok)
+12. [Resumen de Despliegue en Producción (Coolify & GitHub)](#12-resumen-de-despliegue-en-producción-coolify--github)
 
 ---
+
 
 ## 1. Logo Oficial, Identidad Visual y SEO Integral
 
@@ -251,10 +253,45 @@ Integrar el motor de correo transaccional **Resend** en el backend de Habitar pa
 
 ---
 
-## 11. Resumen de Despliegue en Producción (Coolify & GitHub)
+## 11. Soporte Multimodelo de IA (DeepSeek y OpenAI) y Gestión de Claves por Institución (BYOK)
+
+### Objetivo
+Permitir que los administradores, directores y coordinadores de cada institución educativa seleccionen el motor de Inteligencia Artificial que mejor se adapta a su proyecto pedagógico (**DeepSeek** o **OpenAI / ChatGPT**), eligiendo libremente entre utilizar la clave central de la plataforma (sujeta a la cuota del plan escolar) o conectar su **propia clave de API (BYOK - Bring Your Own Key)**.
+
+### Aspectos Implementados
+1. **Migración de Base de Datos `009_institution_ai_config.sql`**:
+   - Se agregaron campos a la tabla `Institution`:
+     - `aiProvider`: `'DEEPSEEK'` o `'OPENAI'` (por defecto `'DEEPSEEK'`).
+     - `aiKeySource`: `'PLATFORM'` (clave del servidor) o `'CUSTOM'` (clave propia de la escuela).
+     - `aiCustomApiKey`: Almacenamiento seguro de la API Key propia.
+     - `aiModel`: Modelo específico asignado (ej: `deepseek-chat`, `deepseek-reasoner`, `gpt-4o-mini`, `gpt-4o`, `gpt-3.5-turbo`).
+2. **Servicio Unificado de Generación Pedagógica (`ai-question-generator.service.ts`)**:
+   - Soporte nativo compatible con las especificaciones de OpenAI y DeepSeek para el diseño de 5 preguntas pedagógicas estructuradas (1 literal, 3 inferenciales, 1 crítica).
+   - Método `testConnection()`: Permite realizar un ping de prueba en tiempo real para verificar la validez de las credenciales y el modelo antes o después de guardar.
+   - Endpoint seguro en API REST: `POST /api/institutions/:institutionId/ai-config/test`.
+3. **Resolución Dinámica en Actividades (`activity.service.ts`)**:
+   - Al generar preguntas a partir de un texto fuente cargado por el docente, el sistema lee la configuración de la institución educativa.
+   - Si la institución opera en modo **BYOK (Clave Propia)**, las solicitudes no consumen la cuota mensual del plan escolar de Habitar.
+   - Resiliencia garantizada: Si la API remota experimenta demoras o la clave no tiene saldo, se activa automáticamente el generador pedagógico por plantillas (mock asistivo), registrando la auditoría correspondiente sin interrumpir la clase del docente.
+4. **Seguridad y Enmascaramiento**:
+   - Las claves privadas nunca se devuelven en texto plano al frontend. La API expone `aiCustomApiKeyMasked` (ej: `sk-••••••••4a8b`) y `hasCustomApiKey: true`.
+5. **Panel de Configuración Institucional en Frontend (`InstitutionSettingsScreen.tsx`)**:
+   - Tarjeta dedicada **"Inteligencia Artificial y Modelos Pedagógicos"**:
+     - Selector visual interactivo entre DeepSeek y OpenAI (ChatGPT).
+     - Selector de origen de clave (Clave Central de Habitar vs Clave Propia de la Institución).
+     - Campo de entrada protegido con toggle mostrar/ocultar y visualización de la clave activa actual.
+     - Selector de modelo pedagógico adaptativo según el proveedor seleccionado.
+     - Botón **"Probar conexión con la IA"** con feedback visual instantáneo (badge de éxito con modelo utilizado o alerta con el mensaje devuelto por el proveedor).
+     - Guardado persistente inmediato.
+
+---
+
+## 12. Resumen de Despliegue en Producción (Coolify & GitHub)
 
 | Repositorio | Últimos Commits | Funcionalidad Principal |
 | :--- | :--- | :--- |
+| **Backend** | `1ddda3f` | Soporte multimodelo DeepSeek y OpenAI con claves de plataforma o BYOK por institución, migración 009 |
+| **Frontend** | `cfb2b14` | Interfaz de selección de proveedor DeepSeek/OpenAI, BYOK y prueba de conexión en configuración institucional |
 | **Backend** | `be7c367` | Integración con Resend para invitaciones por email a docentes y directivos (`email.service.ts`, `env.ts`) |
 | **Backend** | `18fa6cd` | Asignación de aulas a docentes, migración 008 `CourseTeacher`, rol DIRECTOR y endpoints de asignación |
 | **Frontend** | `6411e7e` | Modales de asignación de aulas (`AssignTeacherCoursesModal`, `ReassignCourseTeacherModal`), selector al crear curso |
