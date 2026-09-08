@@ -16,9 +16,11 @@ Este documento recopila de manera cronológica y detallada todas las implementac
 9. [Asignación y Delegación de Aulas a Docentes por Directores y Coordinadores](#9-asignación-y-delegación-de-aulas-a-docentes-por-directores-y-coordinadores)
 10. [Conexión con Resend para Envíos de Notificaciones e Invitaciones Institucionales](#10-conexión-con-resend-para-envíos-de-notificaciones-e-invitaciones-institucionales)
 11. [Soporte Multimodelo de IA (DeepSeek y OpenAI) y Gestión de Claves por Institución (BYOK)](#11-soporte-multimodelo-de-ia-deepseek-y-openai-y-gestión-de-claves-por-institución-byok)
-12. [Resumen de Despliegue en Producción (Coolify & GitHub)](#12-resumen-de-despliegue-en-producción-coolify--github)
+12. [Página Pública de Marca, Identidad y Kit de Medios Oficial (`/brand`)](#12-página-pública-de-marca-identidad-y-kit-de-medios-oficial-brand)
+13. [Resumen de Despliegue en Producción (Coolify & GitHub)](#13-resumen-de-despliegue-en-producción-coolify--github)
 
 ---
+
 
 
 ## 1. Logo Oficial, Identidad Visual y SEO Integral
@@ -286,10 +288,53 @@ Permitir que los administradores, directores y coordinadores de cada institució
 
 ---
 
-## 12. Resumen de Despliegue en Producción (Coolify & GitHub)
+## 12. Página Pública de Marca, Identidad y Kit de Medios Oficial (`/brand`)
+
+### Objetivo
+Proveer a la comunidad educativa, diseñadores, directivos, prensa y colaboradores escolares de un centro oficial de recursos de marca (`/brand`), con acceso sin restricciones a los fundamentos visuales de Habitar, su tono de voz institucional, paleta cromática interactiva con copia de códigos HEX/RGB y descargas directas de logotipos vectoriales en formato SVG y PNG de alta resolución.
+
+### Aspectos Implementados
+1. **Ruta y Componente Especializado (`/brand` & `BrandScreen.tsx`)**:
+   - Página estática de carga ultra-rápida servida en Astro (`src/pages/brand.astro`) con layout canónico y SEO dedicado.
+   - Componente interactivo React `BrandScreen.tsx` con sistema de notificaciones toast y utilidades de exportación en tiempo real.
+2. **Galería Vectorial con 4 Variantes Oficiales**:
+   - **Isotipo Oficial (Color)**: Símbolo del libro abierto y casa con chimenea en verde esmeralda `#0F6E56` sobre fondo claro.
+   - **Logotipo Horizontal Completo (Color)**: Isotipo + tipografía "Habitar" + bajada "COMPRENSIÓN LECTORA" para cabeceras y papelería institucional.
+   - **Isotipo Invertido (Blanco)**: Sobre fondo esmeralda institucional para fondos oscuros y cartelería escolar nocturna.
+   - **Logotipo Horizontal Invertido**: Versión monocromática blanca sobre `#064E3B` para presentaciones y pie de página.
+   - **Herramientas de Exportación para Cada Variante**:
+     - Botón *"Descargar SVG"* (vectorial nativo sin pérdida de calidad).
+     - Botón *"PNG Alta Resolución"* (generado dinámicamente mediante HTML Canvas en 1024x1024 o 1920x480).
+     - Botón *"Copiar código SVG"* para pegar directamente en Figma, Illustrator o código fuente.
+3. **Muestra Cromática con Copia Rápida**:
+   - Swatches interactivos con valores HEX y RGB para los colores oficiales:
+     - Esmeralda Habitar Primario (`#0F6E56`)
+     - Verde Bosque Profundo (`#064E3B`)
+     - Menta Suave (`#E0EFEA`)
+     - Superficie Institucional (`#F8FBF9`)
+     - Gris Oscuro de Lectura (`#111827`)
+     - Colores de los Ejes Cognitivos: Literal (`#0F6E56`), Inferencial (`#2563EB`), Crítico (`#D97706`).
+   - Clic en cualquier muestra para copiar su código HEX al portapapeles.
+4. **Tipografía y Estilo de Texto**:
+   - Muestra interactiva de jerarquías: Display (36px), Titular H1 (24px), Cuerpo (15px) y Código/Aula QR (13px Monospace).
+   - Botón para copiar la regla CSS de tipografía institucional (`Inter`, `-apple-system`, `sans-serif`).
+5. **Guía de Tono de Voz y Comunicación**:
+   - Pilares de comunicación: *Riguroso pero Accesible*, *Calidez Rioplatense* (voseo respetuoso) y *Ética y Transparencia*.
+6. **Normas de Uso (Do's & Don'ts)**:
+   - Especificaciones de espacio de reserva perimetral, tamaños mínimos en pantalla y restricciones de no distorsión ni alteración de colores.
+7. **Textos Institucionales para Medios (Boilerplates)**:
+   - Descripciones oficiales en versión corta (1 línea), mediana (1 párrafo para prensa) y extendida (para convenios y pliegos educativos) con botones de copiado rápido con un solo clic.
+8. **Indexación y Enlaces**:
+   - Agregado en el pie de página de la Landing Page (`LandingPage.tsx`).
+   - Declarado en `public/sitemap.xml` para indexación en motores de búsqueda.
+
+---
+
+## 13. Resumen de Despliegue en Producción (Coolify & GitHub)
 
 | Repositorio | Últimos Commits | Funcionalidad Principal |
 | :--- | :--- | :--- |
+| **Frontend** | `81b17b5` | Página pública `/brand` con manual de identidad, tono de voz y descargas de logotipos SVG y PNG |
 | **Backend** | `1ddda3f` | Soporte multimodelo DeepSeek y OpenAI con claves de plataforma o BYOK por institución, migración 009 |
 | **Frontend** | `cfb2b14` | Interfaz de selección de proveedor DeepSeek/OpenAI, BYOK y prueba de conexión en configuración institucional |
 | **Backend** | `be7c367` | Integración con Resend para invitaciones por email a docentes y directivos (`email.service.ts`, `env.ts`) |
