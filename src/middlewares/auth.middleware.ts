@@ -73,7 +73,12 @@ export function requireRole(...roles: Role[]) {
     if (req.auth.realRole === 'ADMIN' || req.auth.role === 'ADMIN') {
       return next();
     }
-    if (!roles.includes(req.auth.role)) throw new ForbiddenError('No tenés permisos para acceder a este recurso');
+    // DIRECTOR tiene automáticamente las facultades de supervisión y gestión escolar de COORDINADOR
+    const allowedRoles = roles.includes('COORDINADOR') && !roles.includes('DIRECTOR')
+      ? [...roles, 'DIRECTOR' as Role]
+      : roles;
+
+    if (!allowedRoles.includes(req.auth.role)) throw new ForbiddenError('No tenés permisos para acceder a este recurso');
     next();
   };
 }

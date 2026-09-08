@@ -43,6 +43,33 @@ export class CourseController {
 
     res.status(201).json(course);
   }
+
+  async assignTeacher(req: Request, res: Response): Promise<void> {
+    const courseId = String(req.params.id);
+    const { teacherId } = req.body as { teacherId: string };
+    if (!teacherId) throw new BadRequestError('El ID del docente es obligatorio');
+
+    const course = await courseService.assignTeacher(courseId, teacherId);
+    res.json(course);
+  }
+
+  async setTeacherAssignments(req: Request, res: Response): Promise<void> {
+    const teacherId = String(req.params.teacherId);
+    const { courseIds } = req.body as { courseIds: string[] };
+    const { institutionId } = req.auth!;
+
+    if (!institutionId) throw new BadRequestError('No se identificó la institución del usuario');
+    if (!Array.isArray(courseIds)) throw new BadRequestError('courseIds debe ser una lista de IDs de cursos');
+
+    const courses = await courseService.setTeacherCourses(institutionId, teacherId, courseIds);
+    res.json(courses);
+  }
+
+  async getTeacherAssignments(req: Request, res: Response): Promise<void> {
+    const teacherId = String(req.params.teacherId);
+    const courses = await courseService.getTeacherCourses(teacherId);
+    res.json(courses);
+  }
 }
 
 export const courseController = new CourseController();

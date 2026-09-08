@@ -60,6 +60,8 @@ export interface CourseRepository {
   findByInstitution(institutionId: string): Promise<Course[]>;
   create(input: CreateCourseInput): Promise<Course>;
   setActiveActivity(courseId: string, activityId: string): Promise<void>;
+  assignTeacher(courseId: string, teacherId: string): Promise<Course>;
+  setTeacherCourses(institutionId: string, teacherId: string, courseIds: string[]): Promise<Course[]>;
 }
 
 export class SqlCourseRepository implements CourseRepository {
@@ -78,7 +80,13 @@ export class SqlCourseRepository implements CourseRepository {
   }
 
   async findByTeacher(teacherId: string): Promise<Course[]> {
-    const rows = await query<CourseRow>(`${SELECT} WHERE c."teacherId" = $1 ORDER BY c."name" ASC`, [teacherId]);
+    const rows = await query<CourseRow>(
+      `${SELECT}
+       WHERE c."teacherId" = $1
+          OR c."id" IN (SELECT "courseId" FROM "CourseTeacher" WHERE "teacherId" = $1)
+       ORDER BY c."name" ASC`,
+      [teacherId]
+    );
     return rows.map(toDomain);
   }
 
@@ -114,6 +122,14 @@ export class SqlCourseRepository implements CourseRepository {
       ]
     );
 
+    // Sincronizar en CourseTeacher
+    await query(
+      `INSERT INTO "CourseTeacher" ("courseId", "teacherId", "roleInCourse")
+       VALUES ($1, $2, 'TITULAR')
+       ON CONFLICT ("courseId", "teacherId") DO NOTHING`,
+      [inserted!.id, input.teacherId]
+    );
+
     const full = await this.findById(inserted!.id);
     return full!;
   }
@@ -123,6 +139,49 @@ export class SqlCourseRepository implements CourseRepository {
       `UPDATE "Course" SET "activeActivityId" = $1, "updatedAt" = now() WHERE "id" = $2`,
       [activityId, courseId]
     );
+  }
+
+  async assignTeacher(courseId: string, teacherId: string): Promise<Course> {
+    await query(
+      `UPDATE "Course" SET "teacherId" = $1, "updatedAt" = now() WHERE "id" = $2`,
+      [teacherId, courseId]
+    );
+    await query(
+      `INSERT INTO "CourseTeacher" ("courseId", "teacherId", "roleInCourse")
+       VALUES ($1, $2, 'TITULAR')
+       ON CONFLICT ("courseId", "teacherId") DO NOTHING`,
+      [courseId, teacherId]
+    );
+    const updated = await this.findById(courseId);
+    return updated!;
+  }
+
+  async setTeacherCourses(institutionId: string, teacherId: string, courseIds: string[]): Promise<Course[]> {
+    // 1. Desvincular cursos previos de este docente en esta institución
+    await query(
+      `DELETE FROM "CourseTeacher"
+        WHERE "teacherId" = $1
+          AND "courseId" IN (SELECT "id" FROM "Course" WHERE "institutionId" = $2)`,
+      [teacherId, institutionId]
+    );
+
+    // 2. Asociar los cursos seleccionados
+    for (const courseId of courseIds) {
+      await query(
+        `INSERT INTO "CourseTeacher" ("courseId", "teacherId", "roleInCourse")
+         VALUES ($1, $2, 'TITULAR')
+         ON CONFLICT ("courseId", "teacherId") DO NOTHING`,
+        [courseId, teacherId]
+      );
+      await query(
+        `UPDATE "Course"
+            SET "teacherId" = $1, "updatedAt" = now()
+          WHERE "id" = $2 AND "institutionId" = $3`,
+        [teacherId, courseId, institutionId]
+      );
+    }
+
+    return this.findByTeacher(teacherId);
   }
 }
 
