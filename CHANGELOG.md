@@ -255,7 +255,7 @@ Integrar el motor de correo transaccional **Resend** en el backend de Habitar pa
 
 | Repositorio | Últimos Commits | Funcionalidad Principal |
 | :--- | :--- | :--- |
-| **Backend** | En curso | Integración con Resend para invitaciones por email a docentes y directivos (`email.service.ts`, `env.ts`) |
+| **Backend** | `be7c367` | Integración con Resend para invitaciones por email a docentes y directivos (`email.service.ts`, `env.ts`) |
 | **Backend** | `18fa6cd` | Asignación de aulas a docentes, migración 008 `CourseTeacher`, rol DIRECTOR y endpoints de asignación |
 | **Frontend** | `6411e7e` | Modales de asignación de aulas (`AssignTeacherCoursesModal`, `ReassignCourseTeacherModal`), selector al crear curso |
 | **Frontend** | `1d5e8c0` | Acceso 100% público a privacidad, consentimiento escolar y derechos ARCO sin login |
