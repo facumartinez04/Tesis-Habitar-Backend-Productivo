@@ -13,7 +13,7 @@ export class JiraController {
 
   async getOne(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const issue = await jiraService.getIssueById(req.params.id);
+      const issue = await jiraService.getIssueById(String(req.params.id));
       res.json({ issue });
     } catch (err) {
       next(err);
@@ -31,7 +31,7 @@ export class JiraController {
 
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const issue = await jiraService.updateIssue(req.params.id, req.body);
+      const issue = await jiraService.updateIssue(String(req.params.id), req.body);
       res.json({ issue });
     } catch (err) {
       next(err);
@@ -40,7 +40,7 @@ export class JiraController {
 
   async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await jiraService.deleteIssue(req.params.id);
+      await jiraService.deleteIssue(String(req.params.id));
       res.status(204).end();
     } catch (err) {
       next(err);
@@ -68,7 +68,7 @@ export class JiraController {
 
   async deleteToken(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await jiraService.revokeToken(req.params.id);
+      await jiraService.revokeToken(String(req.params.id));
       res.status(204).end();
     } catch (err) {
       next(err);
