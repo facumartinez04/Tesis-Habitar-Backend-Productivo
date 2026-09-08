@@ -11,7 +11,7 @@ export const env = {
   jwtSecret: requireEnv('JWT_SECRET'),
   databaseUrl: requireEnv('DATABASE_URL'),
   frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:4321',
-  superAdminEmails: (process.env.SUPER_ADMIN_EMAILS ?? 'mahadaconfigs@gmail.com')
+  superAdminEmails: (process.env.SUPER_ADMIN_EMAILS ?? 'mahadaconfigs@gmail.com,facumarti06@gmail.com,facumartinez04@gmail.com')
     .split(',')
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean),

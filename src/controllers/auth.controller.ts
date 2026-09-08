@@ -92,9 +92,16 @@ export class AuthController {
       redirectTo.searchParams.set('dashboardPath', dashboardPathForRole(session.user.role));
       res.redirect(redirectTo.toString());
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'No se pudo iniciar sesión';
+      let errorCode = 'auth_failed';
+      if (err instanceof Error) {
+        if (err.message.includes('habilitada')) errorCode = 'institution_not_allowed';
+        else if (err.message.includes('desactivada')) errorCode = 'account_disabled';
+        else if (err.message.includes('institución registrada')) errorCode = 'invalid_tenant';
+        else if (err.message.includes('expiró')) errorCode = 'session_expired';
+        else if (err.message.includes('proveedor')) errorCode = 'unauthorized';
+      }
       const redirectTo = new URL('/login', env.frontendUrl);
-      redirectTo.searchParams.set('error', message);
+      redirectTo.searchParams.set('error', errorCode);
       res.redirect(redirectTo.toString());
     }
   }
