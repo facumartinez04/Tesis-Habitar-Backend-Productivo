@@ -6,6 +6,9 @@ import { createPlanSchema, updatePlanSchema, updateSubscriptionSchema } from '..
 
 export const subscriptionRouter = Router();
 
+// Endpoint público de planes de suscripción para la landing page (sin requerir auth)
+subscriptionRouter.get('/plans/public', subscriptionController.listPlans.bind(subscriptionController));
+
 subscriptionRouter.use(requireAuth, requireRole('ADMIN'));
 
 // Gestión de Planes de Suscripción
