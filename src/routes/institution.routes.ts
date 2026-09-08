@@ -5,7 +5,12 @@ import { resultController } from '../controllers/result.controller';
 import { userController } from '../controllers/user.controller';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware';
 import { validateBody } from '../middlewares/validate.middleware';
-import { createInstitutionSchema, updateInstitutionConfigSchema, updateInstitutionStatusSchema } from '../dto/institution.dto';
+import {
+  createInstitutionSchema,
+  updateInstitutionConfigSchema,
+  testAiConfigSchema,
+  updateInstitutionStatusSchema,
+} from '../dto/institution.dto';
 import { createInstitutionUserSchema, setUserActiveSchema, updateUserRoleSchema } from '../dto/user.dto';
 
 export const institutionRouter = Router();
@@ -41,6 +46,14 @@ institutionRouter.patch(
   requireRole('COORDINADOR', 'ADMIN'),
   validateBody(updateInstitutionConfigSchema),
   institutionController.updateConfig.bind(institutionController),
+);
+
+institutionRouter.post(
+  '/:institutionId/ai-config/test',
+  requireAuth,
+  requireRole('COORDINADOR', 'ADMIN'),
+  validateBody(testAiConfigSchema),
+  institutionController.testAiConfig.bind(institutionController),
 );
 
 institutionRouter.patch(

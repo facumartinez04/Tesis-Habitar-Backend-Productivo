@@ -3,7 +3,9 @@ import { questionRepository } from '../repositories/question.repository';
 import { responseRepository } from '../repositories/response.repository';
 import { studentRepository } from '../repositories/student.repository';
 import { countWords, isWordCountValid, TemplateQuestionGenerator } from './question-generator.service';
-import { questionGenerator } from './question-generator.factory';
+import { aiQuestionGenerator } from './ai-question-generator.service';
+import { institutionRepository } from '../repositories/institution.repository';
+import { env } from '../config/env';
 import { aiUsageService } from './aiUsage.service';
 import { UpstreamError } from '../utils/http-error';
 import { BadRequestError, NotFoundError } from '../utils/http-error';
@@ -48,7 +50,7 @@ function computeScores(questions: Question[], answers: AnswerInput[]): AxisScore
 export interface GenerateQuestionsResult {
   wordCount: number;
   isValid: boolean;
-  questions: Awaited<ReturnType<typeof questionGenerator.generate>>;
+  questions: Awaited<ReturnType<typeof aiQuestionGenerator.generate>>;
 }
 
 export interface SubmitResponseResult {
@@ -72,23 +74,50 @@ const templateFallback = new TemplateQuestionGenerator();
 export class DefaultActivityService implements ActivityService {
   async generateQuestions(sourceText: string, institutionId: string): Promise<GenerateQuestionsResult> {
     const wordCount = countWords(sourceText);
+    const institution = await institutionRepository.findById(institutionId);
 
-    const hasQuota = await aiUsageService.hasQuotaAvailable(institutionId);
+    const provider = institution?.aiProvider ?? 'DEEPSEEK';
+    const keySource = institution?.aiKeySource ?? 'PLATFORM';
+    const isCustom = keySource === 'CUSTOM';
+
+    let apiKey = '';
+    if (isCustom && institution?.aiCustomApiKey) {
+      apiKey = institution.aiCustomApiKey;
+    } else if (provider === 'OPENAI') {
+      apiKey = env.openai.apiKey;
+    } else {
+      apiKey = env.deepseek.apiKey;
+    }
+
+    // Las instituciones con clave propia (BYOK) no consumen la cuota central de la plataforma
+    let hasQuota = true;
+    if (!isCustom) {
+      hasQuota = await aiUsageService.hasQuotaAvailable(institutionId);
+    }
 
     let questions: GenerateQuestionsResult['questions'];
     let usedRealAi = false;
-    if (!hasQuota) {
+
+    if (!apiKey || !hasQuota) {
+      if (!apiKey) {
+        console.warn(`[activity.service] Sin API key para ${provider} (institución ${institutionId}): usando fallback por plantillas.`);
+      } else {
+        console.warn(`[activity.service] Cuota mensual agotada para institución ${institutionId}: usando fallback por plantillas.`);
+      }
       questions = await templateFallback.generate(sourceText);
     } else {
       try {
-        questions = await questionGenerator.generate(sourceText);
-        usedRealAi = questionGenerator !== templateFallback;
+        questions = await aiQuestionGenerator.generate(sourceText, {
+          provider,
+          apiKey,
+          model: institution?.aiModel ?? undefined,
+        });
+        usedRealAi = true;
       } catch (err) {
         if (err instanceof UpstreamError) {
-
-          console.error('[activity.service] DeepSeek falló, usando fallback por plantillas:', err.message);
+          console.error(`[activity.service] ${provider} falló, usando fallback por plantillas:`, err.message);
           questions = await templateFallback.generate(sourceText);
-          await aiUsageService.record({ institutionId, provider: 'deepseek', success: false, wordCount });
+          await aiUsageService.record({ institutionId, provider: provider.toLowerCase(), success: false, wordCount });
         } else {
           throw err;
         }
@@ -96,7 +125,7 @@ export class DefaultActivityService implements ActivityService {
     }
 
     if (usedRealAi) {
-      await aiUsageService.record({ institutionId, provider: 'deepseek', success: true, wordCount });
+      await aiUsageService.record({ institutionId, provider: provider.toLowerCase(), success: true, wordCount });
     }
 
     return {
