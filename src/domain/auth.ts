@@ -11,4 +11,6 @@ export interface JwtPayload {
   role: Role;
   institutionId: string;
   provider: OAuthProviderId;
+  realRole?: Role;
+  impersonated?: boolean;
 }
