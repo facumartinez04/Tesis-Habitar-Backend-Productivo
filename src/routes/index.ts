@@ -11,6 +11,7 @@ import { monitoringRouter } from './monitoring.routes';
 import { feedbackRouter } from './feedback.routes';
 import { statusRouter } from './status.routes';
 import { jiraRouter } from './jira.routes';
+import { roleRouter } from './role.routes';
 
 export const apiRouter = Router();
 
@@ -26,3 +27,4 @@ apiRouter.use('/monitoring', monitoringRouter);
 apiRouter.use('/feedback', feedbackRouter);
 apiRouter.use('/status', statusRouter);
 apiRouter.use('/jira', jiraRouter);
+apiRouter.use('/roles', roleRouter);

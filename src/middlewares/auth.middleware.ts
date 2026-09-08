@@ -37,13 +37,42 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
   // no tendría efecto hasta que ese token venza o el usuario cierre sesión manualmente. En vez
   // de confiar en el claim firmado, pisamos esos campos con el valor actual de la fila en DB en
   // cada request — el token solo sirve para identificar "quién es" (sub/provider), no "qué puede hacer".
-  req.auth = { ...payload, role: user.role, institutionId: user.institutionId };
+  let effectiveRole = user.role;
+  let effectiveInstitutionId = user.institutionId;
+  let impersonated = false;
+
+  // Si el usuario es ADMIN global, puede impersonar cualquier institución o rol de negocio
+  if (user.role === 'ADMIN') {
+    const impersonateInst = req.headers['x-impersonate-institution'];
+    const impersonateRole = req.headers['x-impersonate-role'];
+
+    if (impersonateInst && typeof impersonateInst === 'string' && impersonateInst.trim()) {
+      effectiveInstitutionId = impersonateInst.trim();
+      impersonated = true;
+    }
+    if (impersonateRole && typeof impersonateRole === 'string' && impersonateRole.trim()) {
+      effectiveRole = impersonateRole.trim().toUpperCase() as Role;
+      impersonated = true;
+    }
+  }
+
+  req.auth = {
+    ...payload,
+    role: effectiveRole,
+    institutionId: effectiveInstitutionId,
+    realRole: user.role,
+    impersonated,
+  };
   next();
 }
 
 export function requireRole(...roles: Role[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.auth) throw new UnauthorizedError();
+    // SuperAdmin real siempre tiene acceso o bypass a cualquier recurso
+    if (req.auth.realRole === 'ADMIN' || req.auth.role === 'ADMIN') {
+      return next();
+    }
     if (!roles.includes(req.auth.role)) throw new ForbiddenError('No tenés permisos para acceder a este recurso');
     next();
   };
