@@ -14,6 +14,8 @@ Este documento recopila de manera cronológica y detallada todas las implementac
 7. [Privacidad, Gobernanza de Datos y Normativa Educativa de la Provincia de Buenos Aires (DGCyE)](#7-privacidad-gobernanza-de-datos-y-normativa-educativa-de-la-provincia-de-buenos-aires-dgcye)
 8. [Acceso 100% Público a la Privacidad y Consentimiento Escolar](#8-acceso-100-público-a-la-privacidad-y-consentimiento-escolar)
 9. [Asignación y Delegación de Aulas a Docentes por Directores y Coordinadores](#9-asignación-y-delegación-de-aulas-a-docentes-por-directores-y-coordinadores)
+10. [Conexión con Resend para Envíos de Notificaciones e Invitaciones Institucionales](#10-conexión-con-resend-para-envíos-de-notificaciones-e-invitaciones-institucionales)
+11. [Resumen de Despliegue en Producción (Coolify & GitHub)](#11-resumen-de-despliegue-en-producción-coolify--github)
 
 ---
 
@@ -47,7 +49,7 @@ Permitir que el Super Administrador global pueda inspeccionar y operar cualquier
    - `frontend/src/hooks/useAuthGuard.ts`: Permite el acceso irrestricto si `session.user.role === 'admin'`, evitando redirecciones forzadas a `/login` al navegar vistas docentes o directivas.
    - `authService.ts`: `refreshSession()` preserva la sesión activa sin vaciar el store de sesión si el usuario es `admin`.
 2. **Visualización de Cursos en Modo Docente**:
-   - `backend/src/services/course.service.ts`: Cuando un admin accede a una institución en modo docente y no tiene materias asociadas a su id nominal, la plataforma lista todos los cursos del establecimiento para permitir supervisar y creación de actividades.
+   - `backend/src/services/course.service.ts`: Cuando un admin accede a una institución en modo docente y no tiene materias asociadas a su id nominal, la plataforma lista todos los cursos del establecimiento para permitir supervisión y creación de actividades.
 3. **Badge de Identidad Dinámico**:
    - `SessionUserBadge.tsx` muestra la etiqueta contextual: `Admin (como Docente)`, `Admin (como Director)` o `Admin (como Coordinador)`.
 
@@ -222,10 +224,38 @@ Permitir que el Director o Coordinador escolar asigne formalmente a cada docente
 
 ---
 
-## 10. Resumen de Despliegue en Producción (Coolify & GitHub)
+## 10. Conexión con Resend para Envíos de Notificaciones e Invitaciones Institucionales
+
+### Objetivo
+Integrar el motor de correo transaccional **Resend** en el backend de Habitar para automatizar el despacho de correos electrónicos institucionales cuando se invita o vincula a un docente, director, coordinador o administrador con una institución educativa específica.
+
+### Aspectos Implementados
+1. **SDK e Infraestructura de Correo (`resend`)**:
+   - Incorporación de la librería oficial `resend` en el backend (`backend/package.json`).
+   - Configuración centralizada y tipada en `backend/src/config/env.ts` con variables `RESEND_API_KEY` y `RESEND_FROM_EMAIL`.
+   - Documentación y ejemplos en `backend/.env.example` con remitente por defecto `Habitar <onboarding@resend.dev>`.
+2. **Servicio Transaccional Especializado (`email.service.ts`)**:
+   - `sendInvitationEmail()`: Genera y despacha correos con maquetación HTML responsive, paleta esmeralda (`#0F6E56`), badges de rol y estructura visual corporativa.
+   - **Plantilla para Docentes (`DOCENTE`)**:
+     - Notifica que su correo fue vinculado a la institución educativa (indicando el nombre exacto del establecimiento).
+     - Detalla las herramientas docentes disponibles: aulas asignadas, generación de QR para alumnos en pantalla/proyector, creación y evaluación de actividades en ejes literal, inferencial y crítico, y métricas grupales protegidas.
+     - Botón de acceso directo: *"Ingresar a Habitar"*.
+   - **Plantilla para Administradores, Directores y Coordinadores (`ADMIN`, `DIRECTOR`, `COORDINADOR`)**:
+     - Notifica que se le han concedido permisos de gestión institucional en la escuela correspondiente.
+     - Detalla las facultades administrativas: gestión y alta de divisiones/aulas, asignación de docentes a cursos, configuración de niveles educativos (Primaria/Secundaria) y ejes de comprensión, y control de cuotas de IA.
+     - Botón de acceso directo: *"Acceder a la Consola de Gestión"*.
+   - `sendRoleUpdatedEmail()`: Notificación inmediata cuando el rol de un usuario es actualizado o promovido en la institución.
+3. **Resiliencia y Modo Simulación (Zero-Crash Guarantee)**:
+   - Si `RESEND_API_KEY` no se encuentra configurada (entornos locales o pruebas sin credenciales), el servicio simula el envío en consola sin arrojar error ni interrumpir la creación o invitación del usuario.
+   - Los envíos se ejecutan de manera no bloqueante en `user.service.ts` (`inviteUser` y `updateRole`), garantizando que cualquier contingencia externa de red o de cuotas en Resend nunca aborte la transacción en la base de datos.
+
+---
+
+## 11. Resumen de Despliegue en Producción (Coolify & GitHub)
 
 | Repositorio | Últimos Commits | Funcionalidad Principal |
 | :--- | :--- | :--- |
+| **Backend** | En curso | Integración con Resend para invitaciones por email a docentes y directivos (`email.service.ts`, `env.ts`) |
 | **Backend** | `18fa6cd` | Asignación de aulas a docentes, migración 008 `CourseTeacher`, rol DIRECTOR y endpoints de asignación |
 | **Frontend** | `6411e7e` | Modales de asignación de aulas (`AssignTeacherCoursesModal`, `ReassignCourseTeacherModal`), selector al crear curso |
 | **Frontend** | `1d5e8c0` | Acceso 100% público a privacidad, consentimiento escolar y derechos ARCO sin login |

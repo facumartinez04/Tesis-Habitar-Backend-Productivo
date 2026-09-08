@@ -20,6 +20,10 @@ export const env = {
     apiUrl: process.env.DEEPSEEK_API_URL ?? 'https://api.deepseek.com/chat/completions',
     model: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
   },
+  resend: {
+    apiKey: process.env.RESEND_API_KEY ?? '',
+    fromEmail: process.env.RESEND_FROM_EMAIL ?? 'Habitar <onboarding@resend.dev>',
+  },
   oauth: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID ?? '',
