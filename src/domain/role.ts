@@ -11,7 +11,8 @@ export type PlatformModule =
   | 'suscripciones'
   | 'monitoreo'
   | 'jira'
-  | 'roles';
+  | 'roles'
+  | 'finanzas';
 
 export const PLATFORM_MODULES: { id: PlatformModule; name: string; description: string }[] = [
   { id: 'instituciones', name: 'Instituciones', description: 'Gestión y alta de colegios e instituciones educativas' },
@@ -27,6 +28,7 @@ export const PLATFORM_MODULES: { id: PlatformModule; name: string; description: 
   { id: 'monitoreo', name: 'Monitoreo de Sistema', description: 'Disponibilidad de infraestructura, latencia y salud' },
   { id: 'jira', name: 'Jira y Tareas de IA', description: 'Tablero Kanban, sprints y tokens para agentes de IA' },
   { id: 'roles', name: 'Roles y Permisos', description: 'Administración del modelo de control de acceso (RBAC)' },
+  { id: 'finanzas', name: 'Finanzas y Mercado Pago', description: 'Control de gastos, balances, cobranzas e integración con Mercado Pago' },
 ];
 
 export interface RolePermission {

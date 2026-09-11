@@ -12,6 +12,7 @@ import { feedbackRouter } from './feedback.routes';
 import { statusRouter } from './status.routes';
 import { jiraRouter } from './jira.routes';
 import { roleRouter } from './role.routes';
+import { financeRouter } from './finance.routes';
 
 export const apiRouter = Router();
 
@@ -28,3 +29,4 @@ apiRouter.use('/feedback', feedbackRouter);
 apiRouter.use('/status', statusRouter);
 apiRouter.use('/jira', jiraRouter);
 apiRouter.use('/roles', roleRouter);
+apiRouter.use('/finances', financeRouter);
