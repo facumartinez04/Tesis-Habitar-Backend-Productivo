@@ -1,5 +1,6 @@
 import { query, queryOne } from '../config/db';
-import type { Course, CreateCourseInput } from '../domain/course';
+import type { Course, CourseStudentDevice, CreateCourseInput } from '../domain/course';
+import { randomUUID } from 'crypto';
 
 interface CourseRow {
   id: string;
@@ -62,6 +63,12 @@ export interface CourseRepository {
   setActiveActivity(courseId: string, activityId: string): Promise<void>;
   assignTeacher(courseId: string, teacherId: string): Promise<Course>;
   setTeacherCourses(institutionId: string, teacherId: string, courseIds: string[]): Promise<Course[]>;
+  findStudentDevice(courseId: string, normalizedStudentName: string): Promise<CourseStudentDevice | null>;
+  findDeviceById(courseId: string, deviceRecordId: string): Promise<CourseStudentDevice | null>;
+  bindStudentDevice(input: { courseId: string; studentName: string; normalizedStudentName: string; deviceId: string; userAgent?: string; ipAddress?: string }): Promise<CourseStudentDevice>;
+  updateDeviceLastActive(id: string): Promise<void>;
+  listStudentDevices(courseId: string): Promise<CourseStudentDevice[]>;
+  unlinkStudentDevice(courseId: string, deviceRecordId: string): Promise<boolean>;
 }
 
 export class SqlCourseRepository implements CourseRepository {
@@ -182,6 +189,83 @@ export class SqlCourseRepository implements CourseRepository {
     }
 
     return this.findByTeacher(teacherId);
+  }
+
+  async findStudentDevice(courseId: string, normalizedStudentName: string): Promise<CourseStudentDevice | null> {
+    const row = await queryOne<CourseStudentDevice>(
+      `SELECT "id", "courseId", "studentName", "normalizedStudentName", "deviceId", "userAgent", "ipAddress",
+              "linkedAt"::text, "lastActiveAt"::text
+         FROM "CourseStudentDevice"
+        WHERE "courseId" = $1 AND "normalizedStudentName" = $2`,
+      [courseId, normalizedStudentName]
+    );
+    return row || null;
+  }
+
+  async findDeviceById(courseId: string, deviceRecordId: string): Promise<CourseStudentDevice | null> {
+    const row = await queryOne<CourseStudentDevice>(
+      `SELECT "id", "courseId", "studentName", "normalizedStudentName", "deviceId", "userAgent", "ipAddress",
+              "linkedAt"::text, "lastActiveAt"::text
+         FROM "CourseStudentDevice"
+        WHERE "courseId" = $1 AND "id" = $2`,
+      [courseId, deviceRecordId]
+    );
+    return row || null;
+  }
+
+  async bindStudentDevice(input: {
+    courseId: string;
+    studentName: string;
+    normalizedStudentName: string;
+    deviceId: string;
+    userAgent?: string;
+    ipAddress?: string;
+  }): Promise<CourseStudentDevice> {
+    const id = `csd_${randomUUID()}`;
+    const row = await queryOne<CourseStudentDevice>(
+      `INSERT INTO "CourseStudentDevice" (
+         "id", "courseId", "studentName", "normalizedStudentName", "deviceId", "userAgent", "ipAddress"
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING "id", "courseId", "studentName", "normalizedStudentName", "deviceId", "userAgent", "ipAddress",
+                 "linkedAt"::text, "lastActiveAt"::text`,
+      [
+        id,
+        input.courseId,
+        input.studentName,
+        input.normalizedStudentName,
+        input.deviceId,
+        input.userAgent || '',
+        input.ipAddress || '',
+      ]
+    );
+    return row!;
+  }
+
+  async updateDeviceLastActive(id: string): Promise<void> {
+    await query(
+      `UPDATE "CourseStudentDevice" SET "lastActiveAt" = now() WHERE "id" = $1`,
+      [id]
+    );
+  }
+
+  async listStudentDevices(courseId: string): Promise<CourseStudentDevice[]> {
+    const rows = await query<CourseStudentDevice>(
+      `SELECT "id", "courseId", "studentName", "normalizedStudentName", "deviceId", "userAgent", "ipAddress",
+              "linkedAt"::text, "lastActiveAt"::text
+         FROM "CourseStudentDevice"
+        WHERE "courseId" = $1
+        ORDER BY "studentName" ASC`,
+      [courseId]
+    );
+    return rows;
+  }
+
+  async unlinkStudentDevice(courseId: string, deviceRecordId: string): Promise<boolean> {
+    const deleted = await queryOne<{ id: string }>(
+      `DELETE FROM "CourseStudentDevice" WHERE "courseId" = $1 AND "id" = $2 RETURNING "id"`,
+      [courseId, deviceRecordId]
+    );
+    return Boolean(deleted);
   }
 }
 
