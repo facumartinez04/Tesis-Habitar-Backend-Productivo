@@ -63,68 +63,62 @@ export class MercadoPagoService {
 
   /**
    * Crea una preferencia de pago (Checkout Pro de Mercado Pago).
-   * Si no hay token real o falla la llamada externa, provee un fallback simulado transparente para testing y desarrollo.
    */
   async createPreference(input: CreatePreferenceInput, accessToken?: string): Promise<PreferenceResult> {
     const token = accessToken?.trim() || process.env.MP_ACCESS_TOKEN?.trim();
 
-    if (token) {
-      try {
-        const body = {
-          items: [
-            {
-              title: input.title,
-              quantity: 1,
-              currency_id: 'ARS',
-              unit_price: Math.round(input.amountArs),
-            },
-          ],
-          payer: {
-            email: input.payerEmail,
-            name: input.payerName || '',
-          },
-          external_reference: input.externalReference,
-          back_urls: input.backUrls || {
-            success: `${process.env.FRONTEND_URL || 'http://localhost:4321'}/pago/exito`,
-            failure: `${process.env.FRONTEND_URL || 'http://localhost:4321'}/pago/error`,
-            pending: `${process.env.FRONTEND_URL || 'http://localhost:4321'}/pago/pendiente`,
-          },
-          auto_return: 'approved',
-          notification_url: input.notificationUrl,
-        };
-
-        const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(body),
-        });
-
-        if (response.ok) {
-          const data = (await response.json()) as any;
-          return {
-            id: data.id,
-            initPoint: data.init_point,
-            sandboxInitPoint: data.sandbox_init_point,
-          };
-        } else {
-          console.warn('[MercadoPagoService] Error en respuesta de MP, usando fallback simulado');
-        }
-      } catch (err) {
-        console.warn('[MercadoPagoService] Error de llamada a MP API, usando fallback:', err);
-      }
+    if (!token) {
+      throw new Error(
+        'No se ha configurado el Access Token de Mercado Pago. Por favor configurá las credenciales en la pestaña de Mercado Pago.'
+      );
     }
 
-    // Modo simulado / testing local cuando no se configuran credenciales activas
-    const mockId = `mock_pref_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-    const mockInitPoint = `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${mockId}&simulated=true&amount=${input.amountArs}`;
+    const body = {
+      items: [
+        {
+          title: input.title,
+          quantity: 1,
+          currency_id: 'ARS',
+          unit_price: Math.round(input.amountArs),
+        },
+      ],
+      payer: {
+        email: input.payerEmail,
+        name: input.payerName || '',
+      },
+      external_reference: input.externalReference,
+      back_urls: input.backUrls || {
+        success: `${process.env.FRONTEND_URL || 'http://localhost:4321'}/pago/exito`,
+        failure: `${process.env.FRONTEND_URL || 'http://localhost:4321'}/pago/error`,
+        pending: `${process.env.FRONTEND_URL || 'http://localhost:4321'}/pago/pendiente`,
+      },
+      auto_return: 'approved',
+      notification_url: input.notificationUrl,
+    };
 
+    const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errData = (await response.json().catch(() => ({}))) as any;
+      const errorDetail =
+        errData.message ||
+        errData.cause?.[0]?.description ||
+        `Error al crear preferencia en Mercado Pago (HTTP ${response.status})`;
+      throw new Error(errorDetail);
+    }
+
+    const data = (await response.json()) as any;
     return {
-      id: mockId,
-      initPoint: mockInitPoint,
-      sandboxInitPoint: mockInitPoint,
+      id: data.id,
+      initPoint: data.init_point,
+      sandboxInitPoint: data.sandbox_init_point,
     };
   }
 }
