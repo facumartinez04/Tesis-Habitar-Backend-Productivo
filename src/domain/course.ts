@@ -28,3 +28,24 @@ export interface CreateCourseInput {
   teacherId: string;
   qrCode?: string;
 }
+
+export interface CourseStudentDevice {
+  id: string;
+  courseId: string;
+  studentName: string;
+  normalizedStudentName: string;
+  deviceId: string;
+  userAgent?: string;
+  ipAddress?: string;
+  linkedAt: string;
+  lastActiveAt: string;
+}
+
+export interface BindStudentDeviceInput {
+  courseId: string;
+  studentName: string;
+  deviceId: string;
+  userAgent?: string;
+  ipAddress?: string;
+}
+

@@ -70,6 +70,55 @@ export class CourseController {
     const courses = await courseService.getTeacherCourses(teacherId);
     res.json(courses);
   }
+
+  async getPublicInfoByQr(req: Request, res: Response): Promise<void> {
+    const qrCode = String(req.params.qrCode);
+    if (!qrCode) throw new BadRequestError('Falta el código QR del aula');
+    const info = await courseService.getPublicCourseByQr(qrCode);
+    res.json(info);
+  }
+
+  async bindStudentDevice(req: Request, res: Response): Promise<void> {
+    const courseId = String(req.params.id);
+    const { studentName, deviceId } = req.body as { studentName: string; deviceId: string };
+    const userAgent = req.headers['user-agent'] || '';
+    const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '';
+
+    const result = await courseService.bindStudentDevice({
+      courseId,
+      studentName,
+      deviceId,
+      userAgent,
+      ipAddress,
+    });
+
+    res.status(201).json(result);
+  }
+
+  async listStudentDevices(req: Request, res: Response): Promise<void> {
+    const courseId = String(req.params.id);
+    const { sub, role, institutionId } = req.auth!;
+    const devices = await courseService.listStudentDevices(courseId, {
+      userId: sub,
+      role,
+      institutionId: institutionId || '',
+    });
+    res.json(devices);
+  }
+
+  async unlinkStudentDevice(req: Request, res: Response): Promise<void> {
+    const courseId = String(req.params.id);
+    const deviceId = String(req.params.deviceId);
+    const { sub, role, institutionId } = req.auth!;
+
+    const result = await courseService.unlinkStudentDevice(courseId, deviceId, {
+      userId: sub,
+      role,
+      institutionId: institutionId || '',
+    });
+
+    res.json(result);
+  }
 }
 
 export const courseController = new CourseController();

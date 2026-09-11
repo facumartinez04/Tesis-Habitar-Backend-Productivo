@@ -9,6 +9,22 @@ export const courseRouter = Router();
 courseRouter.get('/', requireAuth, requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'), courseController.listMine.bind(courseController));
 courseRouter.post('/', requireAuth, requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'), validateBody(createCourseSchema), courseController.create.bind(courseController));
 courseRouter.get('/by-qr/:qrCode', requireAuth, courseController.getByQr.bind(courseController));
+courseRouter.get('/public-info/:qrCode', courseController.getPublicInfoByQr.bind(courseController));
+
+// Rutas de vinculación y gestión de dispositivos de alumnos en el aula
+courseRouter.post('/:id/student-devices/bind', courseController.bindStudentDevice.bind(courseController));
+courseRouter.get(
+  '/:id/student-devices',
+  requireAuth,
+  requireRole('DOCENTE', 'COORDINADOR', 'DIRECTOR', 'ADMIN'),
+  courseController.listStudentDevices.bind(courseController)
+);
+courseRouter.delete(
+  '/:id/student-devices/:deviceId',
+  requireAuth,
+  requireRole('DOCENTE', 'COORDINADOR', 'DIRECTOR', 'ADMIN'),
+  courseController.unlinkStudentDevice.bind(courseController)
+);
 
 // Rutas de asignación de aulas a docentes (para Director y Coordinador)
 courseRouter.get(
