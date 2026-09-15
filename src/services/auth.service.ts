@@ -21,7 +21,7 @@ export interface OAuthAuthorizationRequest {
 
 export interface HandleOAuthCallbackInput {
   provider: OAuthProviderId;
-  /** URL completa del callback, con la query string que mandó el proveedor (code, state, etc). */
+
   callbackUrl: URL;
   expectedState: string;
   codeVerifier: string;
@@ -40,7 +40,7 @@ function emailDomain(email: string): string {
 }
 
 export class DefaultAuthService implements AuthService {
-  /** Login simulado (sin credenciales reales) — se mantiene para desarrollo/demo local. */
+
   async loginWithProvider(provider: OAuthProviderId): Promise<Session> {
     const role = providerDefaultRole[provider];
     const user = await userRepository.findFirstByProviderAndRole(provider, role);
@@ -64,7 +64,6 @@ export class DefaultAuthService implements AuthService {
     return { token, user };
   }
 
-  /** CU-01-01: arma la Authorization URL (Authorization Code + PKCE) para redirigir al usuario. */
   async buildAuthorizationRequest(provider: OAuthProviderId): Promise<OAuthAuthorizationRequest> {
     const client = await loadClient();
     const config = await getProviderConfig(provider);
@@ -83,10 +82,6 @@ export class DefaultAuthService implements AuthService {
     return { authorizationUrl: authorizationUrl.href, state, codeVerifier };
   }
 
-  /**
-   * CU-01-01: intercambia el code por tokens, valida el id_token, resuelve la institución
-   * por el dominio del email y busca/crea el usuario. Devuelve una sesión igual a la del login simulado.
-   */
   async handleOAuthCallback(input: HandleOAuthCallbackInput): Promise<Session> {
     const client = await loadClient();
     const config = await getProviderConfig(input.provider);
@@ -98,9 +93,7 @@ export class DefaultAuthService implements AuthService {
         expectedState: input.expectedState,
       });
     } catch (err) {
-      // El derived redirect_uri sale de `input.callbackUrl` (origin + pathname, sin query) —
-      // si no coincide EXACTO con GOOGLE_REDIRECT_URI/MICROSOFT_REDIRECT_URI, el proveedor
-      // rechaza el intercambio de code por tokens. Logueamos ambos para poder compararlos.
+
       console.error('[auth] falló authorizationCodeGrant', {
         provider: input.provider,
         derivedRedirectUri: `${input.callbackUrl.origin}${input.callbackUrl.pathname}`,
@@ -135,8 +128,7 @@ export class DefaultAuthService implements AuthService {
     } else if (!user.active) {
       throw new ForbiddenError('Tu cuenta fue desactivada. Contactá a tu coordinador/a.');
     } else if (user.institutionId !== institution.id) {
-      // El email cambió de institución (dominio distinto al que tiene registrado) — no debería pasar,
-      // pero por las dudas no dejamos cruzar la sesión a un tenant que no le corresponde.
+
       throw new ForbiddenError('El email no corresponde a la institución registrada.');
     }
 
@@ -144,8 +136,6 @@ export class DefaultAuthService implements AuthService {
     return { token, user };
   }
 
-  /** Da de alta (una única vez) el tenant interno usado por los emails listados en SUPER_ADMIN_EMAILS,
-   *  para poder entrar como ADMIN sin depender de tener un dominio institucional registrado. */
   private async getOrCreateSuperAdminInstitution(email: string): Promise<Institution> {
     const existing = await institutionRepository.findBySlug('habitar-admin');
     if (existing) return existing;

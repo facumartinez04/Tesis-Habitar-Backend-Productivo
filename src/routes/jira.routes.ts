@@ -5,12 +5,11 @@ import { UnauthorizedError } from '../utils/http-error';
 
 export const jiraRouter = Router();
 
-// Middleware: allow if Bearer token for AI, or public/session for admin
 async function aiTokenOrSession(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
-    // If it's an AI Jira token
+
     if (token.startsWith('hab_jira_')) {
       const valid = await jiraService.validateToken(token);
       if (!valid) return next(new UnauthorizedError('Token de acceso IA inválido o revocado'));
@@ -29,10 +28,8 @@ jiraRouter.get('/issues/:id', (req, res, next) => jiraController.getOne(req, res
 jiraRouter.patch('/issues/:id', (req, res, next) => jiraController.update(req, res, next));
 jiraRouter.delete('/issues/:id', (req, res, next) => jiraController.remove(req, res, next));
 
-// AI endpoint
 jiraRouter.post('/ai/cards', (req, res, next) => jiraController.aiCreateCards(req, res, next));
 
-// Tokens
 jiraRouter.get('/tokens', (req, res, next) => jiraController.getTokens(req, res, next));
 jiraRouter.post('/tokens', (req, res, next) => jiraController.createToken(req, res, next));
 jiraRouter.delete('/tokens/:id', (req, res, next) => jiraController.deleteToken(req, res, next));

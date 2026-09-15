@@ -79,7 +79,6 @@ export interface Subscription extends SubscriptionOverrides {
   managementStatus: SubscriptionManagementStatus;
   durationMonths: number;
 
-  // Límites efectivos (combinando el plan base y las personalizaciones para el negocio)
   effectiveMaxUsers: number;
   effectiveMaxStudents: number;
   effectiveMaxCourses: number;

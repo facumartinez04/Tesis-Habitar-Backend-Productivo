@@ -11,7 +11,6 @@ import type {
 } from '../domain/finance';
 
 export class FinanceService {
-  // --- PLATAFORMA ---
 
   async getPlatformSummary(): Promise<PlatformFinanceSummary> {
     return financeRepository.getPlatformSummary();
@@ -42,9 +41,6 @@ export class FinanceService {
     return financeRepository.listTransactions();
   }
 
-  /**
-   * Genera un Checkout Pro de Mercado Pago para el cobro de una suscripción de colegio y crea la transacción.
-   */
   async createSubscriptionCheckout(data: {
     institutionId?: string;
     subscriptionId?: string;
@@ -86,8 +82,6 @@ export class FinanceService {
     };
   }
 
-  // --- CONFIGURACIÓN & CONEXIÓN MERCADO PAGO ---
-
   async getFinanceConfig(institutionId?: string | null): Promise<FinanceConfig | null> {
     return financeRepository.getFinanceConfig(institutionId);
   }
@@ -106,8 +100,6 @@ export class FinanceService {
   async testMercadoPagoConnection(accessToken: string): Promise<{ success: boolean; message: string; user?: any }> {
     return mercadoPagoService.testConnection(accessToken);
   }
-
-  // --- INSTITUCIÓN EDUCATIVA (COLEGIO) ---
 
   async getInstitutionSummary(institutionId: string): Promise<InstitutionFinanceSummary> {
     return financeRepository.getInstitutionSummary(institutionId);
@@ -138,9 +130,6 @@ export class FinanceService {
     return financeRepository.listInstitutionFees(institutionId);
   }
 
-  /**
-   * Registra una cuota escolar y genera su link de pago de Mercado Pago para enviar al tutor o familia.
-   */
   async createInstitutionFeeWithCheckout(institutionId: string, data: {
     courseId?: string;
     studentId?: string;
@@ -151,7 +140,7 @@ export class FinanceService {
     tutorEmail?: string;
     tutorName?: string;
   }): Promise<InstitutionFee> {
-    // Verificar si el colegio tiene su propio token configurado o usa el token global
+
     const schoolConfig = await financeRepository.getFinanceConfig(institutionId);
     const globalConfig = await financeRepository.getFinanceConfig(null);
     const activeToken = schoolConfig?.mpAccessToken || globalConfig?.mpAccessToken;

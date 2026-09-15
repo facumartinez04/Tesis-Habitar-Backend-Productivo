@@ -10,7 +10,6 @@ import type {
 } from '../domain/finance';
 
 export class FinanceRepository {
-  // --- GASTOS DE PLATAFORMA ---
 
   async listPlatformExpenses(): Promise<PlatformExpense[]> {
     const res = await pool.query(
@@ -56,8 +55,6 @@ export class FinanceRepository {
     return (res.rowCount ?? 0) > 0;
   }
 
-  // --- TRANSACCIONES DE PAGO DE PLATAFORMA ---
-
   async listTransactions(limit = 100): Promise<PaymentTransaction[]> {
     const res = await pool.query(
       `SELECT * FROM "PaymentTransaction" ORDER BY "createdAt" DESC LIMIT $1`,
@@ -85,7 +82,7 @@ export class FinanceRepository {
     const paidAt = status === 'APROBADO' ? new Date() : null;
 
     const res = await pool.query(
-      `INSERT INTO "PaymentTransaction" 
+      `INSERT INTO "PaymentTransaction"
        ("id", "institutionId", "subscriptionId", "type", "description", "amountArs", "payerEmail", "payerName", "paymentMethod", "status", "externalReference", "mpPreferenceId", "mpInitPoint", "paidAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
@@ -121,24 +118,21 @@ export class FinanceRepository {
     return res.rows[0] || null;
   }
 
-  // --- RESUMEN FINANCIERO DE PLATAFORMA ---
-
   async getPlatformSummary(): Promise<PlatformFinanceSummary> {
     const revRes = await pool.query(
-      `SELECT 
+      `SELECT
          COALESCE(SUM(CASE WHEN "status" = 'APROBADO' THEN "amountArs" ELSE 0 END), 0) as total_approved,
          COALESCE(SUM(CASE WHEN "status" = 'PENDIENTE' THEN "amountArs" ELSE 0 END), 0) as total_pending
        FROM "PaymentTransaction"`
     );
 
     const expRes = await pool.query(
-      `SELECT 
+      `SELECT
          COALESCE(SUM(CASE WHEN "status" = 'PAGADO' THEN "amountArs" ELSE 0 END), 0) as total_paid,
          COALESCE(SUM(CASE WHEN "status" = 'PENDIENTE' THEN "amountArs" ELSE 0 END), 0) as total_pending
        FROM "PlatformExpense"`
     );
 
-    // Calcular MRR de suscripciones activas
     const subRes = await pool.query(
       `SELECT COALESCE(SUM("monthlyPriceArs"), 0) as mrr FROM "Subscription"`
     );
@@ -157,8 +151,6 @@ export class FinanceRepository {
       pendingPayablesArs: parseInt(expRes.rows[0]?.total_pending || '0', 10),
     };
   }
-
-  // --- FINANZAS POR COLEGIO / INSTITUCIÓN ---
 
   async listInstitutionExpenses(institutionId: string): Promise<InstitutionExpense[]> {
     const res = await pool.query(
@@ -270,7 +262,7 @@ export class FinanceRepository {
 
   async getInstitutionSummary(institutionId: string): Promise<InstitutionFinanceSummary> {
     const feeRes = await pool.query(
-      `SELECT 
+      `SELECT
          COALESCE(SUM(CASE WHEN "status" = 'PAGADO' THEN "amountArs" ELSE 0 END), 0) as total_collected,
          COALESCE(SUM(CASE WHEN "status" = 'PENDIENTE' THEN "amountArs" ELSE 0 END), 0) as total_pending,
          COUNT(*) as total_count,
@@ -302,8 +294,6 @@ export class FinanceRepository {
       overdueFeesCount: parseInt(feeRes.rows[0]?.overdue_count || '0', 10),
     };
   }
-
-  // --- CONFIGURACIÓN DE MERCADO PAGO ---
 
   async getFinanceConfig(institutionId?: string | null): Promise<FinanceConfig | null> {
     const res = institutionId

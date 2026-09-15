@@ -69,9 +69,7 @@ interface ChatCompletionResponse {
 }
 
 export class AiQuestionGeneratorService {
-  /**
-   * Resuelve la URL y el modelo por defecto según el proveedor.
-   */
+
   resolveDefaults(provider: AiProvider, customApiUrl?: string, customModel?: string) {
     if (provider === 'OPENAI') {
       return {
@@ -85,9 +83,6 @@ export class AiQuestionGeneratorService {
     };
   }
 
-  /**
-   * Genera preguntas pedagógicas usando el proveedor seleccionado (DeepSeek u OpenAI).
-   */
   async generate(sourceText: string, options: GenerateWithAiOptions): Promise<CreateQuestionInput[]> {
     const { provider, apiKey } = options;
     const { apiUrl, model } = this.resolveDefaults(provider, options.apiUrl, options.model);
@@ -153,9 +148,6 @@ export class AiQuestionGeneratorService {
     }));
   }
 
-  /**
-   * Prueba en tiempo real la validez de las credenciales y el modelo para una institución.
-   */
   async testConnection(input: TestAiConnectionInput, institutionCustomKey?: string | null): Promise<TestAiConnectionResult> {
     const { provider, keySource } = input;
     let apiKey = '';

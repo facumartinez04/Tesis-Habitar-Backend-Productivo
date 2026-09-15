@@ -20,7 +20,6 @@ export async function queryOne<T extends QueryResultRow = QueryResultRow>(text: 
   return rows[0] ?? null;
 }
 
-/** Corre `fn` dentro de una transacción (BEGIN/COMMIT, ROLLBACK si tira). */
 export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
   try {

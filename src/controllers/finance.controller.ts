@@ -3,7 +3,6 @@ import { financeService } from '../services/finance.service';
 import { BadRequestError, NotFoundError } from '../utils/http-error';
 
 export class FinanceController {
-  // --- PLATAFORMA (ADMIN) ---
 
   async getPlatformSummary(_req: Request, res: Response): Promise<void> {
     const summary = await financeService.getPlatformSummary();
@@ -97,8 +96,6 @@ export class FinanceController {
     const result = await financeService.testMercadoPagoConnection(accessToken);
     res.json(result);
   }
-
-  // --- INSTITUCIÓN EDUCATIVA (COLEGIO) ---
 
   async getInstitutionSummary(req: Request, res: Response): Promise<void> {
     const institutionId = String(req.params.institutionId);
@@ -205,8 +202,6 @@ export class FinanceController {
     });
     res.json(saved);
   }
-
-  // --- WEBHOOK MERCADO PAGO ---
 
   async handleMercadoPagoWebhook(req: Request, res: Response): Promise<void> {
     const { type, data } = req.body;

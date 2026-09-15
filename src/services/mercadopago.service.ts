@@ -19,9 +19,7 @@ export interface PreferenceResult {
 }
 
 export class MercadoPagoService {
-  /**
-   * Valida la conexión y autenticación con la API de Mercado Pago usando el Access Token provisto.
-   */
+
   async testConnection(accessToken: string): Promise<{ success: boolean; message: string; user?: any }> {
     if (!accessToken || accessToken.trim() === '') {
       return { success: false, message: 'El Access Token no puede estar vacío.' };
@@ -61,9 +59,6 @@ export class MercadoPagoService {
     }
   }
 
-  /**
-   * Crea una preferencia de pago (Checkout Pro de Mercado Pago).
-   */
   async createPreference(input: CreatePreferenceInput, accessToken?: string): Promise<PreferenceResult> {
     const token = accessToken?.trim() || process.env.MP_ACCESS_TOKEN?.trim();
 

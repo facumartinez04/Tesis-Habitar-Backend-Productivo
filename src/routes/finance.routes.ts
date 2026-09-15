@@ -4,10 +4,8 @@ import { requireAuth, requireRole } from '../middlewares/auth.middleware';
 
 export const financeRouter = Router();
 
-// Webhook público de Mercado Pago
 financeRouter.post('/webhook/mercadopago', financeController.handleMercadoPagoWebhook.bind(financeController));
 
-// Rutas de Plataforma / Negocio Habitar (Solo Administradores)
 financeRouter.get(
   '/platform/summary',
   requireAuth,
@@ -71,7 +69,6 @@ financeRouter.post(
   financeController.testMercadoPago.bind(financeController)
 );
 
-// Rutas de Finanzas Institucionales (Colegios)
 financeRouter.get(
   '/institution/:institutionId/summary',
   requireAuth,

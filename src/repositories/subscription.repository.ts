@@ -340,14 +340,14 @@ export class SqlSubscriptionRepository implements SubscriptionRepository {
   }
 
   async deletePlan(id: string): Promise<boolean> {
-    // Soft-delete or check if in use
+
     const checkInUse = await queryOne<{ count: string }>(
       'SELECT COUNT(*) as count FROM "Subscription" WHERE "planId" = $1',
       [id]
     );
     const count = parseInt(checkInUse?.count || '0', 10);
     if (count > 0) {
-      // If actively used by schools, deactivate instead of deleting to maintain relational integrity
+
       await query('UPDATE "Plan" SET "isActive" = false, "updatedAt" = NOW() WHERE "id" = $1', [id]);
       return true;
     }

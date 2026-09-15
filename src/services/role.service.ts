@@ -52,7 +52,7 @@ export const roleService = {
     module: PlatformModule,
     action: 'canRead' | 'canCreate' | 'canUpdate' | 'canDelete' | 'canExport'
   ): Promise<boolean> {
-    // Admin global siempre tiene acceso total
+
     if (roleId === 'admin') return true;
 
     const role = await roleRepository.findById(roleId);
