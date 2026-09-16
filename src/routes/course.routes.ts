@@ -7,7 +7,7 @@ import { assignCourseTeacherSchema, createCourseSchema, setTeacherCoursesSchema 
 export const courseRouter = Router();
 
 courseRouter.get('/', requireAuth, requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'), courseController.listMine.bind(courseController));
-courseRouter.post('/', requireAuth, requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'), validateBody(createCourseSchema), courseController.create.bind(courseController));
+courseRouter.post('/', requireAuth, requireRole('COORDINADOR', 'ADMIN'), validateBody(createCourseSchema), courseController.create.bind(courseController));
 courseRouter.get('/by-qr/:qrCode', requireAuth, courseController.getByQr.bind(courseController));
 courseRouter.get('/public-info/:qrCode', courseController.getPublicInfoByQr.bind(courseController));
 
