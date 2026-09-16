@@ -124,7 +124,7 @@ export class SqlCourseRepository implements CourseRepository {
         qrCode,
         input.room || '',
         input.grade || '',
-        cleanDivision,
+        division,
         input.shift || 'MAÑANA',
       ]
     );
