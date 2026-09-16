@@ -1,7 +1,7 @@
 import { courseRepository } from '../repositories/course.repository';
 import { activityRepository } from '../repositories/activity.repository';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/http-error';
-import type { Course, CourseStudentDevice, CreateCourseInput } from '../domain/course';
+import type { Course, CourseStudentDevice, CourseTeacher, CreateCourseInput } from '../domain/course';
 import type { Role } from '../domain/enums';
 
 function normalizeStudentName(name: string): string {
@@ -113,6 +113,16 @@ export class DefaultCourseService implements CourseService {
 
   async getTeacherCourses(teacherId: string): Promise<Course[]> {
     return courseRepository.findByTeacher(teacherId);
+  }
+
+  async listCourseTeachers(courseId: string): Promise<CourseTeacher[]> {
+    await this.getById(courseId);
+    return courseRepository.listCourseTeachers(courseId);
+  }
+
+  async setCourseTeachers(courseId: string, teacherIds: string[]): Promise<CourseTeacher[]> {
+    await this.getById(courseId);
+    return courseRepository.setCourseTeachers(courseId, teacherIds);
   }
 
   async bindStudentDevice(input: {
