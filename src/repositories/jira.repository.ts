@@ -135,7 +135,6 @@ export const jiraRepository = {
     await pool.query(`DELETE FROM "JiraIssue"`);
   },
 
-  // Token management for AI & Automation
   async createToken(params: { name: string; token: string; prefix: string }): Promise<JiraToken> {
     const { rows } = await pool.query(
       `INSERT INTO "JiraToken" ("name", "token", "prefix", "createdAt")

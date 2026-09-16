@@ -89,7 +89,6 @@ export class DefaultActivityService implements ActivityService {
       apiKey = env.deepseek.apiKey;
     }
 
-    // Las instituciones con clave propia (BYOK) no consumen la cuota central de la plataforma
     let hasQuota = true;
     if (!isCustom) {
       hasQuota = await aiUsageService.hasQuotaAvailable(institutionId);

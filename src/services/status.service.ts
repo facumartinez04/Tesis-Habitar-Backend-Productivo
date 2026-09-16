@@ -42,7 +42,7 @@ async function checkDatabase(): Promise<StatusReport['checks']['database']> {
       appliedMigrations = Number(countRows[0]?.count ?? 0);
       lastMigration = rows[0]?.name;
     } catch {
-      // tabla _migrations todavía no existe (nunca se corrió db:migrate) — no es un error del check en sí
+
     }
 
     return { ok: true, latencyMs, appliedMigrations, lastMigration };
@@ -51,7 +51,6 @@ async function checkDatabase(): Promise<StatusReport['checks']['database']> {
   }
 }
 
-/** GET /api/status — pensado para diagnosticar deploys, sin exponer secretos (solo si están configurados o no). */
 export async function getStatusReport(): Promise<StatusReport> {
   const database = await checkDatabase();
 

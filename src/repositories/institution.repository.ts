@@ -74,7 +74,7 @@ export interface InstitutionRepository {
   findAll(): Promise<Institution[]>;
   findById(id: string): Promise<Institution | null>;
   findBySlug(slug: string): Promise<Institution | null>;
-  /** CU-01-01: resuelve el tenant a partir del dominio del email institucional. */
+
   findByDomain(domain: string): Promise<Institution | null>;
   create(input: CreateInstitutionInput): Promise<Institution>;
   updateConfig(id: string, input: UpdateInstitutionConfigInput): Promise<Institution>;

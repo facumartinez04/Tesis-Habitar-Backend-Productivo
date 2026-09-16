@@ -6,22 +6,18 @@ import { createPlanSchema, updatePlanSchema, updateSubscriptionSchema } from '..
 
 export const subscriptionRouter = Router();
 
-// Endpoint público de planes de suscripción para la landing page (sin requerir auth)
 subscriptionRouter.get('/plans/public', subscriptionController.listPlans.bind(subscriptionController));
 
 subscriptionRouter.use(requireAuth, requireRole('ADMIN'));
 
-// Gestión de Planes de Suscripción
 subscriptionRouter.get('/plans', subscriptionController.listPlans.bind(subscriptionController));
 subscriptionRouter.post('/plans', validateBody(createPlanSchema), subscriptionController.createPlan.bind(subscriptionController));
 subscriptionRouter.get('/plans/:id', subscriptionController.getPlan.bind(subscriptionController));
 subscriptionRouter.patch('/plans/:id', validateBody(updatePlanSchema), subscriptionController.updatePlan.bind(subscriptionController));
 subscriptionRouter.delete('/plans/:id', subscriptionController.deletePlan.bind(subscriptionController));
 
-// Suscripciones por institución
 subscriptionRouter.get('/institution/:institutionId', subscriptionController.getByInstitution.bind(subscriptionController));
 
-// Suscripciones generales
 subscriptionRouter.get('/', subscriptionController.list.bind(subscriptionController));
 subscriptionRouter.get('/:id', subscriptionController.getById.bind(subscriptionController));
 subscriptionRouter.patch('/:id', validateBody(updateSubscriptionSchema), subscriptionController.update.bind(subscriptionController));

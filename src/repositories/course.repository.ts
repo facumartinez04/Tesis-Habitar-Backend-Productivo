@@ -129,7 +129,6 @@ export class SqlCourseRepository implements CourseRepository {
       ]
     );
 
-    // Sincronizar en CourseTeacher
     await query(
       `INSERT INTO "CourseTeacher" ("courseId", "teacherId", "roleInCourse")
        VALUES ($1, $2, 'TITULAR')
@@ -164,7 +163,7 @@ export class SqlCourseRepository implements CourseRepository {
   }
 
   async setTeacherCourses(institutionId: string, teacherId: string, courseIds: string[]): Promise<Course[]> {
-    // 1. Desvincular cursos previos de este docente en esta institución
+
     await query(
       `DELETE FROM "CourseTeacher"
         WHERE "teacherId" = $1
@@ -172,7 +171,6 @@ export class SqlCourseRepository implements CourseRepository {
       [teacherId, institutionId]
     );
 
-    // 2. Asociar los cursos seleccionados
     for (const courseId of courseIds) {
       await query(
         `INSERT INTO "CourseTeacher" ("courseId", "teacherId", "roleInCourse")

@@ -33,7 +33,6 @@ export class AuthController {
     res.json({ ...session, dashboardPath: dashboardPathForRole(session.user.role) });
   }
 
-  /** CU-01-01: redirige a la pantalla de login real de Google/Microsoft. */
   async redirectToProvider(req: Request, res: Response): Promise<void> {
     const providerParam = String(req.params.provider).toUpperCase();
     assertProvider(providerParam);
@@ -50,7 +49,6 @@ export class AuthController {
     res.redirect(authorizationUrl);
   }
 
-  /** CU-01-01: vuelve del proveedor con `code`/`state`, valida y arma la sesión de Habitar. */
   async handleOAuthCallback(req: Request, res: Response): Promise<void> {
     const providerParam = String(req.params.provider).toUpperCase();
     assertProvider(providerParam);
@@ -62,13 +60,6 @@ export class AuthController {
 
     const { state, codeVerifier } = JSON.parse(raw) as { state: string; codeVerifier: string };
 
-    // Antes esto armaba la URL con req.protocol + req.get('host'), que depende de que el
-    // proxy (Coolify/Traefik) mande X-Forwarded-Proto correctamente — si no lo manda, o
-    // "trust proxy" no lo interpreta bien, sale "http" en vez de "https" y el redirect_uri
-    // derivado para el intercambio de tokens no matchea con el que Google ya validó en el
-    // primer paso, y todo el login falla en silencio. Usamos directo el redirect_uri
-    // configurado (GOOGLE_REDIRECT_URI/MICROSOFT_REDIRECT_URI), que es el mismo que se usó
-    // para armar la Authorization URL — sin adivinar nada del lado del proxy.
     const queryIndex = req.originalUrl.indexOf('?');
     const query = queryIndex >= 0 ? req.originalUrl.slice(queryIndex) : '';
     const callbackUrl = new URL(getRedirectUri(providerParam) + query);

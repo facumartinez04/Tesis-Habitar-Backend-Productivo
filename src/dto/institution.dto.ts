@@ -43,7 +43,6 @@ export const testAiConfigSchema = z.object({
 
 export type TestAiConfigDto = z.infer<typeof testAiConfigSchema>;
 
-
 export const updateInstitutionStatusSchema = z.object({
   status: z.enum(['ACTIVO', 'PILOTO_NO_CONFIRMADO']),
 });

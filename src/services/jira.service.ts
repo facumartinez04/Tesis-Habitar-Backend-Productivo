@@ -67,7 +67,6 @@ export const jiraService = {
     return { success: true };
   },
 
-  // Token management
   async generateToken(name = 'AI Jira Agent'): Promise<JiraToken> {
     const randomHex = crypto.randomBytes(24).toString('hex');
     const prefix = 'hab_jira_';

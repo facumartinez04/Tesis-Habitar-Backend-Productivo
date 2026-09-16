@@ -47,7 +47,6 @@ export class JiraController {
     }
   }
 
-  // Token methods
   async createToken(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const token = await jiraService.generateToken(req.body.name);
@@ -75,7 +74,6 @@ export class JiraController {
     }
   }
 
-  // AI batch endpoint
   async aiCreateCards(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const createdCards = await jiraService.createAiBatchCards(req.body.cards);

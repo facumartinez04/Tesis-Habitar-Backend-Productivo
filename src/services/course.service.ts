@@ -103,7 +103,7 @@ export class DefaultCourseService implements CourseService {
   }
 
   async assignTeacher(courseId: string, teacherId: string): Promise<Course> {
-    await this.getById(courseId); // Verifica que exista
+    await this.getById(courseId);
     return courseRepository.assignTeacher(courseId, teacherId);
   }
 
@@ -132,7 +132,6 @@ export class DefaultCourseService implements CourseService {
       throw new BadRequestError('Identificador de dispositivo no válido');
     }
 
-    // Verificar que el curso exista
     const course = await courseRepository.findById(input.courseId);
     if (!course) {
       throw new NotFoundError('Aula no encontrada');
@@ -143,7 +142,7 @@ export class DefaultCourseService implements CourseService {
 
     if (existing) {
       if (existing.deviceId === cleanDeviceId) {
-        // Mismo dispositivo: actualizar última actividad
+
         await courseRepository.updateDeviceLastActive(existing.id);
         return {
           success: true,
@@ -154,13 +153,11 @@ export class DefaultCourseService implements CourseService {
         };
       }
 
-      // Otro dispositivo ya vinculado con el mismo nombre y apellido
       throw new ConflictError(
         `Ya existe un dispositivo vinculado para "${existing.studentName}" en esta aula. Por seguridad para evitar suplantaciones, no podés registrarte desde un dispositivo diferente. Pedile a tu docente que desvincule tu dispositivo anterior.`
       );
     }
 
-    // Nuevo registro: vincular este dispositivo
     const created = await courseRepository.bindStudentDevice({
       courseId: input.courseId,
       studentName: trimmedName,

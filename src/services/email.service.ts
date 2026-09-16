@@ -41,10 +41,6 @@ export class EmailService {
     return this.resendClient;
   }
 
-  /**
-   * Envía un correo de invitación cuando un usuario es dado de alta o vinculado con una escuela.
-   * Diferencia el contenido si se trata de un docente o de un rol administrativo/directivo.
-   */
   async sendInvitationEmail(input: SendInvitationEmailInput): Promise<EmailSendResult> {
     const { to, name, role, institutionName, provider } = input;
     const client = this.getClient();
@@ -95,9 +91,6 @@ export class EmailService {
     }
   }
 
-  /**
-   * Notifica al usuario cuando su rol ha sido actualizado en la institución.
-   */
   async sendRoleUpdatedEmail(input: SendRoleUpdatedEmailInput): Promise<EmailSendResult> {
     const { to, name, newRole, institutionName } = input;
     const client = this.getClient();

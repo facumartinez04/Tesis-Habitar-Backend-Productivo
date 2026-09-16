@@ -11,7 +11,6 @@ courseRouter.post('/', requireAuth, requireRole('DOCENTE', 'COORDINADOR', 'ADMIN
 courseRouter.get('/by-qr/:qrCode', requireAuth, courseController.getByQr.bind(courseController));
 courseRouter.get('/public-info/:qrCode', courseController.getPublicInfoByQr.bind(courseController));
 
-// Rutas de vinculación y gestión de dispositivos de alumnos en el aula
 courseRouter.post('/:id/student-devices/bind', courseController.bindStudentDevice.bind(courseController));
 courseRouter.get(
   '/:id/student-devices',
@@ -26,7 +25,6 @@ courseRouter.delete(
   courseController.unlinkStudentDevice.bind(courseController)
 );
 
-// Rutas de asignación de aulas a docentes (para Director y Coordinador)
 courseRouter.get(
   '/teachers/:teacherId/assignments',
   requireAuth,
