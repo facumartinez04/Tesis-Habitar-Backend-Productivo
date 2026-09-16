@@ -46,4 +46,17 @@ courseRouter.patch(
   courseController.assignTeacher.bind(courseController),
 );
 
+courseRouter.get(
+  '/:id/teachers',
+  requireAuth,
+  requireRole('COORDINADOR', 'DIRECTOR', 'ADMIN'),
+  courseController.listCourseTeachers.bind(courseController)
+);
+courseRouter.put(
+  '/:id/teachers',
+  requireAuth,
+  requireRole('COORDINADOR', 'DIRECTOR', 'ADMIN'),
+  courseController.setCourseTeachers.bind(courseController)
+);
+
 courseRouter.get('/:id', requireAuth, courseController.getById.bind(courseController));

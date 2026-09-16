@@ -53,6 +53,21 @@ export class CourseController {
     res.json(course);
   }
 
+  async listCourseTeachers(req: Request, res: Response): Promise<void> {
+    const courseId = String(req.params.id);
+    const teachers = await courseService.listCourseTeachers(courseId);
+    res.json(teachers);
+  }
+
+  async setCourseTeachers(req: Request, res: Response): Promise<void> {
+    const courseId = String(req.params.id);
+    const { teacherIds } = req.body as { teacherIds: string[] };
+    if (!Array.isArray(teacherIds)) throw new BadRequestError('teacherIds debe ser una lista');
+
+    const teachers = await courseService.setCourseTeachers(courseId, teacherIds);
+    res.json(teachers);
+  }
+
   async setTeacherAssignments(req: Request, res: Response): Promise<void> {
     const teacherId = String(req.params.teacherId);
     const { courseIds } = req.body as { courseIds: string[] };

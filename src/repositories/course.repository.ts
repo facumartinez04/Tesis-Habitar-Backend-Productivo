@@ -1,5 +1,5 @@
 import { query, queryOne } from '../config/db';
-import type { Course, CourseStudentDevice, CreateCourseInput } from '../domain/course';
+import type { Course, CourseStudentDevice, CourseTeacher, CreateCourseInput } from '../domain/course';
 import { randomUUID } from 'crypto';
 
 interface CourseRow {
@@ -187,6 +187,41 @@ export class SqlCourseRepository implements CourseRepository {
     }
 
     return this.findByTeacher(teacherId);
+  }
+
+  async listCourseTeachers(courseId: string): Promise<CourseTeacher[]> {
+    const rows = await query<CourseTeacher>(
+      `SELECT ct."id", ct."courseId", ct."teacherId", ct."roleInCourse",
+              ct."assignedAt"::text,
+              u."name" AS "teacherName", u."email" AS "teacherEmail"
+         FROM "CourseTeacher" ct
+         JOIN "User" u ON u."id" = ct."teacherId"
+        WHERE ct."courseId" = $1
+        ORDER BY ct."assignedAt" ASC`,
+      [courseId]
+    );
+    return rows;
+  }
+
+  async setCourseTeachers(courseId: string, teacherIds: string[]): Promise<CourseTeacher[]> {
+    await query(`DELETE FROM "CourseTeacher" WHERE "courseId" = $1`, [courseId]);
+
+    for (const teacherId of teacherIds) {
+      await query(
+        `INSERT INTO "CourseTeacher" ("courseId", "teacherId", "roleInCourse")
+         VALUES ($1, $2, 'TITULAR')
+         ON CONFLICT ("courseId", "teacherId") DO NOTHING`,
+        [courseId, teacherId]
+      );
+    }
+
+    const primary = teacherIds[0] || null;
+    await query(
+      `UPDATE "Course" SET "teacherId" = $1, "updatedAt" = now() WHERE "id" = $2`,
+      [primary, courseId]
+    );
+
+    return this.listCourseTeachers(courseId);
   }
 
   async findStudentDevice(courseId: string, normalizedStudentName: string): Promise<CourseStudentDevice | null> {

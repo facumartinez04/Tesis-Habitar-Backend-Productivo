@@ -29,6 +29,16 @@ export interface CreateCourseInput {
   qrCode?: string;
 }
 
+export interface CourseTeacher {
+  id: string;
+  courseId: string;
+  teacherId: string;
+  teacherName: string;
+  teacherEmail: string;
+  roleInCourse: string;
+  assignedAt: string;
+}
+
 export interface CourseStudentDevice {
   id: string;
   courseId: string;
