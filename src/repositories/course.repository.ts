@@ -103,12 +103,12 @@ export class SqlCourseRepository implements CourseRepository {
   }
 
   async create(input: CreateCourseInput): Promise<Course> {
-    const cleanDivision = (input.division || 'A').toUpperCase().trim();
-    const cleanGrade = (input.grade || '').replace(/\s+/g, '').toUpperCase();
+    const division = (input.division || 'A').toUpperCase().trim();
+    const gradeNum = (input.grade || '').replace(/[^0-9]/g, '') || '0';
     const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
     const qrCode =
       input.qrCode ||
-      `AULA-${cleanGrade ? cleanGrade + '-' : ''}${cleanDivision}-${randomSuffix}`;
+      `AULA-${gradeNum}${division}-${randomSuffix}`;
 
     const inserted = await queryOne<{ id: string }>(
       `INSERT INTO "Course" (
