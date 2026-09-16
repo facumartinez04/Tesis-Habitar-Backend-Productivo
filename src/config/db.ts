@@ -6,6 +6,10 @@ export const pool = new Pool({
   ssl: env.databaseUrl.includes('sslmode=require') || env.databaseUrl.includes('neon.tech') ? { rejectUnauthorized: false } : undefined,
 });
 
+pool.on('connect', (client) => {
+  client.query('SET search_path TO public, service');
+});
+
 pool.on('error', (err) => {
   console.error('[db] error inesperado en cliente idle de PostgreSQL', err);
 });
