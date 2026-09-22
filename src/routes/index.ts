@@ -1,0 +1,32 @@
+import { Router } from 'express';
+import { authRouter } from './auth.routes';
+import { institutionRouter } from './institution.routes';
+import { courseRouter } from './course.routes';
+import { activityRouter } from './activity.routes';
+import { resultRouter } from './result.routes';
+import { complianceRouter } from './compliance.routes';
+import { subscriptionRouter } from './subscription.routes';
+import { oauthRouter } from './oauth.routes';
+import { monitoringRouter } from './monitoring.routes';
+import { feedbackRouter } from './feedback.routes';
+import { statusRouter } from './status.routes';
+import { jiraRouter } from './jira.routes';
+import { roleRouter } from './role.routes';
+import { financeRouter } from './finance.routes';
+
+export const apiRouter = Router();
+
+apiRouter.use('/auth', authRouter);
+apiRouter.use('/institutions', institutionRouter);
+apiRouter.use('/courses', courseRouter);
+apiRouter.use('/activities', activityRouter);
+apiRouter.use('/results', resultRouter);
+apiRouter.use('/compliance', complianceRouter);
+apiRouter.use('/subscriptions', subscriptionRouter);
+apiRouter.use('/oauth', oauthRouter);
+apiRouter.use('/monitoring', monitoringRouter);
+apiRouter.use('/feedback', feedbackRouter);
+apiRouter.use('/status', statusRouter);
+apiRouter.use('/jira', jiraRouter);
+apiRouter.use('/roles', roleRouter);
+apiRouter.use('/finances', financeRouter);
