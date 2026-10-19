@@ -9,6 +9,8 @@ export const authRouter = Router();
 // Se eliminaron POST /login y POST /admin-session, que emitían tokens sin
 // credenciales.
 authRouter.get('/me', requireAuth, authController.me.bind(authController));
+// Identificadores públicos para Google Drive y OneDrive en el navegador (sin secretos).
+authRouter.get('/integrations', authController.integrations.bind(authController));
 authRouter.post('/logout', requireAuth, authController.logout.bind(authController));
 
 const loginLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, name: 'login' });

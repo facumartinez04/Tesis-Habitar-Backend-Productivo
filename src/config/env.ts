@@ -52,6 +52,8 @@ export const env = {
       clientId: process.env.GOOGLE_CLIENT_ID ?? '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
       redirectUri: process.env.GOOGLE_REDIRECT_URI ?? '',
+      /** Clave de API del selector de archivos de Google (pública; restringirla por referer a habitar.lat). */
+      pickerApiKey: process.env.GOOGLE_PICKER_API_KEY ?? '',
     },
     microsoft: {
       clientId: process.env.MICROSOFT_CLIENT_ID ?? '',
