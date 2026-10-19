@@ -5,6 +5,7 @@ import type { Course, CourseStudentDevice, CourseTeacher, CreateCourseInput } fr
 import type { Role } from '../domain/enums';
 import { institutionRepository } from '../repositories/institution.repository';
 import { resolveStudentIdentity } from './student-identity';
+import { hasClosed } from './activity-window';
 
 export interface PublicCourseInfo {
   course: Course;
@@ -76,7 +77,8 @@ export class DefaultCourseService implements CourseService {
 
     if (course.activeActivityId) {
       const act = await activityRepository.findById(course.activeActivityId);
-      if (act) {
+      // Sólo se ofrece al alumno una actividad abierta: ni borradores, ni programadas, ni cerradas o vencidas.
+      if (act && act.status === 'PUBLICADA' && !hasClosed(act)) {
         activeActivity = {
           id: act.id,
           code: act.code,
