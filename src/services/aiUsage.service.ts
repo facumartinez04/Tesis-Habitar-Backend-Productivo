@@ -1,4 +1,4 @@
-import { aiUsageRepository } from '../repositories/aiUsage.repository';
+import { aiUsageRepository, currentMonthAR } from '../repositories/aiUsage.repository';
 import { institutionRepository } from '../repositories/institution.repository';
 import type { AiUsageSnapshot, RecordAiUsageInput } from '../domain/aiUsage';
 
@@ -16,6 +16,7 @@ export interface AiUsageService {
   record(input: RecordAiUsageInput): Promise<void>;
   getSnapshot(institutionId: string): Promise<AiUsageSnapshot>;
   hasQuotaAvailable(institutionId: string): Promise<boolean>;
+  withinBudget(institutionId: string): Promise<boolean>;
 }
 
 export class DefaultAiUsageService implements AiUsageService {
@@ -24,9 +25,11 @@ export class DefaultAiUsageService implements AiUsageService {
   }
 
   async getSnapshot(institutionId: string): Promise<AiUsageSnapshot> {
-    const [used, quota] = await Promise.all([
+    const [used, quota, spentUsd, budgetUsd] = await Promise.all([
       aiUsageRepository.countSince(institutionId, startOfCurrentMonth()),
       institutionRepository.getAiMonthlyQuota(institutionId),
+      aiUsageRepository.platformSpend(institutionId, currentMonthAR()),
+      aiUsageRepository.getBudget(institutionId),
     ]);
 
     return {
@@ -36,7 +39,20 @@ export class DefaultAiUsageService implements AiUsageService {
       quota,
       remaining: Math.max(quota - used, 0),
       overQuota: used >= quota,
+      spentUsd: Math.round(spentUsd * 10000) / 10000,
+      budgetUsd,
+      overBudget: budgetUsd !== null && spentUsd >= budgetUsd,
     };
+  }
+
+  /**
+   * Tope de gasto mensual con la clave de la plataforma. Con el tope alcanzado, la IA deja de usarse ese mes: las
+   * preguntas se generan por plantilla, las respuestas abiertas las corrige el docente y la ayuda queda pausada.
+   */
+  async withinBudget(institutionId: string): Promise<boolean> {
+    const budget = await aiUsageRepository.getBudget(institutionId);
+    if (budget === null) return true;
+    return (await aiUsageRepository.platformSpend(institutionId, currentMonthAR())) < budget;
   }
 
   async hasQuotaAvailable(institutionId: string): Promise<boolean> {
