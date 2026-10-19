@@ -31,7 +31,7 @@ export class SqlUserRepository implements UserRepository {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return queryOne<User>(`SELECT ${COLUMNS} FROM "User" WHERE "email" = $1`, [email]);
+    return queryOne<User>(`SELECT ${COLUMNS} FROM "User" WHERE lower("email") = lower($1)`, [email]);
   }
 
   async findFirstByProviderAndRole(provider: OAuthProviderId, role: Role): Promise<User | null> {

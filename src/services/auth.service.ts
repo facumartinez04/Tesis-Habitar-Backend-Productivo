@@ -96,15 +96,22 @@ export class DefaultAuthService implements AuthService {
     const email = claims?.email as string | undefined;
     if (!email) throw new UnauthorizedError('La cuenta no expone un email verificado');
 
-    const isSuperAdmin = env.superAdminEmails.includes(email.toLowerCase());
-    const institution = isSuperAdmin
-      ? await this.getOrCreateSuperAdminInstitution(email)
-      : await institutionRepository.findByDomain(emailDomain(email));
+    // El rol ADMIN guardado en la base es la fuente de verdad: un administrador activo entra aunque su
+    // correo (por ejemplo, un Gmail) no pertenezca al dominio de ninguna institución. SUPER_ADMIN_EMAILS
+    // sólo sirve para dar de alta al primer administrador.
+    const existing = await userRepository.findByEmail(email);
+    const isStoredAdmin = existing?.role === 'ADMIN' && existing.active;
+    const isSuperAdmin = isStoredAdmin || env.superAdminEmails.includes(email.toLowerCase());
+    const institution = isStoredAdmin
+      ? await institutionRepository.findById(existing.institutionId)
+      : isSuperAdmin
+        ? await this.getOrCreateSuperAdminInstitution(email)
+        : await institutionRepository.findByDomain(emailDomain(email));
     if (!institution || institution.status !== 'ACTIVO') {
       throw new ForbiddenError('Tu institución no está habilitada en Habitar. Contactá a tu coordinador/a.');
     }
 
-    let user = await userRepository.findByEmail(email);
+    let user = existing;
     if (!user) {
       const name = (claims?.name as string | undefined) ?? email;
       user = await userRepository.create({
