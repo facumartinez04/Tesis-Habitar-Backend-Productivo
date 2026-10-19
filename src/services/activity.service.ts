@@ -178,6 +178,11 @@ export class DefaultActivityService implements ActivityService {
     if (input.endTime <= input.startTime) {
       throw new BadRequestError('[Error-PAR_002] El horario de cierre debe ser posterior al de inicio');
     }
+    if (hasClosed(input)) {
+      throw new BadRequestError(
+        'El horario de cierre seleccionado ya venció. Por favor configurá un horario futuro para que los alumnos puedan ingresar.',
+      );
+    }
     for (const q of input.questions) {
       if (q.correctOption && !(q.options ?? []).includes(q.correctOption)) {
         throw new BadRequestError(`La opción correcta de «${q.prompt.slice(0, 40)}» no está entre sus opciones`);
