@@ -4,6 +4,7 @@ import { assertCourseAccess } from '../middlewares/access.middleware';
 import { activityService } from '../services/activity.service';
 import { activitySessionService } from '../services/activity-session.service';
 import { readingHelpService } from '../services/reading-help.service';
+import { activityDocumentService } from '../services/activity-document.service';
 import type {
   AskHelpDto,
   CreateActivityDto,
@@ -49,6 +50,25 @@ export class ActivityController {
 
   async saveProgress(req: Request, res: Response): Promise<void> {
     res.json(await activitySessionService.saveProgress(String(req.params.code), req.body as SaveProgressDto));
+  }
+
+  /** El docente sube el PDF o Word original para que el alumno lo lea tal cual. */
+  async uploadDocument(req: Request, res: Response): Promise<void> {
+    const meta = await activityDocumentService.upload(String(req.params.id), {
+      data: req.body,
+      fileName: req.header('x-file-name') ?? undefined,
+      pages: req.header('x-pages') ?? undefined,
+    });
+    res.status(201).json(meta);
+  }
+
+  /** El documento para el alumno, sólo mientras la actividad está abierta. No queda en caché ni se ofrece descargar. */
+  async document(req: Request, res: Response): Promise<void> {
+    const doc = await activityDocumentService.forStudent(String(req.params.code));
+    res.setHeader('Content-Type', doc.mimeType);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(doc.fileName)}`);
+    res.send(doc.data);
   }
 
   /** Duda del alumno sobre el texto: la IA explica sin responder la actividad. */
