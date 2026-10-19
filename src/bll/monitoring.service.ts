@@ -1,4 +1,4 @@
-import { monitoringRepository } from '../repositories/monitoring.repository';
+import { monitoringRepository } from '../dal/monitoring.repository';
 import type { MonitoringSnapshot } from '../domain/monitoring';
 
 export interface MonitoringService {

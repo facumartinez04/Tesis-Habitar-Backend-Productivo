@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { verifyToken, type VerifiedToken } from '../utils/jwt';
-import { revokedTokenRepository } from '../repositories/revokedToken.repository';
-import { userRepository } from '../repositories/user.repository';
+import { revokedTokenRepository } from '../dal/revokedToken.repository';
+import { userRepository } from '../dal/user.repository';
 import { ForbiddenError, UnauthorizedError } from '../utils/http-error';
 import type { JwtPayload } from '../domain/auth';
 import type { Role } from '../domain/enums';

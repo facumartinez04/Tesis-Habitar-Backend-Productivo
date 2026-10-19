@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { courseService } from '../services/course.service';
+import { courseService } from '../bll/course.service';
 import type { CreateCourseDto } from '../dto/course.dto';
 import { BadRequestError } from '../utils/http-error';
 import { assertCourseAccess, assertSameInstitution, assertUserAccess } from '../middlewares/access.middleware';

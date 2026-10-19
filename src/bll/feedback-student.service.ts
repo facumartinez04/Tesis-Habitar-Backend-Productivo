@@ -1,7 +1,7 @@
 import { query, queryOne } from '../config/db';
-import { activityRepository } from '../repositories/activity.repository';
-import { courseRepository } from '../repositories/course.repository';
-import { institutionRepository } from '../repositories/institution.repository';
+import { activityRepository } from '../dal/activity.repository';
+import { courseRepository } from '../dal/course.repository';
+import { institutionRepository } from '../dal/institution.repository';
 import { resolveStudentIdentity } from './student-identity';
 import { ConflictError, ForbiddenError, NotFoundError } from '../utils/http-error';
 

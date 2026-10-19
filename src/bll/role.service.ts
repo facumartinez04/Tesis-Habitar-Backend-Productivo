@@ -1,4 +1,4 @@
-import { roleRepository } from '../repositories/role.repository';
+import { roleRepository } from '../dal/role.repository';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/http-error';
 import type { CreateRoleDto, PlatformModule, RoleDefinition, UpdateRoleDto } from '../domain/role';
 

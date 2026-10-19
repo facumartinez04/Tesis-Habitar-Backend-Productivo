@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import { resultService } from '../services/result.service';
-import { authService } from '../services/auth.service';
+import { resultService } from '../bll/result.service';
+import { authService } from '../bll/auth.service';
 import type { CompareResultsQueryDto } from '../dto/result.dto';
 
 export class ResultController {

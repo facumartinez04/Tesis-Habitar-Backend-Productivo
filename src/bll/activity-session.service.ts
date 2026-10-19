@@ -1,10 +1,10 @@
-import { activityRepository } from '../repositories/activity.repository';
-import { courseRepository } from '../repositories/course.repository';
-import { institutionRepository } from '../repositories/institution.repository';
-import { questionRepository } from '../repositories/question.repository';
-import { responseRepository } from '../repositories/response.repository';
-import { studentRepository } from '../repositories/student.repository';
-import { progressRepository, type ProgressPhase } from '../repositories/progress.repository';
+import { activityRepository } from '../dal/activity.repository';
+import { courseRepository } from '../dal/course.repository';
+import { institutionRepository } from '../dal/institution.repository';
+import { questionRepository } from '../dal/question.repository';
+import { responseRepository } from '../dal/response.repository';
+import { studentRepository } from '../dal/student.repository';
+import { progressRepository, type ProgressPhase } from '../dal/progress.repository';
 import { resolveStudentIdentity, type StudentIdentity } from './student-identity';
 import { pastEndTime } from './activity-window';
 import { realtime } from '../realtime/realtime';

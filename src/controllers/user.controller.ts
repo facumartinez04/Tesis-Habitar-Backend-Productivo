@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { sendList } from '../utils/pagination';
-import { userService } from '../services/user.service';
+import { userService } from '../bll/user.service';
 import type { CreateInstitutionUserDto, SetUserActiveDto, UpdateUserRoleDto } from '../dto/user.dto';
 
 export class UserController {

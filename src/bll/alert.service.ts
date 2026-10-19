@@ -1,7 +1,7 @@
-import { alertRepository } from '../repositories/alert.repository';
-import { courseRepository } from '../repositories/course.repository';
-import { institutionRepository } from '../repositories/institution.repository';
-import { emailService } from './email.service';
+import { alertRepository } from '../dal/alert.repository';
+import { courseRepository } from '../dal/course.repository';
+import { institutionRepository } from '../dal/institution.repository';
+import { emailService } from '../services/email.service';
 import type { PerformanceAlert } from '../domain/alert';
 import type { ComprehensionAxis } from '../domain/enums';
 

@@ -1,6 +1,6 @@
-import { activityRepository } from '../repositories/activity.repository';
-import { activityService } from '../services/activity.service';
-import { pastEndTime } from '../services/activity-window';
+import { activityRepository } from '../dal/activity.repository';
+import { activityService } from '../bll/activity.service';
+import { pastEndTime } from '../bll/activity-window';
 import { realtime } from './realtime';
 
 /**

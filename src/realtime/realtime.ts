@@ -2,10 +2,10 @@ import type { Server as HttpServer } from 'node:http';
 import { Server, type Socket } from 'socket.io';
 import { env } from '../config/env';
 import { verifyToken } from '../utils/jwt';
-import { revokedTokenRepository } from '../repositories/revokedToken.repository';
-import { userRepository } from '../repositories/user.repository';
-import { activityRepository } from '../repositories/activity.repository';
-import { courseRepository } from '../repositories/course.repository';
+import { revokedTokenRepository } from '../dal/revokedToken.repository';
+import { userRepository } from '../dal/user.repository';
+import { activityRepository } from '../dal/activity.repository';
+import { courseRepository } from '../dal/course.repository';
 
 /**
  * Avisos en tiempo real por WebSocket (Socket.IO). El canal sólo avisa que algo cambió; cada pantalla vuelve a

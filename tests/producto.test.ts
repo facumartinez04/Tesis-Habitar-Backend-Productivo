@@ -2,13 +2,13 @@
 // Correr con: npm test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeScores, pseudonymize } from '../src/services/activity.service';
-import { criticoFromAnswers } from '../src/repositories/response.repository';
-import { resolveStudentIdentity } from '../src/services/student-identity';
-import { activityWindow, hasClosed, hasOpened, SUBMIT_GRACE_MS } from '../src/services/activity-window';
+import { computeScores, pseudonymize } from '../src/bll/activity.service';
+import { criticoFromAnswers } from '../src/dal/response.repository';
+import { resolveStudentIdentity } from '../src/bll/student-identity';
+import { activityWindow, hasClosed, hasOpened, SUBMIT_GRACE_MS } from '../src/bll/activity-window';
 import { questionMix } from '../src/services/ai-question-generator.service';
-import { classify } from '../src/services/result.service';
-import { sanitizeDraft } from '../src/services/activity-session.service';
+import { classify } from '../src/bll/result.service';
+import { sanitizeDraft } from '../src/bll/activity-session.service';
 import { verifyMpSignature } from '../src/services/mercadopago.service';
 import { createHmac } from 'crypto';
 import type { Question } from '../src/domain/question';

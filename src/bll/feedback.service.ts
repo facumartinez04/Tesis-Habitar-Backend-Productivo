@@ -1,5 +1,5 @@
-import { feedbackRepository } from '../repositories/feedback.repository';
-import { studentRepository } from '../repositories/student.repository';
+import { feedbackRepository } from '../dal/feedback.repository';
+import { studentRepository } from '../dal/student.repository';
 import { NotFoundError } from '../utils/http-error';
 import type { Feedback } from '../domain/feedback';
 

@@ -1,9 +1,9 @@
-import { userRepository } from '../repositories/user.repository';
-import { institutionRepository } from '../repositories/institution.repository';
-import { revokedTokenRepository } from '../repositories/revokedToken.repository';
+import { userRepository } from '../dal/user.repository';
+import { institutionRepository } from '../dal/institution.repository';
+import { revokedTokenRepository } from '../dal/revokedToken.repository';
 import { signToken } from '../utils/jwt';
 import { ForbiddenError, UnauthorizedError } from '../utils/http-error';
-import { getProviderConfig, getRedirectUri, loadClient } from './oidc-providers';
+import { getProviderConfig, getRedirectUri, loadClient } from '../services/oidc-providers';
 import { env } from '../config/env';
 import type { OAuthProviderId, Role } from '../domain/enums';
 import type { Session } from '../domain/auth';

@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { subscriptionService } from '../services/subscription.service';
+import { subscriptionService } from '../bll/subscription.service';
 import type { CreatePlanDto, UpdatePlanDto, UpdateSubscriptionDto } from '../dto/subscription.dto';
 
 export class SubscriptionController {

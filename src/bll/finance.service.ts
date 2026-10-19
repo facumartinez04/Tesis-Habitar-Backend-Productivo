@@ -1,5 +1,5 @@
-import { financeRepository } from '../repositories/finance.repository';
-import { mercadoPagoService } from './mercadopago.service';
+import { financeRepository } from '../dal/finance.repository';
+import { mercadoPagoService } from '../services/mercadopago.service';
 import type {
   FinanceConfig,
   InstitutionExpense,

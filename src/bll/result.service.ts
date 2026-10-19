@@ -1,10 +1,10 @@
-import { resultRepository, type RawDiagnosticRow } from '../repositories/result.repository';
-import { courseRepository } from '../repositories/course.repository';
-import { institutionRepository } from '../repositories/institution.repository';
-import { studentRepository } from '../repositories/student.repository';
-import { userRepository } from '../repositories/user.repository';
-import { complianceRepository } from '../repositories/compliance.repository';
-import { alertRepository } from '../repositories/alert.repository';
+import { resultRepository, type RawDiagnosticRow } from '../dal/result.repository';
+import { courseRepository } from '../dal/course.repository';
+import { institutionRepository } from '../dal/institution.repository';
+import { studentRepository } from '../dal/student.repository';
+import { userRepository } from '../dal/user.repository';
+import { complianceRepository } from '../dal/compliance.repository';
+import { alertRepository } from '../dal/alert.repository';
 import { NotFoundError, BadRequestError } from '../utils/http-error';
 import type {
   AxisRecommendation,

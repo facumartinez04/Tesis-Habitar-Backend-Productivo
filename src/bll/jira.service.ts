@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { jiraRepository } from '../repositories/jira.repository';
+import { jiraRepository } from '../dal/jira.repository';
 import { BadRequestError, NotFoundError } from '../utils/http-error';
 import type { JiraIssue, JiraToken } from '../domain/jira';
 

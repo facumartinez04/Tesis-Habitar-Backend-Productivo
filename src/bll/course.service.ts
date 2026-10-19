@@ -1,9 +1,9 @@
-import { courseRepository } from '../repositories/course.repository';
-import { activityRepository } from '../repositories/activity.repository';
+import { courseRepository } from '../dal/course.repository';
+import { activityRepository } from '../dal/activity.repository';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/http-error';
 import type { Course, CourseStudentDevice, CourseTeacher, CreateCourseInput } from '../domain/course';
 import type { Role } from '../domain/enums';
-import { institutionRepository } from '../repositories/institution.repository';
+import { institutionRepository } from '../dal/institution.repository';
 import { resolveStudentIdentity } from './student-identity';
 
 export interface PublicCourseInfo {

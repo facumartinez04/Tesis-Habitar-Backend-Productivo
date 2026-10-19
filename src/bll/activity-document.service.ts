@@ -1,11 +1,11 @@
-import { activityRepository } from '../repositories/activity.repository';
+import { activityRepository } from '../dal/activity.repository';
 import {
   activityDocumentRepository,
   DOCX_MIME,
   PDF_MIME,
   type ActivityDocumentMeta,
   type DocumentMime,
-} from '../repositories/activity-document.repository';
+} from '../dal/activity-document.repository';
 import { BadRequestError, ConflictError, NotFoundError } from '../utils/http-error';
 
 export const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;

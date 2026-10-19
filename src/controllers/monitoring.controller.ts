@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { monitoringService } from '../services/monitoring.service';
+import { monitoringService } from '../bll/monitoring.service';
 
 export class MonitoringController {
   async getSnapshot(_req: Request, res: Response): Promise<void> {

@@ -1,6 +1,6 @@
 import { env } from '../config/env';
-import { financeRepository } from '../repositories/finance.repository';
-import { getMpPayment, mercadoPagoService, verifyMpSignature } from './mercadopago.service';
+import { financeRepository } from '../dal/finance.repository';
+import { getMpPayment, mercadoPagoService, verifyMpSignature } from '../services/mercadopago.service';
 import { subscriptionService } from './subscription.service';
 import { BadRequestError, ConflictError, UnauthorizedError } from '../utils/http-error';
 

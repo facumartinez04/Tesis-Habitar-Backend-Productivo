@@ -1,5 +1,5 @@
-import { aiUsageRepository, currentMonthAR } from '../repositories/aiUsage.repository';
-import { institutionRepository } from '../repositories/institution.repository';
+import { aiUsageRepository, currentMonthAR } from '../dal/aiUsage.repository';
+import { institutionRepository } from '../dal/institution.repository';
 import type { AiUsageSnapshot, RecordAiUsageInput } from '../domain/aiUsage';
 
 function startOfCurrentMonth(): Date {

@@ -1,7 +1,7 @@
-import { userRepository } from '../repositories/user.repository';
-import { subscriptionRepository } from '../repositories/subscription.repository';
-import { institutionRepository } from '../repositories/institution.repository';
-import { emailService } from './email.service';
+import { userRepository } from '../dal/user.repository';
+import { subscriptionRepository } from '../dal/subscription.repository';
+import { institutionRepository } from '../dal/institution.repository';
+import { emailService } from '../services/email.service';
 import { BadRequestError, ConflictError, NotFoundError } from '../utils/http-error';
 import type { CreateInstitutionUserInput, User } from '../domain/user';
 import type { Role } from '../domain/enums';

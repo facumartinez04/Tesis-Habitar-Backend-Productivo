@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { aiUsageRepository, currentMonthAR } from '../repositories/aiUsage.repository';
-import { institutionRepository } from '../repositories/institution.repository';
+import { aiUsageRepository, currentMonthAR } from '../dal/aiUsage.repository';
+import { institutionRepository } from '../dal/institution.repository';
 import { BadRequestError, NotFoundError } from '../utils/http-error';
 
 const budgetSchema = z.object({ budgetUsd: z.number().min(0).max(100000).nullable() });

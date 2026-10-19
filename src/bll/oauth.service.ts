@@ -1,4 +1,4 @@
-import { institutionRepository } from '../repositories/institution.repository';
+import { institutionRepository } from '../dal/institution.repository';
 import { env } from '../config/env';
 import { NotFoundError } from '../utils/http-error';
 import type { OAuthAccessStatus } from '../domain/oauth';

@@ -1,5 +1,5 @@
 import { query, queryOne } from '../config/db';
-import { courseRepository } from '../repositories/course.repository';
+import { courseRepository } from '../dal/course.repository';
 import { classify } from './result.service';
 import { BadRequestError, ForbiddenError } from '../utils/http-error';
 import type { Role } from '../domain/enums';
