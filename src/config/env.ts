@@ -11,6 +11,8 @@ export const env = {
   jwtSecret: requireEnv('JWT_SECRET'),
   databaseUrl: requireEnv('DATABASE_URL'),
   frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:4321',
+  /** URL pública de esta API (Mercado Pago avisa los pagos acá). */
+  apiPublicUrl: (process.env.API_PUBLIC_URL ?? 'https://api.habitar.lat').replace(/\/$/, ''),
   /** Orígenes que pueden llamar a la API. Por defecto, sólo el frontend. */
   corsOrigins: (process.env.CORS_ORIGINS ?? process.env.FRONTEND_URL ?? 'http://localhost:4321')
     .split(',')

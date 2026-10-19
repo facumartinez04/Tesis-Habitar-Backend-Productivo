@@ -41,47 +41,6 @@ export class FinanceService {
     return financeRepository.listTransactions();
   }
 
-  async createSubscriptionCheckout(data: {
-    institutionId?: string;
-    subscriptionId?: string;
-    planName: string;
-    amountArs: number;
-    payerEmail: string;
-    payerName?: string;
-  }): Promise<{ transaction: PaymentTransaction; preferenceUrl: string }> {
-    const config = await financeRepository.getFinanceConfig(null);
-
-    const preference = await mercadoPagoService.createPreference(
-      {
-        title: `Suscripción Habitar — ${data.planName}`,
-        amountArs: data.amountArs,
-        payerEmail: data.payerEmail,
-        payerName: data.payerName,
-        externalReference: `sub_${Date.now()}`,
-      },
-      config?.mpAccessToken
-    );
-
-    const transaction = await financeRepository.createTransaction({
-      institutionId: data.institutionId,
-      subscriptionId: data.subscriptionId,
-      type: 'SUBSCRIPCION_PLATAFORMA',
-      description: `Suscripción Habitar: ${data.planName}`,
-      amountArs: data.amountArs,
-      payerEmail: data.payerEmail,
-      payerName: data.payerName,
-      status: 'PENDIENTE',
-      paymentMethod: 'MERCADOPAGO',
-      mpPreferenceId: preference.id,
-      mpInitPoint: preference.initPoint,
-    });
-
-    return {
-      transaction,
-      preferenceUrl: preference.initPoint,
-    };
-  }
-
   async getFinanceConfig(institutionId?: string | null): Promise<FinanceConfig | null> {
     return financeRepository.getFinanceConfig(institutionId);
   }
@@ -128,39 +87,6 @@ export class FinanceService {
 
   async listInstitutionFees(institutionId: string): Promise<InstitutionFee[]> {
     return financeRepository.listInstitutionFees(institutionId);
-  }
-
-  async createInstitutionFeeWithCheckout(institutionId: string, data: {
-    courseId?: string;
-    studentId?: string;
-    title: string;
-    period: string;
-    amountArs: number;
-    dueDate: string;
-    tutorEmail?: string;
-    tutorName?: string;
-  }): Promise<InstitutionFee> {
-
-    const schoolConfig = await financeRepository.getFinanceConfig(institutionId);
-    const globalConfig = await financeRepository.getFinanceConfig(null);
-    const activeToken = schoolConfig?.mpAccessToken || globalConfig?.mpAccessToken;
-
-    const preference = await mercadoPagoService.createPreference(
-      {
-        title: `${data.title} (${data.period})`,
-        amountArs: data.amountArs,
-        payerEmail: data.tutorEmail || 'tutor@escuela.edu.ar',
-        payerName: data.tutorName || '',
-        externalReference: `fee_${institutionId}_${Date.now()}`,
-      },
-      activeToken
-    );
-
-    return financeRepository.createInstitutionFee(institutionId, {
-      ...data,
-      mpPreferenceId: preference.id,
-      mpInitPoint: preference.initPoint,
-    });
   }
 
   async updateInstitutionFeeStatus(institutionId: string, id: string, status: string): Promise<InstitutionFee | null> {

@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { paymentsService } from '../services/payments.service';
 import { sendList } from '../utils/pagination';
 import { financeService } from '../services/finance.service';
 import { BadRequestError, NotFoundError } from '../utils/http-error';
@@ -52,15 +53,38 @@ export class FinanceController {
       throw new BadRequestError('planName, amountArs y payerEmail son obligatorios.');
     }
 
-    const result = await financeService.createSubscriptionCheckout({
+    const result = await paymentsService.platformCheckout({
       institutionId,
       subscriptionId,
-      planName,
+      type: 'SUBSCRIPCION_PLATAFORMA',
+      title: `Suscripción Habitar — ${planName}`,
       amountArs: Number(amountArs),
       payerEmail,
       payerName,
     });
     res.status(201).json(result);
+  }
+
+  /** Pago de prueba del administrador: crea un cobro chico para probar el circuito completo de Mercado Pago. */
+  async createTestPayment(req: Request, res: Response): Promise<void> {
+    const amountArs = Number(req.body?.amountArs ?? 100);
+    const result = await paymentsService.platformCheckout({
+      type: 'OTRO',
+      title: 'Pago de prueba Habitar',
+      amountArs,
+      payerEmail: String(req.body?.payerEmail || 'comprador.prueba@habitar.test'),
+      payerName: 'Pago de prueba',
+    });
+    res.status(201).json(result);
+  }
+
+  /** La página de resultado sincroniza el pago al volver de Mercado Pago (consulta a Mercado Pago, no al navegador). */
+  async paymentReturn(req: Request, res: Response): Promise<void> {
+    const paymentId = String(req.query.payment_id ?? req.query.collection_id ?? '').replace(/[^0-9]/g, '');
+    const reference = String(req.query.external_reference ?? '');
+    const status = await paymentsService.syncFromReturn(paymentId, reference);
+    if (!status) throw new NotFoundError('No encontramos ese pago');
+    res.json(status);
   }
 
   async getFinanceConfig(_req: Request, res: Response): Promise<void> {
@@ -151,7 +175,7 @@ export class FinanceController {
       throw new BadRequestError('Título, período, monto y fecha de vencimiento son requeridos.');
     }
 
-    const created = await financeService.createInstitutionFeeWithCheckout(institutionId, {
+    const created = await paymentsService.feeCheckout(institutionId, {
       courseId,
       studentId,
       title,
@@ -204,10 +228,19 @@ export class FinanceController {
     res.json(saved);
   }
 
+  /**
+   * Aviso de Mercado Pago. Responde 200 cuando el aviso se procesó o no es de un pago de Habitar; si algo falla
+   * (por ejemplo, la API de Mercado Pago no responde) devuelve error para que Mercado Pago lo reintente.
+   */
   async handleMercadoPagoWebhook(req: Request, res: Response): Promise<void> {
-    const { type, data } = req.body;
-    console.log('[MercadoPago Webhook] Notificación recibida:', { type, dataId: data?.id });
-    res.status(200).json({ received: true });
+    const result = await paymentsService.handleWebhook({
+      query: req.query as Record<string, unknown>,
+      body: (req.body ?? {}) as Record<string, any>,
+      signature: req.header('x-signature') ?? undefined,
+      requestId: req.header('x-request-id') ?? undefined,
+    });
+    console.log('[MercadoPago] aviso', result.handled ? 'procesado' : result.reason);
+    res.status(200).json({ received: true, handled: result.handled });
   }
 }
 

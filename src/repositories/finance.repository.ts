@@ -106,6 +106,33 @@ export class FinanceRepository {
     return res.rows[0];
   }
 
+  async findTransaction(id: string): Promise<PaymentTransaction | null> {
+    const res = await pool.query('SELECT * FROM "PaymentTransaction" WHERE "id" = $1', [id]);
+    return res.rows[0] || null;
+  }
+
+  async setTransactionPreference(id: string, preferenceId: string, initPoint: string, externalReference: string): Promise<PaymentTransaction> {
+    const res = await pool.query(
+      `UPDATE "PaymentTransaction" SET "mpPreferenceId" = $2, "mpInitPoint" = $3, "externalReference" = $4, "updatedAt" = CURRENT_TIMESTAMP
+        WHERE "id" = $1 RETURNING *`,
+      [id, preferenceId, initPoint, externalReference],
+    );
+    return res.rows[0];
+  }
+
+  async findFee(id: string): Promise<InstitutionFee | null> {
+    const res = await pool.query('SELECT * FROM "InstitutionFee" WHERE "id" = $1', [id]);
+    return res.rows[0] || null;
+  }
+
+  async setFeePreference(id: string, preferenceId: string, initPoint: string): Promise<InstitutionFee> {
+    const res = await pool.query(
+      `UPDATE "InstitutionFee" SET "mpPreferenceId" = $2, "mpInitPoint" = $3, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = $1 RETURNING *`,
+      [id, preferenceId, initPoint],
+    );
+    return res.rows[0];
+  }
+
   async updateTransactionStatus(id: string, status: string, mpPaymentId?: string): Promise<PaymentTransaction | null> {
     const paidAt = status === 'APROBADO' ? new Date() : null;
     const res = await pool.query(
