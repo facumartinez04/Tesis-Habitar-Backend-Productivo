@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { oauthService } from '../services/oauth.service';
+import { oauthService } from '../bll/oauth.service';
 
 export class OAuthController {
   async getStatus(req: Request, res: Response): Promise<void> {

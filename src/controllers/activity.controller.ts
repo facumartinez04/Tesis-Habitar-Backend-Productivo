@@ -1,12 +1,12 @@
 import type { Request, Response } from 'express';
 import { readPage } from '../utils/pagination';
 import { assertCourseAccess } from '../middlewares/access.middleware';
-import { activityService } from '../services/activity.service';
-import { activitySessionService } from '../services/activity-session.service';
-import { readingHelpService } from '../services/reading-help.service';
-import { activityDocumentService } from '../services/activity-document.service';
-import { studentFeedbackService } from '../services/feedback-student.service';
-import { activityTemplateService } from '../services/activity-template.service';
+import { activityService } from '../bll/activity.service';
+import { activitySessionService } from '../bll/activity-session.service';
+import { readingHelpService } from '../bll/reading-help.service';
+import { activityDocumentService } from '../bll/activity-document.service';
+import { studentFeedbackService } from '../bll/feedback-student.service';
+import { activityTemplateService } from '../bll/activity-template.service';
 import type {
   AskHelpDto,
   CreateActivityDto,

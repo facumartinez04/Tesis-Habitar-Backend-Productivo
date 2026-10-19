@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { jiraService } from '../services/jira.service';
+import { jiraService } from '../bll/jira.service';
 
 export class JiraController {
   async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {

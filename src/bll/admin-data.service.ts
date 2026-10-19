@@ -1,5 +1,5 @@
-import { adminDataRepository } from '../repositories/admin-data.repository';
-import { institutionRepository } from '../repositories/institution.repository';
+import { adminDataRepository } from '../dal/admin-data.repository';
+import { institutionRepository } from '../dal/institution.repository';
 import { authService } from './auth.service';
 import { realtime } from '../realtime/realtime';
 import { NotFoundError } from '../utils/http-error';

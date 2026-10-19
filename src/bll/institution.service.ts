@@ -1,4 +1,4 @@
-import { institutionRepository } from '../repositories/institution.repository';
+import { institutionRepository } from '../dal/institution.repository';
 import { NotFoundError } from '../utils/http-error';
 import type { CreateInstitutionInput, Institution, UpdateInstitutionConfigInput } from '../domain/institution';
 

@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { metricsRepository } from '../repositories/metrics.repository';
+import { metricsRepository } from '../dal/metrics.repository';
 
 /** Métricas de uso del producto (mejora 4): alimentan el embudo, la renovación y la evidencia de calidad. */
 export class MetricsController {

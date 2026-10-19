@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { sendList } from '../utils/pagination';
-import { institutionService } from '../services/institution.service';
-import { aiUsageService } from '../services/aiUsage.service';
+import { institutionService } from '../bll/institution.service';
+import { aiUsageService } from '../bll/aiUsage.service';
 import { aiQuestionGenerator } from '../services/ai-question-generator.service';
 import { assertSameInstitution } from '../middlewares/access.middleware';
 import type { Institution } from '../domain/institution';

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { sendList } from '../utils/pagination';
-import { authService } from '../services/auth.service';
-import { complianceService } from '../services/compliance.service';
+import { authService } from '../bll/auth.service';
+import { complianceService } from '../bll/compliance.service';
 import type { UpdateRetentionPolicyDto } from '../dto/compliance.dto';
 
 export class ComplianceController {

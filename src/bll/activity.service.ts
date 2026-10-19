@@ -1,16 +1,16 @@
-import { activityRepository } from '../repositories/activity.repository';
+import { activityRepository } from '../dal/activity.repository';
 import { activitySessionService, resolveStudentInActivity } from './activity-session.service';
-import { progressRepository } from '../repositories/progress.repository';
-import { readingHelpRepository } from '../repositories/reading-help.repository';
-import { activityDocumentRepository, type ActivityDocumentMeta } from '../repositories/activity-document.repository';
+import { progressRepository } from '../dal/progress.repository';
+import { readingHelpRepository } from '../dal/reading-help.repository';
+import { activityDocumentRepository, type ActivityDocumentMeta } from '../dal/activity-document.repository';
 import { pageOf, type Page, type PageRequest } from '../utils/pagination';
-import { questionRepository } from '../repositories/question.repository';
-import { criticoFromAnswers, responseRepository, type ReviewQueueItem } from '../repositories/response.repository';
-import { studentRepository } from '../repositories/student.repository';
-import { courseRepository } from '../repositories/course.repository';
-import { countWords, isWordCountValid, TemplateQuestionGenerator } from './question-generator.service';
-import { type AiCallUsage, aiQuestionGenerator, type GenerateWithAiOptions } from './ai-question-generator.service';
-import { institutionRepository } from '../repositories/institution.repository';
+import { questionRepository } from '../dal/question.repository';
+import { criticoFromAnswers, responseRepository, type ReviewQueueItem } from '../dal/response.repository';
+import { studentRepository } from '../dal/student.repository';
+import { courseRepository } from '../dal/course.repository';
+import { countWords, isWordCountValid, TemplateQuestionGenerator } from '../services/question-generator.service';
+import { type AiCallUsage, aiQuestionGenerator, type GenerateWithAiOptions } from '../services/ai-question-generator.service';
+import { institutionRepository } from '../dal/institution.repository';
 import { env } from '../config/env';
 import { aiUsageService } from './aiUsage.service';
 import { alertService } from './alert.service';
@@ -24,7 +24,7 @@ import type { AnswerInput, SubmitResponseInput } from '../domain/response';
 import type { AxisScores } from '../domain/result';
 import type { ComprehensionAxis } from '../domain/enums';
 import type { Institution, StudentIdMode } from '../domain/institution';
-import type { CreateAnswerInput } from '../repositories/response.repository';
+import type { CreateAnswerInput } from '../dal/response.repository';
 
 type SubmitResponsePayload = Omit<SubmitResponseInput, 'activityId'>;
 

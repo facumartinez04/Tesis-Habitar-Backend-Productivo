@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { adminDataService } from '../services/admin-data.service';
+import { adminDataService } from '../bll/admin-data.service';
 import { readPage, type PageRequest } from '../utils/pagination';
 
 const pageFrom = (req: Request): PageRequest => readPage(req) ?? { page: 1, pageSize: 20, q: '' };

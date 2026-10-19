@@ -1,9 +1,9 @@
 import { query, queryOne } from '../config/db';
-import { activityRepository } from '../repositories/activity.repository';
-import { activityDocumentRepository } from '../repositories/activity-document.repository';
-import { courseRepository } from '../repositories/course.repository';
-import { questionRepository } from '../repositories/question.repository';
-import { userRepository } from '../repositories/user.repository';
+import { activityRepository } from '../dal/activity.repository';
+import { activityDocumentRepository } from '../dal/activity-document.repository';
+import { courseRepository } from '../dal/course.repository';
+import { questionRepository } from '../dal/question.repository';
+import { userRepository } from '../dal/user.repository';
 import { ConflictError, ForbiddenError, NotFoundError } from '../utils/http-error';
 import type { CreateQuestionInput } from '../domain/activity';
 

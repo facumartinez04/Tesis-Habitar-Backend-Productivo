@@ -1,7 +1,7 @@
-import { complianceRepository } from '../repositories/compliance.repository';
-import { studentRepository } from '../repositories/student.repository';
-import { retentionRepository } from '../repositories/retention.repository';
-import { courseRepository } from '../repositories/course.repository';
+import { complianceRepository } from '../dal/compliance.repository';
+import { studentRepository } from '../dal/student.repository';
+import { retentionRepository } from '../dal/retention.repository';
+import { courseRepository } from '../dal/course.repository';
 import { NotFoundError } from '../utils/http-error';
 import type { ArcoStudentRecord, AuditLogEntry, ConsentAcceptance, ConsentDocument, PurgeResult, RetentionPolicy } from '../domain/compliance';
 

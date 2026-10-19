@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { roleService } from '../services/role.service';
+import { roleService } from '../bll/role.service';
 import { PLATFORM_MODULES } from '../domain/role';
 
 export class RoleController {

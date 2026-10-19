@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
-import { paymentsService } from '../services/payments.service';
+import { paymentsService } from '../bll/payments.service';
 import { sendList } from '../utils/pagination';
-import { financeService } from '../services/finance.service';
+import { financeService } from '../bll/finance.service';
 import { BadRequestError, NotFoundError } from '../utils/http-error';
 
 export class FinanceController {

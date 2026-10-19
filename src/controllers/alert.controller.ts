@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { alertService } from '../services/alert.service';
+import { alertService } from '../bll/alert.service';
 
 export class AlertController {
   async getByInstitution(req: Request, res: Response): Promise<void> {

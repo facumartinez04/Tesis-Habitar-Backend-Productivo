@@ -1,4 +1,4 @@
-import { subscriptionRepository } from '../repositories/subscription.repository';
+import { subscriptionRepository } from '../dal/subscription.repository';
 import { NotFoundError } from '../utils/http-error';
 import type {
   CreatePlanInput,

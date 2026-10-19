@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { jiraController } from '../controllers/jira.controller';
-import { jiraService } from '../services/jira.service';
+import { jiraService } from '../bll/jira.service';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware';
 import { UnauthorizedError } from '../utils/http-error';
 

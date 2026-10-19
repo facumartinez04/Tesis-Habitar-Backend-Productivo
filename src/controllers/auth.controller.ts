@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { authService, dashboardPathForRole } from '../services/auth.service';
+import { authService, dashboardPathForRole } from '../bll/auth.service';
 import { env } from '../config/env';
 import { getRedirectUri } from '../services/oidc-providers';
 import { BadRequestError, UnauthorizedError } from '../utils/http-error';

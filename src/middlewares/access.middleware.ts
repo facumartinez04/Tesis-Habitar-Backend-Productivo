@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
-import { courseRepository } from '../repositories/course.repository';
-import { studentRepository } from '../repositories/student.repository';
-import { activityRepository } from '../repositories/activity.repository';
-import { userRepository } from '../repositories/user.repository';
+import { courseRepository } from '../dal/course.repository';
+import { studentRepository } from '../dal/student.repository';
+import { activityRepository } from '../dal/activity.repository';
+import { userRepository } from '../dal/user.repository';
 import { ForbiddenError, NotFoundError, UnauthorizedError } from '../utils/http-error';
 
 /**

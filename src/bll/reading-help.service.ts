@@ -1,8 +1,8 @@
-import { institutionRepository } from '../repositories/institution.repository';
-import { questionRepository } from '../repositories/question.repository';
-import { progressRepository } from '../repositories/progress.repository';
-import { readingHelpRepository } from '../repositories/reading-help.repository';
-import { aiQuestionGenerator } from './ai-question-generator.service';
+import { institutionRepository } from '../dal/institution.repository';
+import { questionRepository } from '../dal/question.repository';
+import { progressRepository } from '../dal/progress.repository';
+import { readingHelpRepository } from '../dal/reading-help.repository';
+import { aiQuestionGenerator } from '../services/ai-question-generator.service';
 import { aiUsageService } from './aiUsage.service';
 import { openActivity, resolveStudentInActivity } from './activity-session.service';
 import { pastEndTime } from './activity-window';

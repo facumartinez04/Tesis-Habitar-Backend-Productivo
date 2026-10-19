@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { feedbackService } from '../services/feedback.service';
+import { feedbackService } from '../bll/feedback.service';
 import type { CreateFeedbackDto } from '../dto/feedback.dto';
 
 export class FeedbackController {

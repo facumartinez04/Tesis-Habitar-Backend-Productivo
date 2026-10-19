@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware';
-import { dashboardService } from '../services/dashboard.service';
+import { dashboardService } from '../bll/dashboard.service';
 
 // Tablero de resultados con filtros (aula, alumno, días).
 export const dashboardRouter = Router();
