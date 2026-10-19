@@ -30,6 +30,14 @@ export function createApp() {
     res.json({ status: 'ok' });
   });
 
+  app.get('/', (_req, res) => {
+    res
+      .type('text/html')
+      .send(
+        '<!DOCTYPE html><html><head><meta name="google-site-verification" content="10dGo2uH13Ldi39RaQ8KRADqEHXvR-gwYKaJpOvb9Gg" /><title>Habitar API</title></head><body>Habitar API</body></html>',
+      );
+  });
+
   app.get('/google1e293a64d735c85d.html', (_req, res) => {
     res.type('text/html').send('google-site-verification: google1e293a64d735c85d.html');
   });
