@@ -9,6 +9,8 @@ import { activityWindow, hasClosed, hasOpened, SUBMIT_GRACE_MS } from '../src/se
 import { questionMix } from '../src/services/ai-question-generator.service';
 import { classify } from '../src/services/result.service';
 import { sanitizeDraft } from '../src/services/activity-session.service';
+import { verifyMpSignature } from '../src/services/mercadopago.service';
+import { createHmac } from 'crypto';
 import type { Question } from '../src/domain/question';
 
 function q(id: string, axis: Question['axis'], correctOption: string | null): Question {
@@ -144,4 +146,15 @@ test('el borrador del alumno sólo guarda opciones válidas y texto en preguntas
     c1: { selectedOption: 'otra' },
   });
   assert.deepEqual(sanitizeDraft(questions, { c1: { textAnswer: 'texto en una cerrada' } }), {});
+});
+
+test('el aviso de Mercado Pago sólo vale con la firma de la clave secreta', () => {
+  const secret = 'clave-secreta-de-prueba';
+  const ts = '1742505638683';
+  const manifest = `id:123456;request-id:req-1;ts:${ts};`;
+  const v1 = createHmac('sha256', secret).update(manifest).digest('hex');
+  assert.equal(verifyMpSignature({ signature: `ts=${ts},v1=${v1}`, requestId: 'req-1', dataId: '123456', secret }), true);
+  assert.equal(verifyMpSignature({ signature: `ts=${ts},v1=${v1}`, requestId: 'req-1', dataId: '999999', secret }), false);
+  assert.equal(verifyMpSignature({ signature: `ts=${ts},v1=${v1}`, requestId: 'req-1', dataId: '123456', secret: 'otra' }), false);
+  assert.equal(verifyMpSignature({ signature: undefined, requestId: 'req-1', dataId: '123456', secret }), false);
 });
