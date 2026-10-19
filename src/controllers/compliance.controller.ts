@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { sendList } from '../utils/pagination';
 import { authService } from '../services/auth.service';
 import { complianceService } from '../services/compliance.service';
 import type { UpdateRetentionPolicyDto } from '../dto/compliance.dto';
@@ -8,13 +9,13 @@ export class ComplianceController {
     const institutionId = req.auth!.institutionId;
     const query = String(req.query.q ?? '');
     const students = await complianceService.searchArcoStudents(institutionId, query);
-    res.json(students);
+    sendList(req, res, students);
   }
 
   async getAuditLog(req: Request, res: Response): Promise<void> {
     const institutionId = req.auth!.institutionId;
     const log = await complianceService.getAuditLog(institutionId);
-    res.json(log);
+    sendList(req, res, log);
   }
 
   async exportStudent(req: Request, res: Response): Promise<void> {

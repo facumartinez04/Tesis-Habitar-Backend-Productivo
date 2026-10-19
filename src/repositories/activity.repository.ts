@@ -66,6 +66,23 @@ export class SqlActivityRepository implements ActivityRepository {
     return row ? toDomain(row) : null;
   }
 
+  async findByCoursePage(
+    courseId: string,
+    page: { limit: number; offset: number; q: string },
+  ): Promise<{ items: Activity[]; total: number }> {
+    const where = `"courseId" = $1 AND ($2 = '' OR "name" ILIKE '%' || $2 || '%' OR "code" ILIKE '%' || $2 || '%')`;
+    const [rows, count] = await Promise.all([
+      query<ActivityRow>(`SELECT * FROM "Activity" WHERE ${where} ORDER BY "createdAt" DESC LIMIT $3 OFFSET $4`, [
+        courseId,
+        page.q,
+        page.limit,
+        page.offset,
+      ]),
+      queryOne<{ total: string }>(`SELECT COUNT(*) AS "total" FROM "Activity" WHERE ${where}`, [courseId, page.q]),
+    ]);
+    return { items: rows.map(toDomain), total: Number(count?.total ?? 0) };
+  }
+
   async findByCourse(courseId: string): Promise<Activity[]> {
     const rows = await query<ActivityRow>(
       'SELECT * FROM "Activity" WHERE "courseId" = $1 ORDER BY "createdAt" DESC',

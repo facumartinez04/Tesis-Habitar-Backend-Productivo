@@ -2,6 +2,7 @@ import { activityRepository } from '../repositories/activity.repository';
 import { activitySessionService, resolveStudentInActivity } from './activity-session.service';
 import { progressRepository } from '../repositories/progress.repository';
 import { readingHelpRepository } from '../repositories/reading-help.repository';
+import { pageOf, type Page, type PageRequest } from '../utils/pagination';
 import { questionRepository } from '../repositories/question.repository';
 import { criticoFromAnswers, responseRepository, type ReviewQueueItem } from '../repositories/response.repository';
 import { studentRepository } from '../repositories/student.repository';
@@ -464,6 +465,15 @@ export class DefaultActivityService implements ActivityService {
     const updated = await activityRepository.closeAndPurgeText(activityId);
     realtime.activityChanged(updated);
     return updated;
+  }
+
+  async listByCoursePage(courseId: string, page: PageRequest): Promise<Page<Activity>> {
+    const { items, total } = await activityRepository.findByCoursePage(courseId, {
+      limit: page.pageSize,
+      offset: (page.page - 1) * page.pageSize,
+      q: page.q,
+    });
+    return pageOf(await Promise.all(items.map((a) => this.syncStatus(a))), total, page);
   }
 
   async listByCourse(courseId: string): Promise<Activity[]> {

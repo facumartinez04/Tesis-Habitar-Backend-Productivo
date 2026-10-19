@@ -82,3 +82,10 @@ export function requireRole(...roles: Role[]) {
     next();
   };
 }
+
+/** Sólo el administrador de la plataforma (rol real ADMIN), aunque esté viendo como otra institución o rol. */
+export function requirePlatformAdmin(req: Request, _res: Response, next: NextFunction): void {
+  if (!req.auth) throw new UnauthorizedError();
+  if (req.auth.realRole !== 'ADMIN') throw new ForbiddenError('Sólo el administrador de la plataforma puede hacer esto');
+  next();
+}
