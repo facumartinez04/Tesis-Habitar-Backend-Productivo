@@ -40,3 +40,9 @@ export function hasOpened(activity: Pick<Activity, 'availableFrom' | 'startTime'
   const day = new Date(`${activity.availableFrom}T00:00:00${AR_OFFSET}`);
   return Number.isNaN(day.getTime()) || now >= day.getTime();
 }
+
+/** Pasó la hora de cierre: ya no se puede empezar la actividad, aunque todavía entren los envíos finales. */
+export function pastEndTime(activity: Pick<Activity, 'availableFrom' | 'startTime' | 'endTime'>, now = Date.now()): boolean {
+  const { closesAt } = activityWindow(activity);
+  return closesAt !== null && now > closesAt.getTime();
+}

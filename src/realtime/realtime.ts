@@ -101,6 +101,10 @@ export const realtime = {
     io.to(`activity:${activity.id}`).emit('activity:changed', { status: activity.status });
     io.to(`live:${activity.id}`).emit('live:changed');
   },
+  /** Pasó la hora de cierre: el aula deja de ofrecer la actividad (los envíos finales todavía entran). */
+  courseChanged(courseId: string): void {
+    io?.to(`course:${courseId}`).emit('course:changed');
+  },
   /** Llegó una respuesta, la IA propuso una corrección o el docente revisó una. */
   liveChanged(activityId: string): void {
     io?.to(`live:${activityId}`).emit('live:changed');
