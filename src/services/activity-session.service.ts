@@ -27,7 +27,7 @@ export interface StudentSessionState {
 }
 
 /** Actividad abierta para el alumno, o el error que corresponde. */
-async function openActivity(code: string): Promise<Activity> {
+export async function openActivity(code: string): Promise<Activity> {
   const { activityService } = await import('./activity.service');
   const found = await activityRepository.findByCode(code);
   if (!found) throw new NotFoundError('Actividad no encontrada');
