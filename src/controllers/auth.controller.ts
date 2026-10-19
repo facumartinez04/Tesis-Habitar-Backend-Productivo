@@ -16,6 +16,22 @@ function assertProvider(value: string): asserts value is OAuthProviderId {
 }
 
 export class AuthController {
+  /**
+   * Datos públicos para elegir textos desde Google Drive u OneDrive en el navegador. El archivo se lee en el
+   * dispositivo del docente con su propio permiso: no pasa por el servidor ni se guarda (modelo BYOC, §8.3).
+   */
+  integrations(_req: Request, res: Response): void {
+    const google = env.oauth.google;
+    const microsoft = env.oauth.microsoft;
+    // El número de proyecto (prefijo del client ID) es el appId que el selector necesita con el permiso drive.file.
+    const appId = google.clientId.split('-')[0];
+    res.json({
+      googleDrive:
+        google.clientId && google.pickerApiKey ? { clientId: google.clientId, apiKey: google.pickerApiKey, appId } : null,
+      oneDrive: microsoft.clientId ? { clientId: microsoft.clientId, tenantId: microsoft.tenantId || 'common' } : null,
+    });
+  }
+
   async me(req: Request, res: Response): Promise<void> {
     const user = await authService.getSessionUser(req.auth!.sub);
     res.json({ user });
