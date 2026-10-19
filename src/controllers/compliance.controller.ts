@@ -5,27 +5,27 @@ import type { UpdateRetentionPolicyDto } from '../dto/compliance.dto';
 
 export class ComplianceController {
   async searchStudents(req: Request, res: Response): Promise<void> {
-    const institutionId = String(req.query.institutionId ?? '');
+    const institutionId = req.auth!.institutionId;
     const query = String(req.query.q ?? '');
     const students = await complianceService.searchArcoStudents(institutionId, query);
     res.json(students);
   }
 
   async getAuditLog(req: Request, res: Response): Promise<void> {
-    const institutionId = String(req.query.institutionId ?? '');
+    const institutionId = req.auth!.institutionId;
     const log = await complianceService.getAuditLog(institutionId);
     res.json(log);
   }
 
   async exportStudent(req: Request, res: Response): Promise<void> {
-    const institutionId = String(req.query.institutionId ?? '');
+    const institutionId = req.auth!.institutionId;
     const actor = await authService.getSessionUser(req.auth!.sub);
     const record = await complianceService.exportStudentData(institutionId, String(req.params.studentId), actor.name, actor.id);
     res.json(record);
   }
 
   async deleteStudent(req: Request, res: Response): Promise<void> {
-    const institutionId = String(req.query.institutionId ?? '');
+    const institutionId = req.auth!.institutionId;
     const actor = await authService.getSessionUser(req.auth!.sub);
     await complianceService.deleteStudentData(institutionId, String(req.params.studentId), actor.name, actor.id);
     res.status(204).send();

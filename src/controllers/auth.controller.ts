@@ -3,7 +3,6 @@ import { authService, dashboardPathForRole } from '../services/auth.service';
 import { env } from '../config/env';
 import { getRedirectUri } from '../services/oidc-providers';
 import { BadRequestError, UnauthorizedError } from '../utils/http-error';
-import type { LoginDto } from '../dto/auth.dto';
 import type { OAuthProviderId } from '../domain/enums';
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -17,20 +16,16 @@ function assertProvider(value: string): asserts value is OAuthProviderId {
 }
 
 export class AuthController {
-  async login(req: Request, res: Response): Promise<void> {
-    const { provider } = req.body as LoginDto;
-    const session = await authService.loginWithProvider(provider);
-    res.json({ ...session, dashboardPath: dashboardPathForRole(session.user.role) });
-  }
-
   async me(req: Request, res: Response): Promise<void> {
     const user = await authService.getSessionUser(req.auth!.sub);
     res.json({ user });
   }
 
-  async adminSession(_req: Request, res: Response): Promise<void> {
-    const session = await authService.createAdminSession();
-    res.json({ ...session, dashboardPath: dashboardPathForRole(session.user.role) });
+  /** Revoca el token actual: deja de servir aunque todavía no haya vencido. */
+  async logout(req: Request, res: Response): Promise<void> {
+    const { jti, exp, sub } = req.auth!;
+    if (jti && exp) await authService.logout(jti, sub, exp);
+    res.status(204).send();
   }
 
   async redirectToProvider(req: Request, res: Response): Promise<void> {
@@ -63,12 +58,6 @@ export class AuthController {
     const queryIndex = req.originalUrl.indexOf('?');
     const query = queryIndex >= 0 ? req.originalUrl.slice(queryIndex) : '';
     const callbackUrl = new URL(getRedirectUri(providerParam) + query);
-    console.log('[auth] callback recibido', {
-      provider: providerParam,
-      reqProtocol: req.protocol,
-      reqHost: req.get('host'),
-      callbackUrl: callbackUrl.toString(),
-    });
 
     try {
       const session = await authService.handleOAuthCallback({
@@ -78,9 +67,13 @@ export class AuthController {
         codeVerifier,
       });
 
+      // El token viaja en el fragmento (#), no en el query string: el navegador
+      // no lo envía a ningún servidor y no queda en logs ni en el Referer.
       const redirectTo = new URL('/auth/callback', env.frontendUrl);
-      redirectTo.searchParams.set('token', session.token);
-      redirectTo.searchParams.set('dashboardPath', dashboardPathForRole(session.user.role));
+      redirectTo.hash = new URLSearchParams({
+        token: session.token,
+        dashboardPath: dashboardPathForRole(session.user.role),
+      }).toString();
       res.redirect(redirectTo.toString());
     } catch (err) {
       let errorCode = 'auth_failed';

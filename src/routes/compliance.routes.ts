@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import { complianceController } from '../controllers/compliance.controller';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware';
+import {
+  requireSameInstitution,
+  requireStudentAccess,
+} from '../middlewares/access.middleware';
 import { validateBody } from '../middlewares/validate.middleware';
 import { updateRetentionPolicySchema } from '../dto/compliance.dto';
 
@@ -24,14 +28,14 @@ complianceRouter.post(
   '/students/:studentId/export',
   requireAuth,
   requireRole('COORDINADOR', 'ADMIN'),
-  complianceController.exportStudent.bind(complianceController),
+  requireStudentAccess('studentId'), complianceController.exportStudent.bind(complianceController),
 );
 
 complianceRouter.delete(
   '/students/:studentId',
   requireAuth,
   requireRole('COORDINADOR', 'ADMIN'),
-  complianceController.deleteStudent.bind(complianceController),
+  requireStudentAccess('studentId'), complianceController.deleteStudent.bind(complianceController),
 );
 
 complianceRouter.get('/consent', complianceController.getConsentDocument.bind(complianceController));
@@ -47,7 +51,7 @@ complianceRouter.get(
   '/retention/:institutionId',
   requireAuth,
   requireRole('COORDINADOR', 'ADMIN'),
-  complianceController.getRetentionPolicy.bind(complianceController),
+  requireSameInstitution(), complianceController.getRetentionPolicy.bind(complianceController),
 );
 
 complianceRouter.patch(
@@ -55,12 +59,12 @@ complianceRouter.patch(
   requireAuth,
   requireRole('COORDINADOR', 'ADMIN'),
   validateBody(updateRetentionPolicySchema),
-  complianceController.updateRetentionPolicy.bind(complianceController),
+  requireSameInstitution(), complianceController.updateRetentionPolicy.bind(complianceController),
 );
 
 complianceRouter.post(
   '/retention/:institutionId/purge',
   requireAuth,
   requireRole('COORDINADOR', 'ADMIN'),
-  complianceController.purgeExpiredData.bind(complianceController),
+  requireSameInstitution(), complianceController.purgeExpiredData.bind(complianceController),
 );

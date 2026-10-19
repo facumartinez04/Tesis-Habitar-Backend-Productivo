@@ -29,6 +29,14 @@ export class ResultController {
     res.json(comparison);
   }
 
+  async getDiagnostic(req: Request, res: Response): Promise<void> {
+    res.json(await resultService.getDiagnostic(String(req.params.courseId)));
+  }
+
+  async getRecommendation(req: Request, res: Response): Promise<void> {
+    res.json(await resultService.getRecommendation(String(req.params.courseId)));
+  }
+
   async exportCourseReport(req: Request, res: Response): Promise<void> {
     const actor = await authService.getSessionUser(req.auth!.sub);
     const csv = await resultService.exportCourseReportCsv(String(req.params.courseId), actor.name, actor.id);

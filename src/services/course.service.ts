@@ -3,15 +3,8 @@ import { activityRepository } from '../repositories/activity.repository';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/http-error';
 import type { Course, CourseStudentDevice, CourseTeacher, CreateCourseInput } from '../domain/course';
 import type { Role } from '../domain/enums';
-
-function normalizeStudentName(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ');
-}
+import { institutionRepository } from '../repositories/institution.repository';
+import { resolveStudentIdentity } from './student-identity';
 
 export interface PublicCourseInfo {
   course: Course;
@@ -21,6 +14,8 @@ export interface PublicCourseInfo {
     name: string;
     endTime: string;
   } | null;
+  /** Cómo se identifica el alumno en esta institución, para que la pantalla pida el dato correcto. */
+  studentIdMode: 'LISTA' | 'NOMBRE';
 }
 
 export interface CourseService {
@@ -91,7 +86,8 @@ export class DefaultCourseService implements CourseService {
       }
     }
 
-    return { course, activeActivity };
+    const institution = await institutionRepository.findById(course.institutionId);
+    return { course, activeActivity, studentIdMode: institution?.studentIdMode ?? 'LISTA' };
   }
 
   async create(input: CreateCourseInput): Promise<Course> {
@@ -132,12 +128,7 @@ export class DefaultCourseService implements CourseService {
     userAgent?: string;
     ipAddress?: string;
   }): Promise<{ success: boolean; message: string; studentName: string; deviceId: string; locked: boolean }> {
-    const trimmedName = input.studentName?.trim();
     const cleanDeviceId = input.deviceId?.trim();
-
-    if (!trimmedName || trimmedName.length < 2) {
-      throw new BadRequestError('Ingresá tu nombre y apellido completo');
-    }
     if (!cleanDeviceId) {
       throw new BadRequestError('Identificador de dispositivo no válido');
     }
@@ -147,7 +138,10 @@ export class DefaultCourseService implements CourseService {
       throw new NotFoundError('Aula no encontrada');
     }
 
-    const norm = normalizeStudentName(trimmedName);
+    const institution = await institutionRepository.findById(course.institutionId);
+    const identity = resolveStudentIdentity(institution?.studentIdMode ?? 'LISTA', input.studentName);
+    const trimmedName = identity.displayName;
+    const norm = identity.normalized;
     const existing = await courseRepository.findStudentDevice(input.courseId, norm);
 
     if (existing) {

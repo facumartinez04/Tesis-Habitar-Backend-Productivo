@@ -16,6 +16,9 @@ interface InstitutionRow {
   aiKeySource?: string | null;
   aiCustomApiKey?: string | null;
   aiModel?: string | null;
+  studentIdMode?: string | null;
+  alertThreshold?: number | null;
+  alertEmailsEnabled?: boolean | null;
   createdAt: Date;
 }
 
@@ -66,6 +69,9 @@ async function toDomain(row: InstitutionRow, runner: { query: typeof query } = {
     aiCustomApiKeyMasked: maskApiKey(rawKey),
     hasCustomApiKey: Boolean(rawKey && rawKey.trim().length > 0),
     aiModel: row.aiModel ?? null,
+    studentIdMode: row.studentIdMode === 'NOMBRE' ? 'NOMBRE' : 'LISTA',
+    alertThreshold: row.alertThreshold ?? 60,
+    alertEmailsEnabled: row.alertEmailsEnabled ?? true,
     createdAt: row.createdAt,
   };
 }
@@ -173,6 +179,21 @@ export class SqlInstitutionRepository implements InstitutionRepository {
       if (input.aiModel !== undefined) {
         updates.push(`"aiModel" = $${paramIndex++}`);
         values.push(input.aiModel ? input.aiModel.trim() : null);
+      }
+
+      if (input.studentIdMode) {
+        updates.push(`"studentIdMode" = $${paramIndex++}`);
+        values.push(input.studentIdMode);
+      }
+
+      if (input.alertThreshold !== undefined) {
+        updates.push(`"alertThreshold" = $${paramIndex++}`);
+        values.push(input.alertThreshold);
+      }
+
+      if (input.alertEmailsEnabled !== undefined) {
+        updates.push(`"alertEmailsEnabled" = $${paramIndex++}`);
+        values.push(input.alertEmailsEnabled);
       }
 
       let rows: InstitutionRow[];

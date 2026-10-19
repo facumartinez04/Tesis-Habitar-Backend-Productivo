@@ -2,6 +2,8 @@ import type { ComprehensionAxis, EducationLevel, InstitutionStatus } from './enu
 
 export type AiProvider = 'DEEPSEEK' | 'OPENAI';
 export type AiKeySource = 'PLATFORM' | 'CUSTOM';
+/** LISTA: el alumno entra con su número de lista (por defecto). NOMBRE: con nombre y apellido, si la institución lo habilita. */
+export type StudentIdMode = 'LISTA' | 'NOMBRE';
 
 export interface Institution {
   id: string;
@@ -19,6 +21,9 @@ export interface Institution {
   aiCustomApiKeyMasked?: string | null;
   hasCustomApiKey?: boolean;
   aiModel?: string | null;
+  studentIdMode: StudentIdMode;
+  alertThreshold: number;
+  alertEmailsEnabled: boolean;
   createdAt: Date;
 }
 
@@ -41,5 +46,8 @@ export interface UpdateInstitutionConfigInput {
   aiKeySource?: AiKeySource;
   aiCustomApiKey?: string | null;
   aiModel?: string | null;
+  studentIdMode?: StudentIdMode;
+  alertThreshold?: number;
+  alertEmailsEnabled?: boolean;
 }
 

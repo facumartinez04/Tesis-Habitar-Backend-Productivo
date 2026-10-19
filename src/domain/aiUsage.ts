@@ -12,4 +12,8 @@ export interface RecordAiUsageInput {
   provider: string;
   success: boolean;
   wordCount: number;
+  /** GENERACION de preguntas (cuenta para la cuota) o CORRECCION de respuestas abiertas. */
+  kind?: AiUsageKind;
 }
+
+export type AiUsageKind = 'GENERACION' | 'CORRECCION';

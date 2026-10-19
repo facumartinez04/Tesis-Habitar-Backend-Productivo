@@ -1,0 +1,95 @@
+import type { NextFunction, Request, Response } from 'express';
+import { courseRepository } from '../repositories/course.repository';
+import { studentRepository } from '../repositories/student.repository';
+import { activityRepository } from '../repositories/activity.repository';
+import { userRepository } from '../repositories/user.repository';
+import { ForbiddenError, NotFoundError, UnauthorizedError } from '../utils/http-error';
+
+/**
+ * Control de pertenencia entre instituciones.
+ *
+ * Toda ruta que reciba un id de institución o de un recurso que pertenece a una
+ * institución tiene que verificar que coincide con la del token. El administrador
+ * de la plataforma (rol real ADMIN) es la única excepción.
+ */
+
+function isPlatformAdmin(req: Request): boolean {
+  return req.auth?.realRole === 'ADMIN';
+}
+
+export function assertSameInstitution(req: Request, institutionId: string | null | undefined): void {
+  if (!req.auth) throw new UnauthorizedError();
+  if (isPlatformAdmin(req)) return;
+  if (!institutionId || institutionId !== req.auth.institutionId) {
+    throw new ForbiddenError('No tenés acceso a esta institución');
+  }
+}
+
+/** Para recursos: si no pertenece a la institución, se responde como si no existiera. */
+function assertOwned(req: Request, institutionId: string | null | undefined, what: string): void {
+  if (!req.auth) throw new UnauthorizedError();
+  if (isPlatformAdmin(req)) return;
+  if (!institutionId || institutionId !== req.auth.institutionId) {
+    throw new NotFoundError(`${what} no encontrado`);
+  }
+}
+
+export async function courseInstitutionId(courseId: string): Promise<string | null> {
+  const course = await courseRepository.findById(courseId);
+  return course?.institutionId ?? null;
+}
+
+export async function assertCourseAccess(req: Request, courseId: string): Promise<void> {
+  assertOwned(req, await courseInstitutionId(courseId), 'Curso');
+}
+
+export async function assertStudentAccess(req: Request, studentId: string): Promise<void> {
+  const student = await studentRepository.findById(studentId);
+  assertOwned(req, student ? await courseInstitutionId(student.courseId) : null, 'Alumno');
+}
+
+export async function assertActivityAccess(req: Request, activityId: string): Promise<void> {
+  const activity = await activityRepository.findById(activityId);
+  assertOwned(req, activity ? await courseInstitutionId(activity.courseId) : null, 'Actividad');
+}
+
+export async function assertUserAccess(req: Request, userId: string): Promise<void> {
+  const user = await userRepository.findById(userId);
+  assertOwned(req, user?.institutionId ?? null, 'Usuario');
+}
+
+/** La institución de la URL tiene que ser la del token. */
+export function requireSameInstitution(param = 'institutionId') {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    assertSameInstitution(req, String(req.params[param] ?? ''));
+    next();
+  };
+}
+
+export function requireCourseAccess(param = 'courseId') {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    await assertCourseAccess(req, String(req.params[param] ?? ''));
+    next();
+  };
+}
+
+export function requireStudentAccess(param = 'studentId') {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    await assertStudentAccess(req, String(req.params[param] ?? ''));
+    next();
+  };
+}
+
+export function requireActivityAccess(param = 'id') {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    await assertActivityAccess(req, String(req.params[param] ?? ''));
+    next();
+  };
+}
+
+export function requireUserAccess(param = 'userId') {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    await assertUserAccess(req, String(req.params[param] ?? ''));
+    next();
+  };
+}

@@ -1,6 +1,7 @@
 import { complianceRepository } from '../repositories/compliance.repository';
 import { studentRepository } from '../repositories/student.repository';
 import { retentionRepository } from '../repositories/retention.repository';
+import { courseRepository } from '../repositories/course.repository';
 import { NotFoundError } from '../utils/http-error';
 import type { ArcoStudentRecord, AuditLogEntry, ConsentAcceptance, ConsentDocument, PurgeResult, RetentionPolicy } from '../domain/compliance';
 
@@ -41,9 +42,14 @@ export class DefaultComplianceService implements ComplianceService {
     return student;
   }
 
-  async deleteStudentData(_institutionId: string, studentId: string, performedBy: string, performedById?: string): Promise<void> {
+  async deleteStudentData(institutionId: string, studentId: string, performedBy: string, performedById?: string): Promise<void> {
     const student = await studentRepository.findById(studentId);
     if (!student) throw new NotFoundError('Alumno no encontrado');
+
+    // Segunda barrera, además del middleware de la ruta: un alumno sólo se
+    // suprime desde su propia institución.
+    const course = await courseRepository.findById(student.courseId);
+    if (!course || course.institutionId !== institutionId) throw new NotFoundError('Alumno no encontrado');
 
     await complianceRepository.createAuditLogEntry({
       studentId: null,

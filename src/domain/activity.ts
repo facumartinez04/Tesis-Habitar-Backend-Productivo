@@ -6,7 +6,9 @@ export interface Activity {
   name: string;
   educationLevel: string;
   axis: ComprehensionAxis;
-  sourceText: string;
+  /** El texto se conserva sólo mientras la actividad está abierta; al cerrarse se borra (§8.4). */
+  sourceText: string | null;
+  sourcePurgedAt: Date | null;
   availableFrom: string;
   startTime: string;
   endTime: string;
@@ -14,8 +16,12 @@ export interface Activity {
   status: ActivityStatus;
   qrValidUntil: string;
   courseId: string;
+  diagnosticType: DiagnosticType | null;
   createdAt: Date;
 }
+
+/** Actividad diagnóstica de inicio o de cierre del ciclo lectivo (mejora 1). */
+export type DiagnosticType = 'INICIO' | 'CIERRE';
 
 export interface CreateActivityInput {
   name: string;
@@ -28,6 +34,7 @@ export interface CreateActivityInput {
   attemptPolicy: AttemptPolicy;
   courseId: string;
   questions: CreateQuestionInput[];
+  diagnosticType?: DiagnosticType | null;
 
   status?: ActivityStatus;
 }
@@ -39,4 +46,6 @@ export interface CreateQuestionInput {
   options?: string[];
   correctOption?: string;
   approved: boolean;
+  /** true si el docente modificó la pregunta que propuso la IA (métrica de calidad, mejora 4). */
+  edited?: boolean;
 }

@@ -21,3 +21,8 @@ export const setTeacherCoursesSchema = z.object({
   courseIds: z.array(z.string()),
 });
 export type SetTeacherCoursesDto = z.infer<typeof setTeacherCoursesSchema>;
+
+export const bindStudentDeviceSchema = z.object({
+  studentName: z.string().min(1).max(80),
+  deviceId: z.string().min(8).max(64),
+});

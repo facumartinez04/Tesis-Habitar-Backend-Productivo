@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { feedbackController } from '../controllers/feedback.controller';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware';
+import {
+  requireStudentAccess,
+} from '../middlewares/access.middleware';
 import { validateBody } from '../middlewares/validate.middleware';
 import { createFeedbackSchema } from '../dto/feedback.dto';
 
@@ -10,7 +13,7 @@ feedbackRouter.get(
   '/students/:studentId',
   requireAuth,
   requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'),
-  feedbackController.listForStudent.bind(feedbackController),
+  requireStudentAccess('studentId'), feedbackController.listForStudent.bind(feedbackController),
 );
 
 feedbackRouter.post(
@@ -18,5 +21,5 @@ feedbackRouter.post(
   requireAuth,
   requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'),
   validateBody(createFeedbackSchema),
-  feedbackController.create.bind(feedbackController),
+  requireStudentAccess('studentId'), feedbackController.create.bind(feedbackController),
 );

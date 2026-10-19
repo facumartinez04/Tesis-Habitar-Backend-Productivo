@@ -18,19 +18,13 @@ export const updateInstitutionConfigSchema = z
     aiKeySource: z.enum(['PLATFORM', 'CUSTOM']).optional(),
     aiCustomApiKey: z.string().nullable().optional(),
     aiModel: z.string().nullable().optional(),
+    studentIdMode: z.enum(['LISTA', 'NOMBRE']).optional(),
+    alertThreshold: z.number().int().min(0).max(100).optional(),
+    alertEmailsEnabled: z.boolean().optional(),
   })
-  .refine(
-    (data) =>
-      data.levels !== undefined ||
-      data.enabledAxes !== undefined ||
-      data.aiProvider !== undefined ||
-      data.aiKeySource !== undefined ||
-      data.aiCustomApiKey !== undefined ||
-      data.aiModel !== undefined,
-    {
-      message: 'Debe enviarse al menos un campo de configuración para actualizar',
-    },
-  );
+  .refine((data) => Object.values(data).some((value) => value !== undefined), {
+    message: 'Debe enviarse al menos un campo de configuración para actualizar',
+  });
 
 export type UpdateInstitutionConfigDto = z.infer<typeof updateInstitutionConfigSchema>;
 

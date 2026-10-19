@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { financeController } from '../controllers/finance.controller';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware';
+import {
+  requireSameInstitution,
+} from '../middlewares/access.middleware';
 
 export const financeRouter = Router();
 
@@ -72,53 +75,53 @@ financeRouter.post(
 financeRouter.get(
   '/institution/:institutionId/summary',
   requireAuth,
-  financeController.getInstitutionSummary.bind(financeController)
+  requireRole('COORDINADOR', 'DIRECTOR', 'ADMIN'), requireSameInstitution(), financeController.getInstitutionSummary.bind(financeController)
 );
 
 financeRouter.get(
   '/institution/:institutionId/expenses',
   requireAuth,
-  financeController.listInstitutionExpenses.bind(financeController)
+  requireRole('COORDINADOR', 'DIRECTOR', 'ADMIN'), requireSameInstitution(), financeController.listInstitutionExpenses.bind(financeController)
 );
 
 financeRouter.post(
   '/institution/:institutionId/expenses',
   requireAuth,
-  financeController.createInstitutionExpense.bind(financeController)
+  requireRole('COORDINADOR', 'DIRECTOR', 'ADMIN'), requireSameInstitution(), financeController.createInstitutionExpense.bind(financeController)
 );
 
 financeRouter.delete(
   '/institution/:institutionId/expenses/:id',
   requireAuth,
-  financeController.deleteInstitutionExpense.bind(financeController)
+  requireRole('COORDINADOR', 'DIRECTOR', 'ADMIN'), requireSameInstitution(), financeController.deleteInstitutionExpense.bind(financeController)
 );
 
 financeRouter.get(
   '/institution/:institutionId/fees',
   requireAuth,
-  financeController.listInstitutionFees.bind(financeController)
+  requireRole('COORDINADOR', 'DIRECTOR', 'ADMIN'), requireSameInstitution(), financeController.listInstitutionFees.bind(financeController)
 );
 
 financeRouter.post(
   '/institution/:institutionId/fees',
   requireAuth,
-  financeController.createInstitutionFee.bind(financeController)
+  requireRole('COORDINADOR', 'DIRECTOR', 'ADMIN'), requireSameInstitution(), financeController.createInstitutionFee.bind(financeController)
 );
 
 financeRouter.patch(
   '/institution/:institutionId/fees/:id/status',
   requireAuth,
-  financeController.updateInstitutionFeeStatus.bind(financeController)
+  requireRole('COORDINADOR', 'DIRECTOR', 'ADMIN'), requireSameInstitution(), financeController.updateInstitutionFeeStatus.bind(financeController)
 );
 
 financeRouter.get(
   '/institution/:institutionId/config',
   requireAuth,
-  financeController.getInstitutionConfig.bind(financeController)
+  requireRole('COORDINADOR', 'DIRECTOR', 'ADMIN'), requireSameInstitution(), financeController.getInstitutionConfig.bind(financeController)
 );
 
 financeRouter.post(
   '/institution/:institutionId/config',
   requireAuth,
-  financeController.saveInstitutionConfig.bind(financeController)
+  requireRole('COORDINADOR', 'DIRECTOR', 'ADMIN'), requireSameInstitution(), financeController.saveInstitutionConfig.bind(financeController)
 );

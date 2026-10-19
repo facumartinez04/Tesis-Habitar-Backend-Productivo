@@ -1,7 +1,9 @@
 import type { CreateQuestionInput } from '../domain/activity';
+import type { ComprehensionAxis } from '../domain/enums';
+import { questionMix } from './ai-question-generator.service';
 
 export interface QuestionGenerator {
-  generate(sourceText: string): Promise<CreateQuestionInput[]>;
+  generate(sourceText: string, focusAxis?: ComprehensionAxis): Promise<CreateQuestionInput[]>;
 }
 
 function splitSentences(text: string): string[] {
@@ -21,7 +23,7 @@ function shuffle<T>(items: T[]): T[] {
 }
 
 export class TemplateQuestionGenerator implements QuestionGenerator {
-  async generate(sourceText: string): Promise<CreateQuestionInput[]> {
+  async generate(sourceText: string, focusAxis?: ComprehensionAxis): Promise<CreateQuestionInput[]> {
     const sentences = splitSentences(sourceText);
     const literalCorrect = sentences[0] ?? sourceText.slice(0, 120);
     const literalDecoys = sentences.slice(1, 3);
@@ -65,14 +67,31 @@ export class TemplateQuestionGenerator implements QuestionGenerator {
       approved: true,
     }));
 
-    const critico: CreateQuestionInput = {
+    const criticoPrompts = [
+      '¿Estás de acuerdo con la perspectiva planteada en el texto? Justificá tu respuesta.',
+      '¿Qué opinás de la idea principal del texto? Fundamentá con lo que dice el autor.',
+      '¿Cambiarías algo de lo que plantea el texto? Explicá por qué, con argumentos del texto.',
+    ];
+    const critico: CreateQuestionInput[] = criticoPrompts.map((prompt) => ({
       axis: 'CRITICO',
-      prompt: '¿Estás de acuerdo con la perspectiva planteada en el texto? Justificá tu respuesta.',
+      prompt,
       expectedAnswer: '(respuesta abierta — justificación con argumentos del texto)',
       approved: false,
-    };
+    }));
 
-    return [literal, ...inferencial, critico];
+    const literales: CreateQuestionInput[] = [literal];
+    for (const sentence of sentences.slice(3, 5)) {
+      const decoys = sentences.filter((s) => s !== sentence).slice(0, 2);
+      while (decoys.length < 2) decoys.push('Esta afirmación no aparece en el texto');
+      literales.push({ ...literal, expectedAnswer: sentence, options: shuffle([sentence, ...decoys]), correctOption: sentence });
+    }
+
+    const mix = questionMix(focusAxis);
+    return [
+      ...literales.slice(0, mix.LITERAL),
+      ...inferencial.slice(0, mix.INFERENCIAL),
+      ...critico.slice(0, mix.CRITICO),
+    ];
   }
 }
 

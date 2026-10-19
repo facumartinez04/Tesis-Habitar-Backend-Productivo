@@ -17,6 +17,16 @@ export interface SendRoleUpdatedEmailInput {
   institutionName: string;
 }
 
+export interface SendPerformanceAlertEmailInput {
+  to: string;
+  institutionName: string;
+  courseName: string;
+  axis: 'LITERAL' | 'INFERENCIAL' | 'CRITICO';
+  currentValue: number;
+  threshold: number;
+  severity: 'CRITICA' | 'ADVERTENCIA';
+}
+
 export interface EmailSendResult {
   success: boolean;
   simulated?: boolean;
@@ -124,6 +134,43 @@ export class EmailService {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[EmailService] Excepción de Resend al enviar actualización de rol:', message);
+      return { success: false, error: message };
+    }
+  }
+
+  /** Alerta de rendimiento bajo umbral para la coordinación (CU-03-03). */
+  async sendPerformanceAlertEmail(input: SendPerformanceAlertEmailInput): Promise<EmailSendResult> {
+    const client = this.getClient();
+    const axisLabel = { LITERAL: 'literal', INFERENCIAL: 'inferencial', CRITICO: 'crítico' }[input.axis];
+    const subject = `Habitar — ${input.courseName}: el eje ${axisLabel} quedó debajo del umbral`;
+    const alertsUrl = `${env.frontendUrl}/institucional/alertas`;
+    const html = `<!DOCTYPE html>
+<html lang="es"><body style="font-family:Arial,sans-serif;color:#1f2933;max-width:560px;margin:0 auto;padding:24px">
+<h2 style="margin:0 0 12px">Alerta de rendimiento</h2>
+<p>En <strong>${escapeHtml(input.institutionName)}</strong>, el curso <strong>${escapeHtml(input.courseName)}</strong>
+promedia <strong>${input.currentValue}</strong> en el eje <strong>${axisLabel}</strong>, debajo del umbral de
+${input.threshold} configurado por la institución.</p>
+<p>Gravedad: <strong>${input.severity === 'CRITICA' ? 'crítica' : 'advertencia'}</strong>.</p>
+<p><a href="${alertsUrl}">Ver las alertas en Habitar</a></p>
+<p style="color:#6b7280;font-size:12px">Podés desactivar estos correos desde la configuración de la institución.
+La alerta igual queda registrada en Habitar.</p>
+</body></html>`;
+
+    if (!client) {
+      console.info(`[EmailService] RESEND_API_KEY no configurada. Alerta simulada para ${input.to}: ${subject}`);
+      return { success: true, simulated: true };
+    }
+
+    try {
+      const response = await client.emails.send({ from: env.resend.fromEmail, to: [input.to], subject, html });
+      if (response.error) {
+        console.error('[EmailService] Error de Resend al enviar alerta:', response.error);
+        return { success: false, error: response.error.message };
+      }
+      return { success: true, messageId: response.data?.id };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[EmailService] Excepción de Resend al enviar alerta:', message);
       return { success: false, error: message };
     }
   }
@@ -359,6 +406,10 @@ export class EmailService {
 </body>
 </html>`;
   }
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 }
 
 export const emailService = new EmailService();
