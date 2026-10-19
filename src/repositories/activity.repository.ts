@@ -49,6 +49,8 @@ export interface ActivityRepository {
   closeAndPurgeText(id: string): Promise<Activity>;
   /** El docente pasó a todos a las preguntas. */
   releaseQuestions(id: string): Promise<Activity>;
+  /** true si la actividad se cerró hace menos de `ms` (la cuenta la hace la base, sin depender de zonas horarias). */
+  closedWithin(id: string, ms: number): Promise<boolean>;
 }
 
 export class SqlActivityRepository implements ActivityRepository {
@@ -148,6 +150,15 @@ export class SqlActivityRepository implements ActivityRepository {
       [courseId],
     );
     return rows.map(toDomain);
+  }
+
+  async closedWithin(id: string, ms: number): Promise<boolean> {
+    const row = await queryOne<{ recent: boolean }>(
+      `SELECT ("sourcePurgedAt" IS NOT NULL AND "sourcePurgedAt" >= CURRENT_TIMESTAMP - ($2::int * interval '1 millisecond')) AS "recent"
+         FROM "Activity" WHERE "id" = $1`,
+      [id, ms],
+    );
+    return Boolean(row?.recent);
   }
 
   async releaseQuestions(id: string): Promise<Activity> {

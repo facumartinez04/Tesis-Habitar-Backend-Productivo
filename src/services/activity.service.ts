@@ -12,7 +12,7 @@ import { env } from '../config/env';
 import { aiUsageService } from './aiUsage.service';
 import { alertService } from './alert.service';
 import { resolveStudentIdentity } from './student-identity';
-import { activityWindow, hasClosed, hasOpened, pastEndTime } from './activity-window';
+import { activityWindow, hasClosed, hasOpened, pastEndTime, SUBMIT_GRACE_MS } from './activity-window';
 import { realtime } from '../realtime/realtime';
 import { BadRequestError, ConflictError, NotFoundError, UpstreamError } from '../utils/http-error';
 import type { Activity, CreateActivityInput } from '../domain/activity';
@@ -456,13 +456,24 @@ export class DefaultActivityService implements ActivityService {
     const sourceText = found.sourceText;
     const activity = await this.syncStatus(found);
 
-    if (activity.status === 'CERRADA') throw new ConflictError('[Error-REA_001] La actividad ya no está disponible');
-    if (activity.status !== 'PUBLICADA') throw new ConflictError('La actividad todavía no está disponible');
+    if (activity.status !== 'PUBLICADA' && activity.status !== 'CERRADA') {
+      throw new ConflictError('La actividad todavía no está disponible');
+    }
 
     // El dispositivo queda vinculado al alumno en el aula: nadie puede responder a nombre de otro desde otro equipo,
     // y el intento queda registrado en el panel del docente como posible suplantación.
     const { identity, course, deviceId } = await resolveStudentInActivity(activity, input.studentDisplayName, input.deviceId);
     const institution = await institutionRepository.findById(course.institutionId);
+
+    // Si el docente la cerró mientras el alumno respondía, todavía se recibe lo que tenía (envío automático), pero
+    // sólo de quien ya estaba adentro y dentro de la tolerancia. Nadie nuevo puede entrar a una actividad cerrada.
+    if (activity.status === 'CERRADA') {
+      const progress = await progressRepository.find(activity.id, identity.normalized);
+      const wasInside = progress !== null && progress.phase !== 'ENVIADO';
+      if (!wasInside || !(await activityRepository.closedWithin(activity.id, SUBMIT_GRACE_MS))) {
+        throw new ConflictError('[Error-REA_001] La actividad ya no está disponible');
+      }
+    }
 
     const student = await studentRepository.findOrCreateByName(course.id, identity.displayName);
     if (activity.attemptPolicy === 'UNICO' && (await responseRepository.countByStudent(activity.id, student.id)) > 0) {
