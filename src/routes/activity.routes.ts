@@ -43,6 +43,15 @@ activityRouter.get(
   activityController.listByCourse.bind(activityController),
 );
 
+// Panel en vivo de la actividad: estado, ventana y respuestas que van llegando.
+activityRouter.get(
+  '/:id/live',
+  requireAuth,
+  requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'),
+  requireActivityAccess('id'),
+  activityController.live.bind(activityController),
+);
+
 // Bandeja de revisión de respuestas abiertas (mejora 0).
 activityRouter.get(
   '/:id/reviews',

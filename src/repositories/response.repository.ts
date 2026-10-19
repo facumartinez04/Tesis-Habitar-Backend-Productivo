@@ -42,6 +42,16 @@ export interface ReviewQueueItem {
   reviewedAt: Date | null;
 }
 
+export interface LiveResponseRow {
+  responseId: string;
+  studentDisplayName: string;
+  submittedAt: Date;
+  literal: number | null;
+  inferencial: number | null;
+  critico: number | null;
+  criticoReviewed: boolean;
+}
+
 export interface CriticoAnswerRow {
   correctOption: string | null;
   selectedOption: string | null;
@@ -58,6 +68,7 @@ export interface ResponseRepository {
   /** Recalcula el eje crítico de un intento a partir de sus respuestas críticas. */
   recomputeCritico(responseId: string): Promise<{ criticoScore: number | null; criticoReviewed: boolean }>;
   countPendingReviews(activityId: string): Promise<number>;
+  listForActivity(activityId: string): Promise<LiveResponseRow[]>;
 }
 
 /**
@@ -205,6 +216,19 @@ export class SqlResponseRepository implements ResponseRepository {
       [activityId],
     );
     return Number(row?.count ?? 0);
+  }
+
+  async listForActivity(activityId: string): Promise<LiveResponseRow[]> {
+    return query<LiveResponseRow>(
+      `SELECT r."id" AS "responseId", r."studentDisplayName", r."submittedAt",
+              sr."literalScore" AS literal, sr."inferencialScore" AS inferencial, sr."criticoScore" AS critico,
+              COALESCE(sr."criticoReviewed", true) AS "criticoReviewed"
+         FROM "Response" r
+         LEFT JOIN "StudentResult" sr ON sr."responseId" = r."id"
+        WHERE r."activityId" = $1
+        ORDER BY r."submittedAt" DESC`,
+      [activityId],
+    );
   }
 }
 
