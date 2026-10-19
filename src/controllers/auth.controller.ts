@@ -26,8 +26,8 @@ export class AuthController {
     // El número de proyecto (prefijo del client ID) es el appId que el selector necesita con el permiso drive.file.
     const appId = google.clientId.split('-')[0];
     res.json({
-      googleDrive:
-        google.clientId && google.pickerApiKey ? { clientId: google.clientId, apiKey: google.pickerApiKey, appId } : null,
+      // La clave del selector es opcional: con el token OAuth del docente el selector suele funcionar sin ella.
+      googleDrive: google.clientId ? { clientId: google.clientId, apiKey: google.pickerApiKey, appId } : null,
       oneDrive: microsoft.clientId ? { clientId: microsoft.clientId, tenantId: microsoft.tenantId || 'common' } : null,
     });
   }
