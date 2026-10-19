@@ -2,7 +2,9 @@ import type { Request, Response } from 'express';
 import { assertCourseAccess } from '../middlewares/access.middleware';
 import { activityService } from '../services/activity.service';
 import { activitySessionService } from '../services/activity-session.service';
+import { readingHelpService } from '../services/reading-help.service';
 import type {
+  AskHelpDto,
   CreateActivityDto,
   EditQuestionDto,
   GenerateQuestionsDto,
@@ -46,6 +48,16 @@ export class ActivityController {
 
   async saveProgress(req: Request, res: Response): Promise<void> {
     res.json(await activitySessionService.saveProgress(String(req.params.code), req.body as SaveProgressDto));
+  }
+
+  /** Duda del alumno sobre el texto: la IA explica sin responder la actividad. */
+  async askHelp(req: Request, res: Response): Promise<void> {
+    res.json(await readingHelpService.ask(String(req.params.code), req.body as AskHelpDto));
+  }
+
+  async helpConversation(req: Request, res: Response): Promise<void> {
+    const { studentDisplayName, deviceId } = req.body as StudentSessionDto;
+    res.json(await readingHelpService.conversation(String(req.params.code), studentDisplayName, deviceId));
   }
 
   /** El docente pasa a todos a las preguntas. */

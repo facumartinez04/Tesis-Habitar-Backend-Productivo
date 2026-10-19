@@ -1,6 +1,7 @@
 import { activityRepository } from '../repositories/activity.repository';
 import { activitySessionService, resolveStudentInActivity } from './activity-session.service';
 import { progressRepository } from '../repositories/progress.repository';
+import { readingHelpRepository } from '../repositories/reading-help.repository';
 import { questionRepository } from '../repositories/question.repository';
 import { criticoFromAnswers, responseRepository, type ReviewQueueItem } from '../repositories/response.repository';
 import { studentRepository } from '../repositories/student.repository';
@@ -73,12 +74,12 @@ export function pseudonymize(text: string, names: string[]): string {
   return result;
 }
 
-interface AiAccess {
+export interface AiAccess {
   options: GenerateWithAiOptions;
   isCustom: boolean;
 }
 
-function resolveAiAccess(institution: Institution | null): AiAccess | null {
+export function resolveAiAccess(institution: Institution | null): AiAccess | null {
   const provider = institution?.aiProvider ?? 'DEEPSEEK';
   const isCustom = (institution?.aiKeySource ?? 'PLATFORM') === 'CUSTOM';
 
@@ -158,6 +159,16 @@ export interface LiveActivityView {
     kind: 'OTRO_DISPOSITIVO' | 'DISPOSITIVO_COMPARTIDO';
     studentDisplayName: string;
     otherStudent: string | null;
+    createdAt: string;
+  }[];
+  readingHelp: boolean;
+  /** Dudas de los alumnos sobre el texto: muestran qué palabras o frases no entendieron. */
+  helpQuestions: {
+    id: string;
+    studentDisplayName: string;
+    question: string;
+    answer: string;
+    declined: boolean;
     createdAt: string;
   }[];
   questions: {
@@ -303,6 +314,7 @@ export class DefaultActivityService implements ActivityService {
       progressRepository.listByActivity(activityId),
       progressRepository.listIntegrityEvents(activityId),
     ]);
+    const help = await readingHelpRepository.listByActivity(activityId);
     const approved = questions.filter((q) => q.approved);
     const { opensAt, closesAt } = activityWindow(activity);
     return {
@@ -341,6 +353,15 @@ export class DefaultActivityService implements ActivityService {
         studentDisplayName: e.studentDisplayName,
         otherStudent: e.otherStudent,
         createdAt: e.createdAt.toISOString(),
+      })),
+      readingHelp: activity.readingHelp,
+      helpQuestions: help.map((h) => ({
+        id: h.id,
+        studentDisplayName: h.studentDisplayName,
+        question: h.question,
+        answer: h.answer,
+        declined: h.declined,
+        createdAt: h.createdAt.toISOString(),
       })),
       questions: approved.map((q) => ({
         id: q.id,
@@ -415,6 +436,7 @@ export class DefaultActivityService implements ActivityService {
       courseId: original.courseId,
       diagnosticType: null,
       readingMode: original.readingMode,
+      readingHelp: original.readingHelp,
       status: 'BORRADOR',
       questions: questions.map((q) => ({
         axis: q.axis,

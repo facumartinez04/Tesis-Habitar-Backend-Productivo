@@ -33,7 +33,15 @@ export const createActivitySchema = z.object({
   questions: z.array(questionInputSchema).min(1).max(15),
   diagnosticType: z.enum(['INICIO', 'CIERRE']).nullable().optional(),
   readingMode: z.enum(['LECTURA_PRIMERO', 'DOCENTE_HABILITA', 'LIBRE']).optional(),
+  readingHelp: z.boolean().optional(),
 });
+
+export const askHelpSchema = z.object({
+  studentDisplayName: z.string().min(1).max(80),
+  deviceId: z.string().min(8).max(64),
+  question: z.string().min(2).max(300),
+});
+export type AskHelpDto = z.infer<typeof askHelpSchema>;
 
 export const studentSessionSchema = z.object({
   studentDisplayName: z.string().min(1).max(80),

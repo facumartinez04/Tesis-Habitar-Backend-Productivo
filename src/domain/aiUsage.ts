@@ -16,4 +16,5 @@ export interface RecordAiUsageInput {
   kind?: AiUsageKind;
 }
 
-export type AiUsageKind = 'GENERACION' | 'CORRECCION';
+/** AYUDA: dudas de los alumnos sobre el texto (no consume la cuota de generación). */
+export type AiUsageKind = 'GENERACION' | 'CORRECCION' | 'AYUDA';

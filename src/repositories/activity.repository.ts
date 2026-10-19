@@ -13,6 +13,7 @@ interface ActivityRow {
   endDate: string | null;
   readingMode: Activity['readingMode'] | null;
   questionsReleasedAt: Date | null;
+  readingHelp: boolean | null;
   availableFrom: string;
   startTime: string;
   endTime: string;
@@ -31,7 +32,8 @@ function generateCode(): string {
 
 function toDomain(row: ActivityRow): Activity {
   return { ...row, sourcePurgedAt: row.sourcePurgedAt ?? null, diagnosticType: row.diagnosticType ?? null, endDate: row.endDate ?? null,
-    readingMode: row.readingMode ?? 'LECTURA_PRIMERO', questionsReleasedAt: row.questionsReleasedAt ?? null };
+    readingMode: row.readingMode ?? 'LECTURA_PRIMERO', questionsReleasedAt: row.questionsReleasedAt ?? null,
+    readingHelp: row.readingHelp ?? true };
 }
 
 export interface ActivityRepository {
@@ -83,8 +85,8 @@ export class SqlActivityRepository implements ActivityRepository {
     return withTransaction(async (client) => {
       const { rows } = await client.query<ActivityRow>(
         `INSERT INTO "Activity"
-           ("code", "name", "educationLevel", "axis", "sourceText", "availableFrom", "startTime", "endTime", "attemptPolicy", "status", "courseId", "diagnosticType", "endDate", "readingMode")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           ("code", "name", "educationLevel", "axis", "sourceText", "availableFrom", "startTime", "endTime", "attemptPolicy", "status", "courseId", "diagnosticType", "endDate", "readingMode", "readingHelp")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
          RETURNING *`,
         [
           code,
@@ -101,6 +103,7 @@ export class SqlActivityRepository implements ActivityRepository {
           input.diagnosticType ?? null,
           input.endDate && input.endDate !== input.availableFrom ? input.endDate : null,
           input.readingMode ?? 'LECTURA_PRIMERO',
+          input.readingHelp ?? true,
         ],
       );
       const activity = rows[0];

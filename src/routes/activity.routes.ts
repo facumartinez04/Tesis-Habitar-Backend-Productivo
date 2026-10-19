@@ -5,6 +5,7 @@ import { requireCourseAccess, requireActivityAccess } from '../middlewares/acces
 import { validateBody } from '../middlewares/validate.middleware';
 import { rateLimit } from '../middlewares/rate-limit.middleware';
 import {
+  askHelpSchema,
   createActivitySchema,
   editQuestionSchema,
   generateQuestionsSchema,
@@ -21,6 +22,8 @@ const publicReadLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 600, name: 'a
 const submitLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 300, name: 'activity-submit' });
 const generateLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 60, name: 'activity-generate' });
 // Cada alumno reporta su avance al cambiar de pregunta o de respuesta (con pausa): un curso de 40 entra holgado.
+// Ayuda con el texto: el límite fino es por alumno (20 por actividad); éste cubre a un curso entero detrás de una IP.
+const helpLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 800, name: 'activity-help' });
 const progressLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 4000, name: 'activity-progress' });
 
 activityRouter.post(
@@ -83,6 +86,15 @@ activityRouter.post(
   publicReadLimit,
   validateBody(studentSessionSchema),
   activityController.studentState.bind(activityController),
+);
+
+activityRouter.post('/:code/help', helpLimit, validateBody(askHelpSchema), activityController.askHelp.bind(activityController));
+
+activityRouter.post(
+  '/:code/help/history',
+  publicReadLimit,
+  validateBody(studentSessionSchema),
+  activityController.helpConversation.bind(activityController),
 );
 
 activityRouter.post(

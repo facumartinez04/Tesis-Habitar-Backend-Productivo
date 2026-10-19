@@ -23,6 +23,8 @@ export interface Activity {
   readingMode: ReadingMode;
   /** Cuándo el docente pasó a todos a las preguntas. */
   questionsReleasedAt: Date | null;
+  /** Si los alumnos pueden preguntarle a la IA qué significa algo del texto (por defecto, sí). */
+  readingHelp: boolean;
   createdAt: Date;
 }
 
@@ -45,6 +47,7 @@ export interface CreateActivityInput {
   questions: CreateQuestionInput[];
   diagnosticType?: DiagnosticType | null;
   readingMode?: ReadingMode;
+  readingHelp?: boolean;
 
   status?: ActivityStatus;
 }
