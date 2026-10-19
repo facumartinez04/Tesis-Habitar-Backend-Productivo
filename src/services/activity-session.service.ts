@@ -50,7 +50,7 @@ export async function resolveStudentInActivity(
   const course = await courseRepository.findById(activity.courseId);
   if (!course) throw new NotFoundError('Curso no encontrado');
   const institution = await institutionRepository.findById(course.institutionId);
-  const identity = resolveStudentIdentity(institution?.studentIdMode ?? 'LISTA', rawName);
+  const identity = resolveStudentIdentity(institution?.studentIdMode ?? 'NOMBRE', rawName);
   const deviceId = rawDeviceId?.trim();
   if (!deviceId) throw new BadRequestError('No se pudo identificar el dispositivo. Recargá la página e intentá de nuevo.');
 

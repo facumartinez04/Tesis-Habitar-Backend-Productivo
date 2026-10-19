@@ -158,3 +158,12 @@ test('el aviso de Mercado Pago sólo vale con la firma de la clave secreta', () 
   assert.equal(verifyMpSignature({ signature: `ts=${ts},v1=${v1}`, requestId: 'req-1', dataId: '123456', secret: 'otra' }), false);
   assert.equal(verifyMpSignature({ signature: undefined, requestId: 'req-1', dataId: '123456', secret }), false);
 });
+
+test('nombre y apellido del alumno: validados y con el mismo formato siempre', () => {
+  assert.equal(resolveStudentIdentity('NOMBRE', '  juan   pérez ').displayName, 'Juan Pérez');
+  assert.equal(resolveStudentIdentity('NOMBRE', "maría-josé o'neill").displayName, "María-José O'Neill");
+  assert.equal(resolveStudentIdentity('NOMBRE', 'Juan Pérez').normalized, resolveStudentIdentity('NOMBRE', 'JUAN PEREZ').normalized);
+  assert.throws(() => resolveStudentIdentity('NOMBRE', 'Juan'), /apellido/);
+  assert.throws(() => resolveStudentIdentity('NOMBRE', 'Juan 123'), /letras/);
+  assert.throws(() => resolveStudentIdentity('NOMBRE', '12'), /letras/);
+});
