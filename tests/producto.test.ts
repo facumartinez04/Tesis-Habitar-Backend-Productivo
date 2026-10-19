@@ -116,3 +116,17 @@ test('clasificación del alumno: un eje sin dato no lo hace bajar', () => {
   assert.equal(classify({ literal: 30, inferencial: null, critico: null }), 'BAJO');
   assert.equal(classify({ literal: null, inferencial: null, critico: null }), 'SIN_DATOS');
 });
+
+test('la ventana puede cerrar otro día: de las 22:00 a las 10:00 del día siguiente', () => {
+  const act = { availableFrom: '2026-10-19', startTime: '22:00', endDate: '2026-10-20', endTime: '10:00' };
+  const { opensAt, closesAt } = activityWindow(act);
+  assert.equal(opensAt?.toISOString(), '2026-10-20T01:00:00.000Z');
+  assert.equal(closesAt?.toISOString(), '2026-10-20T13:00:00.000Z');
+  // A la medianoche sigue abierta; al otro día a las 9 también; a las 10:11 ya cerró.
+  assert.equal(hasOpened(act, Date.parse('2026-10-20T03:00:00Z')), true);
+  assert.equal(hasClosed(act, Date.parse('2026-10-20T03:00:00Z')), false);
+  assert.equal(hasClosed(act, Date.parse('2026-10-20T12:00:00Z')), false);
+  assert.equal(hasClosed(act, Date.parse('2026-10-20T13:00:00Z') + SUBMIT_GRACE_MS + 1), true);
+  // Sin fecha de cierre, una hora de cierre anterior a la de inicio no es una ventana válida.
+  assert.equal(activityWindow({ availableFrom: '2026-10-19', startTime: '22:00', endTime: '10:00' }).closesAt, null);
+});
