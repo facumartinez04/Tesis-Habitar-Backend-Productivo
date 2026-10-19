@@ -30,6 +30,10 @@ export function createApp() {
     res.json({ status: 'ok' });
   });
 
+  app.get('/google1e293a64d735c85d.html', (_req, res) => {
+    res.type('text/html').send('google-site-verification: google1e293a64d735c85d.html');
+  });
+
   app.use('/api', apiRouter);
 
   app.use(notFoundHandler);
