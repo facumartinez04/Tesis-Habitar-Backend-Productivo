@@ -13,6 +13,7 @@ export interface PublicCourseInfo {
     code: string;
     name: string;
     endTime: string;
+    endDate: string;
   } | null;
   /** Próxima actividad programada, si no hay ninguna abierta: el aula muestra a qué hora empieza. */
   upcomingActivity: { code: string; name: string; availableFrom: string; startTime: string } | null;
@@ -81,7 +82,9 @@ export class DefaultCourseService implements CourseService {
     const institution = await institutionRepository.findById(course.institutionId);
     return {
       course,
-      activeActivity: open ? { id: open.id, code: open.code, name: open.name, endTime: open.endTime } : null,
+      activeActivity: open
+        ? { id: open.id, code: open.code, name: open.name, endTime: open.endTime, endDate: open.endDate ?? open.availableFrom }
+        : null,
       upcomingActivity: upcoming
         ? { code: upcoming.code, name: upcoming.name, availableFrom: upcoming.availableFrom, startTime: upcoming.startTime }
         : null,

@@ -125,6 +125,7 @@ export interface LiveActivityView {
   diagnosticType: Activity['diagnosticType'];
   availableFrom: string;
   startTime: string;
+  endDate: string;
   endTime: string;
   opensAt: string | null;
   closesAt: string | null;
@@ -206,8 +207,9 @@ export class DefaultActivityService implements ActivityService {
     if (!input.questions.some((q) => q.approved)) {
       throw new BadRequestError('[Error-QR_001] Debe aprobar al menos una pregunta antes de generar el código');
     }
-    if (input.endTime <= input.startTime) {
-      throw new BadRequestError('[Error-PAR_002] El horario de cierre debe ser posterior al de inicio');
+    const { opensAt, closesAt } = activityWindow(input);
+    if (!opensAt || !closesAt || closesAt.getTime() <= opensAt.getTime()) {
+      throw new BadRequestError('[Error-PAR_002] El cierre debe ser posterior a la apertura');
     }
     if (hasClosed(input)) {
       throw new BadRequestError(
@@ -276,6 +278,7 @@ export class DefaultActivityService implements ActivityService {
       diagnosticType: activity.diagnosticType,
       availableFrom: activity.availableFrom,
       startTime: activity.startTime,
+      endDate: activity.endDate ?? activity.availableFrom,
       endTime: activity.endTime,
       opensAt: opensAt?.toISOString() ?? null,
       closesAt: closesAt?.toISOString() ?? null,
@@ -339,6 +342,7 @@ export class DefaultActivityService implements ActivityService {
       sourceText: original.sourceText,
       availableFrom: original.availableFrom,
       startTime: original.startTime,
+      endDate: original.endDate,
       endTime: original.endTime,
       attemptPolicy: original.attemptPolicy,
       courseId: original.courseId,

@@ -11,6 +11,8 @@ export interface Activity {
   sourcePurgedAt: Date | null;
   availableFrom: string;
   startTime: string;
+  /** Fecha de cierre (AAAA-MM-DD); null = el mismo día que abre. */
+  endDate: string | null;
   endTime: string;
   attemptPolicy: AttemptPolicy;
   status: ActivityStatus;
@@ -30,6 +32,7 @@ export interface CreateActivityInput {
   sourceText: string;
   availableFrom: string;
   startTime: string;
+  endDate?: string | null;
   endTime: string;
   attemptPolicy: AttemptPolicy;
   courseId: string;

@@ -20,20 +20,23 @@ export interface ActivityWindow {
   closesAt: Date | null;
 }
 
-/** Ventana de la actividad: la fecha de disponibilidad, entre la hora de inicio y la de cierre (CU-02-04). */
-export function activityWindow(activity: Pick<Activity, 'availableFrom' | 'startTime' | 'endTime'>): ActivityWindow {
+/** Datos de la ventana: apertura (fecha y hora) y cierre (fecha y hora; sin fecha, el mismo día que abre). */
+export type WindowFields = Pick<Activity, 'availableFrom' | 'startTime' | 'endTime'> & { endDate?: string | null };
+
+/** Ventana de la actividad, de la apertura al cierre; puede abarcar más de un día (CU-02-04). */
+export function activityWindow(activity: WindowFields): ActivityWindow {
   const opensAt = at(activity.availableFrom, activity.startTime);
-  const closesAt = at(activity.availableFrom, activity.endTime);
+  const closesAt = at(activity.endDate || activity.availableFrom, activity.endTime);
   if (opensAt && closesAt && closesAt.getTime() <= opensAt.getTime()) return { opensAt, closesAt: null };
   return { opensAt, closesAt };
 }
 
-export function hasClosed(activity: Pick<Activity, 'availableFrom' | 'startTime' | 'endTime'>, now = Date.now()): boolean {
+export function hasClosed(activity: WindowFields, now = Date.now()): boolean {
   const { closesAt } = activityWindow(activity);
   return closesAt !== null && now > closesAt.getTime() + SUBMIT_GRACE_MS;
 }
 
-export function hasOpened(activity: Pick<Activity, 'availableFrom' | 'startTime' | 'endTime'>, now = Date.now()): boolean {
+export function hasOpened(activity: WindowFields, now = Date.now()): boolean {
   const { opensAt } = activityWindow(activity);
   if (opensAt) return now >= opensAt.getTime();
   // Sin hora válida, alcanza con que haya llegado el día.
@@ -42,7 +45,7 @@ export function hasOpened(activity: Pick<Activity, 'availableFrom' | 'startTime'
 }
 
 /** Pasó la hora de cierre: ya no se puede empezar la actividad, aunque todavía entren los envíos finales. */
-export function pastEndTime(activity: Pick<Activity, 'availableFrom' | 'startTime' | 'endTime'>, now = Date.now()): boolean {
+export function pastEndTime(activity: WindowFields, now = Date.now()): boolean {
   const { closesAt } = activityWindow(activity);
   return closesAt !== null && now > closesAt.getTime();
 }
