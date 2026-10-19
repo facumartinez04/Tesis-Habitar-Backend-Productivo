@@ -25,6 +25,8 @@ export interface Activity {
   questionsReleasedAt: Date | null;
   /** Si los alumnos pueden preguntarle a la IA qué significa algo del texto (por defecto, sí). */
   readingHelp: boolean;
+  /** Si al cerrarse el alumno ve sus respuestas corregidas (por defecto, sí). */
+  showFeedback: boolean;
   createdAt: Date;
 }
 
@@ -48,6 +50,7 @@ export interface CreateActivityInput {
   diagnosticType?: DiagnosticType | null;
   readingMode?: ReadingMode;
   readingHelp?: boolean;
+  showFeedback?: boolean;
 
   status?: ActivityStatus;
 }

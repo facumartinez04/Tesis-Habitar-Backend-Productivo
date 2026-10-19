@@ -34,6 +34,9 @@ export const createActivitySchema = z.object({
   diagnosticType: z.enum(['INICIO', 'CIERRE']).nullable().optional(),
   readingMode: z.enum(['LECTURA_PRIMERO', 'DOCENTE_HABILITA', 'LIBRE']).optional(),
   readingHelp: z.boolean().optional(),
+  showFeedback: z.boolean().optional(),
+  /** Actividad del banco de la que sale (para copiar su documento). */
+  templateId: z.string().max(64).optional(),
 });
 
 export const askHelpSchema = z.object({

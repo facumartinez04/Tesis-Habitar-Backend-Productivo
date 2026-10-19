@@ -63,8 +63,21 @@ export class DashboardService {
       JOIN "Course" c ON c."id" = a."courseId" WHERE ${where}`;
 
     if (scope.length === 0) {
-      return { filters, courses, students: [], kpis: null, byDay: [], byCourse: [], byStudent: [], byActivity: [] };
+      return { filters, courses, students: [], kpis: null, byDay: [], byCourse: [], byStudent: [], byActivity: [], timeline: [], diagnostic: { inicio: null, cierre: null } };
     }
+
+    // Evolución del alumno: una fila por actividad, en orden. Diagnóstica: inicio contra cierre en el filtro actual.
+    const timeline = filters.studentId
+      ? await query(
+          `SELECT a."id", a."name", a."availableFrom" AS "date", a."diagnosticType", to_char(${AR_DAY}, 'YYYY-MM-DD') AS "day", ${AVGS}
+             ${from} GROUP BY a."id", a."name", a."availableFrom", a."diagnosticType", 5 ORDER BY 5, a."availableFrom"`,
+          params,
+        )
+      : [];
+    const diagnostic = await query(
+      `SELECT a."diagnosticType" AS "type", COUNT(*) AS "responses", ${AVGS} ${from} AND a."diagnosticType" IS NOT NULL GROUP BY a."diagnosticType"`,
+      params,
+    );
 
     const [kpi, byDay, byCourse, byStudent, byActivity, help, pending] = await Promise.all([
       queryOne(`SELECT COUNT(*) AS "responses", COUNT(DISTINCT sr."studentId") AS "students", COUNT(DISTINCT sr."activityId") AS "activities",
@@ -121,6 +134,23 @@ export class DashboardService {
           status: classify(averages),
         };
       }),
+      timeline: timeline.map((r: Record<string, unknown>) => ({
+        id: String(r.id),
+        name: String(r.name),
+        day: String(r.day),
+        diagnosticType: r.diagnosticType ? String(r.diagnosticType) : null,
+        averages: avgOf(r),
+      })),
+      diagnostic: {
+        inicio: (() => {
+          const r = diagnostic.find((d: Record<string, unknown>) => d.type === 'INICIO');
+          return r ? { responses: n(r.responses), averages: avgOf(r) } : null;
+        })(),
+        cierre: (() => {
+          const r = diagnostic.find((d: Record<string, unknown>) => d.type === 'CIERRE');
+          return r ? { responses: n(r.responses), averages: avgOf(r) } : null;
+        })(),
+      },
       byActivity: byActivity.map((r: Record<string, unknown>) => ({
         id: String(r.id),
         name: String(r.name),
