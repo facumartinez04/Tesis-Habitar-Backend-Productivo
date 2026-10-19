@@ -96,13 +96,16 @@ export class DefaultAuthService implements AuthService {
     const email = claims?.email as string | undefined;
     if (!email) throw new UnauthorizedError('La cuenta no expone un email verificado');
 
-    // El rol ADMIN guardado en la base es la fuente de verdad: un administrador activo entra aunque su
-    // correo (por ejemplo, un Gmail) no pertenezca al dominio de ninguna institución. SUPER_ADMIN_EMAILS
+    // Una cuenta ya dada de alta (por la administración o por la coordinación) entra a su institución
+    // aunque su correo no sea del dominio institucional, por ejemplo un Gmail: el usuario guardado es la
+    // fuente de verdad. El alta automática por dominio queda sólo para cuentas nuevas, y SUPER_ADMIN_EMAILS
     // sólo sirve para dar de alta al primer administrador.
     const existing = await userRepository.findByEmail(email);
-    const isStoredAdmin = existing?.role === 'ADMIN' && existing.active;
-    const isSuperAdmin = isStoredAdmin || env.superAdminEmails.includes(email.toLowerCase());
-    const institution = isStoredAdmin
+    if (existing && !existing.active) {
+      throw new ForbiddenError('Tu cuenta fue desactivada. Contactá a tu coordinador/a.');
+    }
+    const isSuperAdmin = !existing && env.superAdminEmails.includes(email.toLowerCase());
+    const institution = existing
       ? await institutionRepository.findById(existing.institutionId)
       : isSuperAdmin
         ? await this.getOrCreateSuperAdminInstitution(email)
@@ -121,10 +124,6 @@ export class DefaultAuthService implements AuthService {
         provider: input.provider,
         institutionId: institution.id,
       });
-    } else if (!user.active) {
-      throw new ForbiddenError('Tu cuenta fue desactivada. Contactá a tu coordinador/a.');
-    } else if (user.institutionId !== institution.id) {
-      throw new ForbiddenError('El email no corresponde a la institución registrada.');
     }
 
     const token = signToken({ sub: user.id, role: user.role, institutionId: user.institutionId, provider: user.provider });
