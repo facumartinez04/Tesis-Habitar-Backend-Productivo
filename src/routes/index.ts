@@ -1,3 +1,4 @@
+import { dashboardRouter } from './dashboard.routes';
 import { adminDataRouter } from './admin-data.routes';
 import { Router } from 'express';
 import { authRouter } from './auth.routes';
@@ -32,3 +33,4 @@ apiRouter.use('/jira', jiraRouter);
 apiRouter.use('/roles', roleRouter);
 apiRouter.use('/finances', financeRouter);
 apiRouter.use('/admin', adminDataRouter);
+apiRouter.use('/dashboard', dashboardRouter);
