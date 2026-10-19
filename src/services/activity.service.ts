@@ -10,7 +10,7 @@ import { env } from '../config/env';
 import { aiUsageService } from './aiUsage.service';
 import { alertService } from './alert.service';
 import { resolveStudentIdentity } from './student-identity';
-import { activityWindow, hasClosed, hasOpened } from './activity-window';
+import { activityWindow, hasClosed, hasOpened, pastEndTime } from './activity-window';
 import { realtime } from '../realtime/realtime';
 import { BadRequestError, ConflictError, NotFoundError, UpstreamError } from '../utils/http-error';
 import type { Activity, CreateActivityInput } from '../domain/activity';
@@ -249,7 +249,7 @@ export class DefaultActivityService implements ActivityService {
     const candidates = await Promise.all(
       (await activityRepository.findOpenOrScheduledByCourse(courseId)).map((a) => this.syncStatus(a)),
     );
-    const open = candidates.find((a) => a.status === 'PUBLICADA') ?? null;
+    const open = candidates.find((a) => a.status === 'PUBLICADA' && !pastEndTime(a)) ?? null;
     const upcoming = open ? null : candidates.find((a) => a.status === 'PROGRAMADA') ?? null;
     return { open, upcoming };
   }
@@ -300,7 +300,10 @@ export class DefaultActivityService implements ActivityService {
     if (!found) throw new NotFoundError('Actividad no encontrada');
     const activity = await this.syncStatus(found);
 
-    if (activity.status === 'CERRADA') throw new ConflictError('[Error-REA_001] La actividad ya no está disponible');
+    // Pasada la hora de cierre ya no se puede empezar; la tolerancia es sólo para los envíos finales.
+    if (activity.status === 'CERRADA' || pastEndTime(activity)) {
+      throw new ConflictError('[Error-REA_001] La actividad ya no está disponible');
+    }
     if (activity.status !== 'PUBLICADA') throw new ConflictError('La actividad todavía no está disponible');
 
     const [questions, course] = await Promise.all([
