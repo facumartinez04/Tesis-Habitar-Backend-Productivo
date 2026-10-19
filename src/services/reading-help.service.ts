@@ -65,9 +65,13 @@ export class ReadingHelpService {
     if (!activity.sourceText) throw new ConflictError('[Error-REA_001] La actividad ya no está disponible');
 
     const institution = await institutionRepository.findById(course.institutionId);
-    const { resolveAiAccess, pseudonymize } = await import('./activity.service');
+    const { resolveAiAccess, pseudonymize, usageCollector } = await import('./activity.service');
     const access = resolveAiAccess(institution);
     if (!access || !institution) throw new UpstreamError('La ayuda no está disponible en este momento. Preguntale a tu docente.');
+    if (!access.isCustom && !(await aiUsageService.withinBudget(institution.id))) {
+      throw new ConflictError('La ayuda con el texto está pausada por este mes. Si tenés una duda, preguntale a tu docente.');
+    }
+    const call = usageCollector(access);
 
     const questions = (await questionRepository.findByActivity(activity.id)).filter((q) => q.approved);
     const safeQuestion = pseudonymize(question, [identity.displayName, institution.name]);
@@ -81,11 +85,11 @@ export class ReadingHelpService {
           history: previous.slice(-HISTORY_SENT).map((m) => ({ question: m.question, answer: m.answer })),
           question: safeQuestion,
         },
-        access.options,
+        call.options,
       );
-      await aiUsageService.record({ institutionId: institution.id, provider, success: true, wordCount: question.split(/\s+/).length, kind: 'AYUDA' });
+      await aiUsageService.record({ institutionId: institution.id, provider, success: true, wordCount: question.split(/\s+/).length, kind: 'AYUDA', ...call.usage() });
     } catch (err) {
-      await aiUsageService.record({ institutionId: institution.id, provider, success: false, wordCount: 0, kind: 'AYUDA' });
+      await aiUsageService.record({ institutionId: institution.id, provider, success: false, wordCount: 0, kind: 'AYUDA', ...call.usage() });
       console.error('[reading-help] La IA no respondió:', (err as Error).message);
       throw new UpstreamError('La ayuda no respondió. Probá de nuevo en un momento.');
     }

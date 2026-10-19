@@ -9,7 +9,7 @@ import { criticoFromAnswers, responseRepository, type ReviewQueueItem } from '..
 import { studentRepository } from '../repositories/student.repository';
 import { courseRepository } from '../repositories/course.repository';
 import { countWords, isWordCountValid, TemplateQuestionGenerator } from './question-generator.service';
-import { aiQuestionGenerator, type GenerateWithAiOptions } from './ai-question-generator.service';
+import { type AiCallUsage, aiQuestionGenerator, type GenerateWithAiOptions } from './ai-question-generator.service';
 import { institutionRepository } from '../repositories/institution.repository';
 import { env } from '../config/env';
 import { aiUsageService } from './aiUsage.service';
@@ -79,6 +79,20 @@ export function pseudonymize(text: string, names: string[]): string {
 export interface AiAccess {
   options: GenerateWithAiOptions;
   isCustom: boolean;
+}
+
+/** Junta los tokens de una llamada para registrarla con su costo y con quién la paga. */
+export function usageCollector(access: AiAccess) {
+  let last: AiCallUsage | null = null;
+  return {
+    options: { ...access.options, onUsage: (u: AiCallUsage) => (last = u) },
+    usage: () => ({
+      model: last?.model,
+      promptTokens: last?.promptTokens ?? 0,
+      completionTokens: last?.completionTokens ?? 0,
+      keySource: access.isCustom ? ('PROPIA' as const) : ('PLATAFORMA' as const),
+    }),
+  };
 }
 
 export function resolveAiAccess(institution: Institution | null): AiAccess | null {
@@ -225,25 +239,27 @@ export class DefaultActivityService implements ActivityService {
     const institution = await institutionRepository.findById(institutionId);
     const access = resolveAiAccess(institution);
     const hasQuota = !access || access.isCustom ? true : await aiUsageService.hasQuotaAvailable(institutionId);
+    const withinBudget = !access || access.isCustom ? true : await aiUsageService.withinBudget(institutionId);
 
     let questions: GenerateQuestionsResult['questions'];
 
-    if (!access || !hasQuota) {
+    if (!access || !hasQuota || !withinBudget) {
       console.warn(
-        `[activity.service] ${!access ? 'Sin clave de IA' : 'Cuota mensual agotada'} para la institución ${institutionId}: ` +
+        `[activity.service] ${!access ? 'Sin clave de IA' : !hasQuota ? 'Cuota mensual agotada' : 'Tope de gasto mensual alcanzado'} para la institución ${institutionId}: ` +
           'se usan las preguntas por plantilla.',
       );
       questions = await templateFallback.generate(sourceText, focusAxis);
     } else {
       const provider = access.options.provider.toLowerCase();
+      const call = usageCollector(access);
       try {
-        questions = await aiQuestionGenerator.generate(sourceText, access.options, focusAxis);
-        await aiUsageService.record({ institutionId, provider, success: true, wordCount, kind: 'GENERACION' });
+        questions = await aiQuestionGenerator.generate(sourceText, call.options, focusAxis);
+        await aiUsageService.record({ institutionId, provider, success: true, wordCount, kind: 'GENERACION', ...call.usage() });
       } catch (err) {
         if (!(err instanceof UpstreamError)) throw err;
         console.error(`[activity.service] ${provider} falló, se usan las preguntas por plantilla:`, err.message);
         questions = await templateFallback.generate(sourceText, focusAxis);
-        await aiUsageService.record({ institutionId, provider, success: false, wordCount, kind: 'GENERACION' });
+        await aiUsageService.record({ institutionId, provider, success: false, wordCount, kind: 'GENERACION', ...call.usage() });
       }
     }
 
@@ -584,16 +600,18 @@ export class DefaultActivityService implements ActivityService {
   ): Promise<void> {
     try {
       const access = resolveAiAccess(institution);
-      if (access && sourceText && institution) {
+      const withinBudget = access && institution && !access.isCustom ? await aiUsageService.withinBudget(institution.id) : true;
+      if (access && sourceText && institution && withinBudget) {
         for (const item of pending) {
           const question = questions.find((q) => q.id === item.questionId);
           if (!question) continue;
           const provider = access.options.provider.toLowerCase();
           const answer = pseudonymize(item.textAnswer, [studentDisplayName, institution.name]);
+          const call = usageCollector(access);
           try {
             const grade = await aiQuestionGenerator.gradeOpenAnswer(
               { questionPrompt: question.prompt, expectedAnswer: question.expectedAnswer, sourceText, answer },
-              access.options,
+              call.options,
             );
             await responseRepository.setAiGrade(item.answerId, grade.score, grade.rationale);
             realtime.liveChanged(activity.id);
@@ -603,6 +621,7 @@ export class DefaultActivityService implements ActivityService {
               success: true,
               wordCount: countWords(answer),
               kind: 'CORRECCION',
+              ...call.usage(),
             });
           } catch (err) {
             // Sin propuesta de la IA, el docente puntúa a mano: la respuesta queda igual en la bandeja de revisión.
@@ -613,6 +632,7 @@ export class DefaultActivityService implements ActivityService {
               success: false,
               wordCount: countWords(answer),
               kind: 'CORRECCION',
+              ...call.usage(),
             });
           }
         }

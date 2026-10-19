@@ -5,11 +5,20 @@ import { env } from '../config/env';
 import type { AiProvider, AiKeySource } from '../domain/institution';
 import type { ComprehensionAxis } from '../domain/enums';
 
+/** Tokens que informó el proveedor en una llamada (para calcular el costo). */
+export interface AiCallUsage {
+  model: string;
+  promptTokens: number;
+  completionTokens: number;
+}
+
 export interface GenerateWithAiOptions {
   provider: AiProvider;
   apiKey: string;
   apiUrl?: string;
   model?: string;
+  /** Se llama con los tokens de cada llamada, aunque la respuesta después no sirva (igual se cobraron). */
+  onUsage?: (usage: AiCallUsage) => void;
 }
 
 export interface GradeOpenAnswerInput {
@@ -206,7 +215,9 @@ function buildReadingHelpPrompt(input: ReadingHelpInput): { system: string; user
 }
 
 interface ChatCompletionResponse {
+  model?: string;
   choices?: Array<{ message?: { content?: string } }>;
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
   error?: { message?: string };
 }
 
@@ -266,6 +277,11 @@ export class AiQuestionGeneratorService {
     }
 
     const payload = (await res.json()) as ChatCompletionResponse;
+    options.onUsage?.({
+      model: payload.model || model,
+      promptTokens: payload.usage?.prompt_tokens ?? 0,
+      completionTokens: payload.usage?.completion_tokens ?? 0,
+    });
     const content = payload.choices?.[0]?.message?.content;
     if (!content) {
       throw new UpstreamError(`${provider} no devolvió contenido en su respuesta`);
