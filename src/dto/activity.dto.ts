@@ -32,6 +32,31 @@ export const createActivitySchema = z.object({
   courseId: z.string().min(1),
   questions: z.array(questionInputSchema).min(1).max(15),
   diagnosticType: z.enum(['INICIO', 'CIERRE']).nullable().optional(),
+  readingMode: z.enum(['LECTURA_PRIMERO', 'DOCENTE_HABILITA', 'LIBRE']).optional(),
+});
+
+export const studentSessionSchema = z.object({
+  studentDisplayName: z.string().min(1).max(80),
+  deviceId: z.string().min(8).max(64),
+});
+
+export const saveProgressSchema = z.object({
+  studentDisplayName: z.string().min(1).max(80),
+  deviceId: z.string().min(8).max(64),
+  phase: z.enum(['LEYENDO', 'RESPONDIENDO']),
+  currentIndex: z.number().int().min(0).max(50),
+  answers: z.record(z.string(), z.object({ selectedOption: z.string().max(500).optional(), textAnswer: z.string().max(4000).optional() })),
+  retry: z.boolean().optional(),
+});
+
+export type StudentSessionDto = z.infer<typeof studentSessionSchema>;
+export type SaveProgressDto = z.infer<typeof saveProgressSchema>;
+
+export const editQuestionSchema = z.object({
+  prompt: z.string().min(3).max(1000).optional(),
+  options: z.array(z.string().min(1).max(500)).min(2).max(6).optional(),
+  correctOption: z.string().min(1).max(500).optional(),
+  expectedAnswer: z.string().min(1).max(2000).optional(),
 });
 
 export type CreateActivityDto = z.infer<typeof createActivitySchema>;
@@ -57,3 +82,5 @@ export const reviewAnswerSchema = z.object({
 export type ReviewAnswerDto = z.infer<typeof reviewAnswerSchema>;
 
 export type SubmitResponseDto = z.infer<typeof submitResponseSchema>;
+
+export type EditQuestionDto = z.infer<typeof editQuestionSchema>;

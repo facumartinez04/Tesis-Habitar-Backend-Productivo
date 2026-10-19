@@ -11,6 +11,8 @@ interface ActivityRow {
   sourcePurgedAt: Date | null;
   diagnosticType: Activity['diagnosticType'];
   endDate: string | null;
+  readingMode: Activity['readingMode'] | null;
+  questionsReleasedAt: Date | null;
   availableFrom: string;
   startTime: string;
   endTime: string;
@@ -28,7 +30,8 @@ function generateCode(): string {
 }
 
 function toDomain(row: ActivityRow): Activity {
-  return { ...row, sourcePurgedAt: row.sourcePurgedAt ?? null, diagnosticType: row.diagnosticType ?? null, endDate: row.endDate ?? null };
+  return { ...row, sourcePurgedAt: row.sourcePurgedAt ?? null, diagnosticType: row.diagnosticType ?? null, endDate: row.endDate ?? null,
+    readingMode: row.readingMode ?? 'LECTURA_PRIMERO', questionsReleasedAt: row.questionsReleasedAt ?? null };
 }
 
 export interface ActivityRepository {
@@ -44,6 +47,8 @@ export interface ActivityRepository {
   findOpenOrScheduledByCourse(courseId: string): Promise<Activity[]>;
   /** Cierra la actividad y borra su texto fuente: el alumno ya no lo necesita leer. */
   closeAndPurgeText(id: string): Promise<Activity>;
+  /** El docente pasó a todos a las preguntas. */
+  releaseQuestions(id: string): Promise<Activity>;
 }
 
 export class SqlActivityRepository implements ActivityRepository {
@@ -76,8 +81,8 @@ export class SqlActivityRepository implements ActivityRepository {
     return withTransaction(async (client) => {
       const { rows } = await client.query<ActivityRow>(
         `INSERT INTO "Activity"
-           ("code", "name", "educationLevel", "axis", "sourceText", "availableFrom", "startTime", "endTime", "attemptPolicy", "status", "courseId", "diagnosticType", "endDate")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+           ("code", "name", "educationLevel", "axis", "sourceText", "availableFrom", "startTime", "endTime", "attemptPolicy", "status", "courseId", "diagnosticType", "endDate", "readingMode")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          RETURNING *`,
         [
           code,
@@ -93,6 +98,7 @@ export class SqlActivityRepository implements ActivityRepository {
           input.courseId,
           input.diagnosticType ?? null,
           input.endDate && input.endDate !== input.availableFrom ? input.endDate : null,
+          input.readingMode ?? 'LECTURA_PRIMERO',
         ],
       );
       const activity = rows[0];
@@ -142,6 +148,15 @@ export class SqlActivityRepository implements ActivityRepository {
       [courseId],
     );
     return rows.map(toDomain);
+  }
+
+  async releaseQuestions(id: string): Promise<Activity> {
+    const row = await queryOne<ActivityRow>(
+      `UPDATE "Activity" SET "questionsReleasedAt" = COALESCE("questionsReleasedAt", CURRENT_TIMESTAMP) WHERE "id" = $1 RETURNING *`,
+      [id],
+    );
+    if (!row) throw new Error(`Activity ${id} no encontrada`);
+    return toDomain(row);
   }
 
   async closeAndPurgeText(id: string): Promise<Activity> {

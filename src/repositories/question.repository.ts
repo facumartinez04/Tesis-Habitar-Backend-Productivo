@@ -1,4 +1,4 @@
-import { query } from '../config/db';
+import { query, queryOne } from '../config/db';
 import type { Question } from '../domain/question';
 
 interface QuestionRow {
@@ -32,6 +32,10 @@ function toDomain(row: QuestionRow): Question {
 export interface QuestionRepository {
   findByActivity(activityId: string): Promise<Question[]>;
   findByIds(ids: string[]): Promise<Question[]>;
+  update(
+    id: string,
+    input: { prompt: string; options: string[] | null; correctOption: string | null; expectedAnswer: string },
+  ): Promise<Question>;
 }
 
 export class SqlQuestionRepository implements QuestionRepository {
@@ -44,6 +48,19 @@ export class SqlQuestionRepository implements QuestionRepository {
     if (ids.length === 0) return [];
     const rows = await query<QuestionRow>('SELECT * FROM "Question" WHERE "id" = ANY($1)', [ids]);
     return rows.map(toDomain);
+  }
+
+  async update(
+    id: string,
+    input: { prompt: string; options: string[] | null; correctOption: string | null; expectedAnswer: string },
+  ): Promise<Question> {
+    const row = await queryOne<QuestionRow>(
+      `UPDATE "Question" SET "prompt" = $2, "optionsJson" = $3, "correctOption" = $4, "expectedAnswer" = $5, "edited" = true
+        WHERE "id" = $1 RETURNING *`,
+      [id, input.prompt, input.options ? JSON.stringify(input.options) : null, input.correctOption, input.expectedAnswer],
+    );
+    if (!row) throw new Error(`Question ${id} no encontrada`);
+    return toDomain(row);
   }
 }
 

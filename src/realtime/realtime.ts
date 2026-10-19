@@ -20,6 +20,9 @@ import { courseRepository } from '../repositories/course.repository';
 let io: Server | null = null;
 
 const MAX_ROOMS_PER_SOCKET = 6;
+const LIVE_THROTTLE_MS = 1000;
+const lastLive = new Map<string, number>();
+const pendingLive = new Set<string>();
 
 type Ack = (result: { ok: boolean; error?: string }) => void;
 
@@ -105,8 +108,31 @@ export const realtime = {
   courseChanged(courseId: string): void {
     io?.to(`course:${courseId}`).emit('course:changed');
   },
-  /** Llegó una respuesta, la IA propuso una corrección o el docente revisó una. */
+  /** El docente pasó a todos a las preguntas. */
+  questionsReleased(activity: { id: string; status: string }): void {
+    if (!io) return;
+    io.to(`activity:${activity.id}`).emit('activity:changed', { status: activity.status, event: 'questions-released' });
+    io.to(`live:${activity.id}`).emit('live:changed');
+  },
+  /** El docente corrigió una pregunta: los alumnos vuelven a pedirlas (sin la respuesta correcta). */
+  questionsUpdated(activity: { id: string; status: string }): void {
+    if (!io) return;
+    io.to(`activity:${activity.id}`).emit('activity:changed', { status: activity.status, event: 'questions-updated' });
+    io.to(`live:${activity.id}`).emit('live:changed');
+  },
+  /**
+   * Llegó una respuesta, avanzó un alumno, la IA propuso una corrección o el docente revisó una. Con un curso entero
+   * avanzando a la vez, se agrupan los avisos: como mucho uno por segundo por actividad.
+   */
   liveChanged(activityId: string): void {
-    io?.to(`live:${activityId}`).emit('live:changed');
+    if (!io || pendingLive.has(activityId)) return;
+    const last = lastLive.get(activityId) ?? 0;
+    const wait = Math.max(0, LIVE_THROTTLE_MS - (Date.now() - last));
+    pendingLive.add(activityId);
+    setTimeout(() => {
+      pendingLive.delete(activityId);
+      lastLive.set(activityId, Date.now());
+      io?.to(`live:${activityId}`).emit('live:changed');
+    }, wait);
   },
 };

@@ -8,6 +8,7 @@ import { resolveStudentIdentity } from '../src/services/student-identity';
 import { activityWindow, hasClosed, hasOpened, SUBMIT_GRACE_MS } from '../src/services/activity-window';
 import { questionMix } from '../src/services/ai-question-generator.service';
 import { classify } from '../src/services/result.service';
+import { sanitizeDraft } from '../src/services/activity-session.service';
 import type { Question } from '../src/domain/question';
 
 function q(id: string, axis: Question['axis'], correctOption: string | null): Question {
@@ -129,4 +130,18 @@ test('la ventana puede cerrar otro día: de las 22:00 a las 10:00 del día sigui
   assert.equal(hasClosed(act, Date.parse('2026-10-20T13:00:00Z') + SUBMIT_GRACE_MS + 1), true);
   // Sin fecha de cierre, una hora de cierre anterior a la de inicio no es una ventana válida.
   assert.equal(activityWindow({ availableFrom: '2026-10-19', startTime: '22:00', endTime: '10:00' }).closesAt, null);
+});
+
+test('el borrador del alumno sólo guarda opciones válidas y texto en preguntas abiertas', () => {
+  const questions = [q('c1', 'LITERAL', 'correcta'), q('o1', 'CRITICO', null)];
+  const draft = sanitizeDraft(questions, {
+    c1: { selectedOption: 'inventada' },
+    o1: { textAnswer: 'Porque el autor exagera' },
+    x9: { selectedOption: 'correcta' },
+  });
+  assert.deepEqual(draft, { o1: { textAnswer: 'Porque el autor exagera' } });
+  assert.deepEqual(sanitizeDraft(questions, { c1: { selectedOption: 'otra', textAnswer: 'algo' } }), {
+    c1: { selectedOption: 'otra' },
+  });
+  assert.deepEqual(sanitizeDraft(questions, { c1: { textAnswer: 'texto en una cerrada' } }), {});
 });

@@ -19,8 +19,14 @@ export interface Activity {
   qrValidUntil: string;
   courseId: string;
   diagnosticType: DiagnosticType | null;
+  /** Cómo empieza el alumno: lee primero (por defecto), espera que el docente habilite, o todo junto. */
+  readingMode: ReadingMode;
+  /** Cuándo el docente pasó a todos a las preguntas. */
+  questionsReleasedAt: Date | null;
   createdAt: Date;
 }
+
+export type ReadingMode = 'LECTURA_PRIMERO' | 'DOCENTE_HABILITA' | 'LIBRE';
 
 /** Actividad diagnóstica de inicio o de cierre del ciclo lectivo (mejora 1). */
 export type DiagnosticType = 'INICIO' | 'CIERRE';
@@ -38,6 +44,7 @@ export interface CreateActivityInput {
   courseId: string;
   questions: CreateQuestionInput[];
   diagnosticType?: DiagnosticType | null;
+  readingMode?: ReadingMode;
 
   status?: ActivityStatus;
 }

@@ -1,7 +1,16 @@
 import type { Request, Response } from 'express';
 import { assertCourseAccess } from '../middlewares/access.middleware';
 import { activityService } from '../services/activity.service';
-import type { CreateActivityDto, GenerateQuestionsDto, ReviewAnswerDto, SubmitResponseDto } from '../dto/activity.dto';
+import { activitySessionService } from '../services/activity-session.service';
+import type {
+  CreateActivityDto,
+  EditQuestionDto,
+  GenerateQuestionsDto,
+  ReviewAnswerDto,
+  SaveProgressDto,
+  StudentSessionDto,
+  SubmitResponseDto,
+} from '../dto/activity.dto';
 
 export class ActivityController {
   async generateQuestions(req: Request, res: Response): Promise<void> {
@@ -27,6 +36,30 @@ export class ActivityController {
     const input = req.body as SubmitResponseDto;
     const result = await activityService.submitResponse(String(req.params.code), input);
     res.status(201).json(result);
+  }
+
+  /** Estado del alumno al entrar: si ya envió, no puede volver a empezar; si tenía un borrador, lo retoma. */
+  async studentState(req: Request, res: Response): Promise<void> {
+    const { studentDisplayName, deviceId } = req.body as StudentSessionDto;
+    res.json(await activitySessionService.getStudentState(String(req.params.code), studentDisplayName, deviceId));
+  }
+
+  async saveProgress(req: Request, res: Response): Promise<void> {
+    res.json(await activitySessionService.saveProgress(String(req.params.code), req.body as SaveProgressDto));
+  }
+
+  /** El docente pasa a todos a las preguntas. */
+  async releaseQuestions(req: Request, res: Response): Promise<void> {
+    res.json(await activitySessionService.releaseQuestions(String(req.params.id)));
+  }
+
+  async editQuestion(req: Request, res: Response): Promise<void> {
+    const question = await activitySessionService.editQuestion(
+      String(req.params.id),
+      String(req.params.questionId),
+      req.body as EditQuestionDto,
+    );
+    res.json(question);
   }
 
   async duplicate(req: Request, res: Response): Promise<void> {

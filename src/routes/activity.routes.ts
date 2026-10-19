@@ -6,8 +6,11 @@ import { validateBody } from '../middlewares/validate.middleware';
 import { rateLimit } from '../middlewares/rate-limit.middleware';
 import {
   createActivitySchema,
+  editQuestionSchema,
   generateQuestionsSchema,
   reviewAnswerSchema,
+  saveProgressSchema,
+  studentSessionSchema,
   submitResponseSchema,
 } from '../dto/activity.dto';
 
@@ -17,6 +20,8 @@ export const activityRouter = Router();
 const publicReadLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 600, name: 'activity-read' });
 const submitLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 300, name: 'activity-submit' });
 const generateLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 60, name: 'activity-generate' });
+// Cada alumno reporta su avance al cambiar de pregunta o de respuesta (con pausa): un curso de 40 entra holgado.
+const progressLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 4000, name: 'activity-progress' });
 
 activityRouter.post(
   '/generate-questions',
@@ -71,6 +76,38 @@ activityRouter.patch(
 );
 
 activityRouter.get('/:code', publicReadLimit, activityController.getByCode.bind(activityController));
+
+// Estado del alumno en la actividad (POST para no dejar el nombre en la URL).
+activityRouter.post(
+  '/:code/me',
+  publicReadLimit,
+  validateBody(studentSessionSchema),
+  activityController.studentState.bind(activityController),
+);
+
+activityRouter.post(
+  '/:code/progress',
+  progressLimit,
+  validateBody(saveProgressSchema),
+  activityController.saveProgress.bind(activityController),
+);
+
+activityRouter.post(
+  '/:id/release',
+  requireAuth,
+  requireRole('DOCENTE'),
+  requireActivityAccess('id'),
+  activityController.releaseQuestions.bind(activityController),
+);
+
+activityRouter.patch(
+  '/:id/questions/:questionId',
+  requireAuth,
+  requireRole('DOCENTE'),
+  requireActivityAccess('id'),
+  validateBody(editQuestionSchema),
+  activityController.editQuestion.bind(activityController),
+);
 
 activityRouter.post(
   '/:code/responses',
