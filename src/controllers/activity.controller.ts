@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { readPage } from '../utils/pagination';
 import { assertCourseAccess } from '../middlewares/access.middleware';
 import { activityService } from '../services/activity.service';
 import { activitySessionService } from '../services/activity-session.service';
@@ -90,8 +91,9 @@ export class ActivityController {
   }
 
   async listByCourse(req: Request, res: Response): Promise<void> {
-    const activities = await activityService.listByCourse(String(req.params.courseId));
-    res.json(activities);
+    const page = readPage(req);
+    const courseId = String(req.params.courseId);
+    res.json(page ? await activityService.listByCoursePage(courseId, page) : await activityService.listByCourse(courseId));
   }
 
   async live(req: Request, res: Response): Promise<void> {

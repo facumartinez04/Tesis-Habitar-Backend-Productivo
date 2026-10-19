@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { sendList } from '../utils/pagination';
 import { institutionService } from '../services/institution.service';
 import { aiUsageService } from '../services/aiUsage.service';
 import { aiQuestionGenerator } from '../services/ai-question-generator.service';
@@ -17,9 +18,9 @@ export function toPublicInstitution(institution: Institution): Omit<Institution,
 }
 
 export class InstitutionController {
-  async list(_req: Request, res: Response): Promise<void> {
+  async list(req: Request, res: Response): Promise<void> {
     const institutions = await institutionService.list();
-    res.json(institutions.map(toPublicInstitution));
+    sendList(req, res, institutions.map(toPublicInstitution));
   }
 
   async getBySlug(req: Request, res: Response): Promise<void> {

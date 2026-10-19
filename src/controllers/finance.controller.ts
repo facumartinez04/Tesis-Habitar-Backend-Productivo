@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { sendList } from '../utils/pagination';
 import { financeService } from '../services/finance.service';
 import { BadRequestError, NotFoundError } from '../utils/http-error';
 
@@ -9,9 +10,9 @@ export class FinanceController {
     res.json(summary);
   }
 
-  async listPlatformExpenses(_req: Request, res: Response): Promise<void> {
+  async listPlatformExpenses(req: Request, res: Response): Promise<void> {
     const expenses = await financeService.listPlatformExpenses();
-    res.json(expenses);
+    sendList(req, res, expenses);
   }
 
   async createPlatformExpense(req: Request, res: Response): Promise<void> {
@@ -40,9 +41,9 @@ export class FinanceController {
     res.json({ success: true, message: 'Gasto eliminado' });
   }
 
-  async listTransactions(_req: Request, res: Response): Promise<void> {
+  async listTransactions(req: Request, res: Response): Promise<void> {
     const transactions = await financeService.listTransactions();
-    res.json(transactions);
+    sendList(req, res, transactions);
   }
 
   async createSubscriptionCheckout(req: Request, res: Response): Promise<void> {
@@ -106,7 +107,7 @@ export class FinanceController {
   async listInstitutionExpenses(req: Request, res: Response): Promise<void> {
     const institutionId = String(req.params.institutionId);
     const expenses = await financeService.listInstitutionExpenses(institutionId);
-    res.json(expenses);
+    sendList(req, res, expenses);
   }
 
   async createInstitutionExpense(req: Request, res: Response): Promise<void> {
@@ -140,7 +141,7 @@ export class FinanceController {
   async listInstitutionFees(req: Request, res: Response): Promise<void> {
     const institutionId = String(req.params.institutionId);
     const fees = await financeService.listInstitutionFees(institutionId);
-    res.json(fees);
+    sendList(req, res, fees);
   }
 
   async createInstitutionFee(req: Request, res: Response): Promise<void> {

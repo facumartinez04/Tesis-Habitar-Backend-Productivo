@@ -1,11 +1,12 @@
 import type { Request, Response } from 'express';
+import { sendList } from '../utils/pagination';
 import { userService } from '../services/user.service';
 import type { CreateInstitutionUserDto, SetUserActiveDto, UpdateUserRoleDto } from '../dto/user.dto';
 
 export class UserController {
   async listByInstitution(req: Request, res: Response): Promise<void> {
     const users = await userService.listByInstitution(String(req.params.institutionId));
-    res.json(users);
+    sendList(req, res, users);
   }
 
   async invite(req: Request, res: Response): Promise<void> {
