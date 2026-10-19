@@ -1,4 +1,6 @@
 import { activityRepository } from '../repositories/activity.repository';
+import { activitySessionService, resolveStudentInActivity } from './activity-session.service';
+import { progressRepository } from '../repositories/progress.repository';
 import { questionRepository } from '../repositories/question.repository';
 import { criticoFromAnswers, responseRepository, type ReviewQueueItem } from '../repositories/response.repository';
 import { studentRepository } from '../repositories/student.repository';
@@ -99,12 +101,10 @@ export interface GenerateQuestionsResult {
   questions: Awaited<ReturnType<typeof aiQuestionGenerator.generate>>;
 }
 
+/** Lo que recibe el alumno al enviar: sólo la confirmación. Los puntajes los ve el docente. */
 export interface SubmitResponseResult {
   responseId: string;
-  resultId: string;
-  scores: AxisScores;
-  /** true si hay respuestas abiertas que el docente todavía tiene que revisar. */
-  criticoPending: boolean;
+  submittedAt: string;
 }
 
 /** Pregunta tal como la ve el alumno: sin la opción correcta ni la respuesta esperada. */
@@ -112,7 +112,11 @@ export type PublicQuestion = Omit<Question, 'correctOption' | 'expectedAnswer'>;
 
 export interface PublicActivityView {
   activity: Omit<Activity, 'sourcePurgedAt'>;
+  /** Vacío mientras el docente no habilite las preguntas (modo «el docente habilita»). */
   questions: PublicQuestion[];
+  questionCount: number;
+  /** true si el alumno ya puede pasar a las preguntas. */
+  questionsReleased: boolean;
   studentIdMode: StudentIdMode;
 }
 
@@ -135,6 +139,35 @@ export interface LiveActivityView {
   questionCount: number;
   devicesInClassroom: number;
   pendingReviews: number;
+  readingMode: Activity['readingMode'];
+  questionsReleasedAt: string | null;
+  /** Avance de cada alumno, en vivo. */
+  students: {
+    studentDisplayName: string;
+    phase: 'LEYENDO' | 'RESPONDIENDO' | 'ENVIADO';
+    currentIndex: number;
+    answeredCount: number;
+    startedAt: string;
+    updatedAt: string;
+    /** Últimos 4 caracteres del dispositivo, para distinguir celulares sin exponer el identificador. */
+    deviceTag: string;
+  }[];
+  /** Posible suplantación (mismo alumno desde otro celular) o un celular que responde por varios alumnos. */
+  integrityEvents: {
+    id: string;
+    kind: 'OTRO_DISPOSITIVO' | 'DISPOSITIVO_COMPARTIDO';
+    studentDisplayName: string;
+    otherStudent: string | null;
+    createdAt: string;
+  }[];
+  questions: {
+    id: string;
+    axis: Question['axis'];
+    prompt: string;
+    options: string[] | null;
+    correctOption: string | null;
+    expectedAnswer: string;
+  }[];
   responses: {
     responseId: string;
     studentDisplayName: string;
@@ -262,12 +295,15 @@ export class DefaultActivityService implements ActivityService {
     if (!found) throw new NotFoundError('Actividad no encontrada');
     const activity = await this.syncStatus(found);
     const course = await courseRepository.findById(activity.courseId);
-    const [responses, devices, pendingReviews, questions] = await Promise.all([
+    const [responses, devices, pendingReviews, questions, progress, integrity] = await Promise.all([
       responseRepository.listForActivity(activityId),
       course ? courseRepository.listStudentDevices(course.id) : Promise.resolve([]),
       responseRepository.countPendingReviews(activityId),
       questionRepository.findByActivity(activityId),
+      progressRepository.listByActivity(activityId),
+      progressRepository.listIntegrityEvents(activityId),
     ]);
+    const approved = questions.filter((q) => q.approved);
     const { opensAt, closesAt } = activityWindow(activity);
     return {
       id: activity.id,
@@ -285,9 +321,35 @@ export class DefaultActivityService implements ActivityService {
       courseId: activity.courseId,
       courseName: course?.name ?? '',
       courseQrCode: course?.qrCode ?? null,
-      questionCount: questions.filter((q) => q.approved).length,
+      questionCount: approved.length,
       devicesInClassroom: devices.length,
       pendingReviews,
+      readingMode: activity.readingMode,
+      questionsReleasedAt: activity.questionsReleasedAt?.toISOString() ?? null,
+      students: progress.map((p) => ({
+        studentDisplayName: p.studentDisplayName,
+        phase: p.phase,
+        currentIndex: p.currentIndex,
+        answeredCount: p.answeredCount,
+        startedAt: p.startedAt.toISOString(),
+        updatedAt: p.updatedAt.toISOString(),
+        deviceTag: p.deviceId.slice(-4).toUpperCase(),
+      })),
+      integrityEvents: integrity.map((e) => ({
+        id: e.id,
+        kind: e.kind,
+        studentDisplayName: e.studentDisplayName,
+        otherStudent: e.otherStudent,
+        createdAt: e.createdAt.toISOString(),
+      })),
+      questions: approved.map((q) => ({
+        id: q.id,
+        axis: q.axis,
+        prompt: q.prompt,
+        options: q.options ?? null,
+        correctOption: q.correctOption ?? null,
+        expectedAnswer: q.expectedAnswer,
+      })),
       responses: responses.map((r) => ({
         responseId: r.responseId,
         studentDisplayName: r.studentDisplayName,
@@ -316,9 +378,14 @@ export class DefaultActivityService implements ActivityService {
     const institution = course ? await institutionRepository.findById(course.institutionId) : null;
 
     const { sourcePurgedAt: _purged, ...publicActivity } = activity;
+    const approved = questions.filter((q) => q.approved);
+    // Con «el docente habilita», las preguntas ni siquiera viajan al celular hasta que el docente las libera.
+    const questionsReleased = activity.readingMode !== 'DOCENTE_HABILITA' || Boolean(activity.questionsReleasedAt);
     return {
       activity: publicActivity,
-      questions: questions.filter((q) => q.approved).map(({ correctOption: _c, expectedAnswer: _e, ...q }) => q),
+      questions: questionsReleased ? approved.map(({ correctOption: _c, expectedAnswer: _e, ...q }) => q) : [],
+      questionCount: approved.length,
+      questionsReleased,
       studentIdMode: institution?.studentIdMode ?? 'LISTA',
     };
   }
@@ -347,6 +414,7 @@ export class DefaultActivityService implements ActivityService {
       attemptPolicy: original.attemptPolicy,
       courseId: original.courseId,
       diagnosticType: null,
+      readingMode: original.readingMode,
       status: 'BORRADOR',
       questions: questions.map((q) => ({
         axis: q.axis,
@@ -391,30 +459,10 @@ export class DefaultActivityService implements ActivityService {
     if (activity.status === 'CERRADA') throw new ConflictError('[Error-REA_001] La actividad ya no está disponible');
     if (activity.status !== 'PUBLICADA') throw new ConflictError('La actividad todavía no está disponible');
 
-    const course = await courseRepository.findById(activity.courseId);
-    if (!course) throw new NotFoundError('Curso no encontrado');
+    // El dispositivo queda vinculado al alumno en el aula: nadie puede responder a nombre de otro desde otro equipo,
+    // y el intento queda registrado en el panel del docente como posible suplantación.
+    const { identity, course, deviceId } = await resolveStudentInActivity(activity, input.studentDisplayName, input.deviceId);
     const institution = await institutionRepository.findById(course.institutionId);
-    const identity = resolveStudentIdentity(institution?.studentIdMode ?? 'LISTA', input.studentDisplayName);
-
-    // El dispositivo queda vinculado al alumno en el aula: nadie puede responder a nombre de otro desde otro equipo.
-    const deviceId = input.deviceId?.trim();
-    if (!deviceId) throw new BadRequestError('No se pudo identificar el dispositivo. Recargá la página e intentá de nuevo.');
-    const binding = await courseRepository.findStudentDevice(course.id, identity.normalized);
-    if (binding && binding.deviceId !== deviceId) {
-      throw new ConflictError(
-        `${identity.displayName} ya respondió desde otro dispositivo en esta aula. Pedile a tu docente que lo desvincule.`,
-      );
-    }
-    if (!binding) {
-      await courseRepository.bindStudentDevice({
-        courseId: course.id,
-        studentName: identity.displayName,
-        normalizedStudentName: identity.normalized,
-        deviceId,
-      });
-    } else {
-      await courseRepository.updateDeviceLastActive(binding.id);
-    }
 
     const student = await studentRepository.findOrCreateByName(course.id, identity.displayName);
     if (activity.attemptPolicy === 'UNICO' && (await responseRepository.countByStudent(activity.id, student.id)) > 0) {
@@ -434,12 +482,19 @@ export class DefaultActivityService implements ActivityService {
       scores,
       criticoReviewed,
     });
+    await activitySessionService.markSubmitted({
+      activityId: activity.id,
+      studentKey: identity.normalized,
+      studentDisplayName: identity.displayName,
+      deviceId,
+      answeredCount: answers.filter((a) => a.selectedOption || a.textAnswer).length,
+    });
 
     realtime.liveChanged(activity.id);
     // La propuesta de la IA y la evaluación de alertas corren después de responderle al alumno.
     void this.afterSubmit(activity, course.id, institution, sourceText, identity.displayName, questions, created.pendingOpenAnswers);
 
-    return { responseId: created.responseId, resultId: created.resultId, scores, criticoPending: !criticoReviewed };
+    return { responseId: created.responseId, submittedAt: new Date().toISOString() };
   }
 
   private validateAnswers(questions: Question[], answers: AnswerInput[]): CreateAnswerInput[] {

@@ -230,6 +230,34 @@ export class SqlResponseRepository implements ResponseRepository {
       [activityId],
     );
   }
+
+  /** Todas las respuestas de la actividad, para recalcular los puntajes si el docente corrige una pregunta. */
+  async listClosedAnswers(activityId: string): Promise<
+    { responseId: string; questionId: string; selectedOption: string | null; textAnswer: string | null; teacherScore: number | null }[]
+  > {
+    return query(
+      `SELECT a."responseId", a."questionId", a."selectedOption", a."textAnswer", a."teacherScore"
+         FROM "Answer" a JOIN "Response" r ON r."id" = a."responseId"
+        WHERE r."activityId" = $1`,
+      [activityId],
+    );
+  }
+
+  async renameSelectedOption(questionId: string, before: string, after: string): Promise<void> {
+    await query('UPDATE "Answer" SET "selectedOption" = $3 WHERE "questionId" = $1 AND "selectedOption" = $2', [
+      questionId,
+      before,
+      after,
+    ]);
+  }
+
+  async updateClosedScores(responseId: string, literal: number | null, inferencial: number | null): Promise<void> {
+    await query('UPDATE "StudentResult" SET "literalScore" = $1, "inferencialScore" = $2 WHERE "responseId" = $3', [
+      literal,
+      inferencial,
+      responseId,
+    ]);
+  }
 }
 
 export const responseRepository = new SqlResponseRepository();
