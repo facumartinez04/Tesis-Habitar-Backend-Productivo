@@ -459,6 +459,7 @@ export class DefaultActivityService implements ActivityService {
       diagnosticType: null,
       readingMode: original.readingMode,
       readingHelp: original.readingHelp,
+      showFeedback: original.showFeedback,
       status: 'BORRADOR',
       questions: questions.map((q) => ({
         axis: q.axis,

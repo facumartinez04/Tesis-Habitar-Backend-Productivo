@@ -78,7 +78,42 @@ activityRouter.patch(
   activityController.reviewAnswer.bind(activityController),
 );
 
+// Banco de actividades de la institución (antes de «/:code» para que «templates» no se tome como un código).
+activityRouter.get(
+  '/templates',
+  requireAuth,
+  requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'),
+  activityController.listTemplates.bind(activityController),
+);
+activityRouter.post(
+  '/templates/:templateId/use',
+  requireAuth,
+  requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'),
+  activityController.useTemplate.bind(activityController),
+);
+activityRouter.delete(
+  '/templates/:templateId',
+  requireAuth,
+  requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'),
+  activityController.deleteTemplate.bind(activityController),
+);
+activityRouter.post(
+  '/:id/save-template',
+  requireAuth,
+  requireRole('DOCENTE'),
+  requireActivityAccess('id'),
+  activityController.saveTemplate.bind(activityController),
+);
+
 activityRouter.get('/:code', publicReadLimit, activityController.getByCode.bind(activityController));
+
+// Devolución al alumno (sólo con la actividad cerrada y desde su celular).
+activityRouter.post(
+  '/:code/feedback',
+  publicReadLimit,
+  validateBody(studentSessionSchema),
+  activityController.studentFeedback.bind(activityController),
+);
 
 // Estado del alumno en la actividad (POST para no dejar el nombre en la URL).
 activityRouter.post(

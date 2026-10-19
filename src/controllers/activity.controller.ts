@@ -5,6 +5,8 @@ import { activityService } from '../services/activity.service';
 import { activitySessionService } from '../services/activity-session.service';
 import { readingHelpService } from '../services/reading-help.service';
 import { activityDocumentService } from '../services/activity-document.service';
+import { studentFeedbackService } from '../services/feedback-student.service';
+import { activityTemplateService } from '../services/activity-template.service';
 import type {
   AskHelpDto,
   CreateActivityDto,
@@ -27,6 +29,12 @@ export class ActivityController {
     const input = req.body as CreateActivityDto;
     await assertCourseAccess(req, input.courseId);
     const activity = await activityService.createActivity(input);
+    // Si sale del banco de la institución, se copia su documento original (el docente puede subir otro después).
+    if (input.templateId) {
+      await activityTemplateService.copyDocument(input.templateId, activity.id, req.auth!.institutionId).catch((err: Error) =>
+        console.error('[activity] No se pudo copiar el documento del banco:', err.message),
+      );
+    }
     res.status(201).json(activity);
   }
 
@@ -69,6 +77,29 @@ export class ActivityController {
     res.setHeader('Cache-Control', 'private, no-store');
     res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(doc.fileName)}`);
     res.send(doc.data);
+  }
+
+  /** Devolución al alumno: sus respuestas corregidas, cuando la actividad ya cerró. */
+  async studentFeedback(req: Request, res: Response): Promise<void> {
+    const { studentDisplayName, deviceId } = req.body as StudentSessionDto;
+    res.json(await studentFeedbackService.get(String(req.params.code), studentDisplayName, deviceId));
+  }
+
+  async saveTemplate(req: Request, res: Response): Promise<void> {
+    res.status(201).json(await activityTemplateService.saveFromActivity(String(req.params.id), req.auth!));
+  }
+
+  async listTemplates(req: Request, res: Response): Promise<void> {
+    res.json(await activityTemplateService.list(req.auth!, String(req.query.q ?? '')));
+  }
+
+  async useTemplate(req: Request, res: Response): Promise<void> {
+    res.json(await activityTemplateService.use(String(req.params.templateId), req.auth!));
+  }
+
+  async deleteTemplate(req: Request, res: Response): Promise<void> {
+    await activityTemplateService.remove(String(req.params.templateId), req.auth!);
+    res.status(204).send();
   }
 
   /** Duda del alumno sobre el texto: la IA explica sin responder la actividad. */
