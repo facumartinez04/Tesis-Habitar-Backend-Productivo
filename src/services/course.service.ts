@@ -5,7 +5,6 @@ import type { Course, CourseStudentDevice, CourseTeacher, CreateCourseInput } fr
 import type { Role } from '../domain/enums';
 import { institutionRepository } from '../repositories/institution.repository';
 import { resolveStudentIdentity } from './student-identity';
-import { hasClosed } from './activity-window';
 
 export interface PublicCourseInfo {
   course: Course;
@@ -15,6 +14,8 @@ export interface PublicCourseInfo {
     name: string;
     endTime: string;
   } | null;
+  /** Próxima actividad programada, si no hay ninguna abierta: el aula muestra a qué hora empieza. */
+  upcomingActivity: { code: string; name: string; availableFrom: string; startTime: string } | null;
   /** Cómo se identifica el alumno en esta institución, para que la pantalla pida el dato correcto. */
   studentIdMode: 'LISTA' | 'NOMBRE';
 }
@@ -73,23 +74,19 @@ export class DefaultCourseService implements CourseService {
 
   async getPublicCourseByQr(qrCode: string): Promise<PublicCourseInfo> {
     const course = await this.getByQrCode(qrCode);
-    let activeActivity: PublicCourseInfo['activeActivity'] = null;
-
-    if (course.activeActivityId) {
-      const act = await activityRepository.findById(course.activeActivityId);
-      // Sólo se ofrece al alumno una actividad abierta: ni borradores, ni programadas, ni cerradas o vencidas.
-      if (act && act.status === 'PUBLICADA' && !hasClosed(act)) {
-        activeActivity = {
-          id: act.id,
-          code: act.code,
-          name: act.name,
-          endTime: act.endTime,
-        };
-      }
-    }
-
+    // La actividad del aula se calcula a partir de las actividades del curso: la abierta más reciente o la
+    // próxima programada. Antes dependía de un puntero que nadie actualizaba al crear una actividad.
+    const { activityService } = await import('./activity.service');
+    const { open, upcoming } = await activityService.currentForCourse(course.id);
     const institution = await institutionRepository.findById(course.institutionId);
-    return { course, activeActivity, studentIdMode: institution?.studentIdMode ?? 'LISTA' };
+    return {
+      course,
+      activeActivity: open ? { id: open.id, code: open.code, name: open.name, endTime: open.endTime } : null,
+      upcomingActivity: upcoming
+        ? { code: upcoming.code, name: upcoming.name, availableFrom: upcoming.availableFrom, startTime: upcoming.startTime }
+        : null,
+      studentIdMode: institution?.studentIdMode ?? 'LISTA',
+    };
   }
 
   async create(input: CreateCourseInput): Promise<Course> {

@@ -37,6 +37,10 @@ export interface ActivityRepository {
   create(input: CreateActivityInput): Promise<Activity>;
   countResponses(activityId: string): Promise<number>;
   updateStatus(id: string, status: Activity['status']): Promise<Activity>;
+  /** Actividades abiertas o programadas: el reloj las publica o las cierra a la hora indicada. */
+  findOpenOrScheduled(): Promise<Activity[]>;
+  /** Actividades abiertas o programadas de un curso, la más reciente primero. */
+  findOpenOrScheduledByCourse(courseId: string): Promise<Activity[]>;
   /** Cierra la actividad y borra su texto fuente: el alumno ya no lo necesita leer. */
   closeAndPurgeText(id: string): Promise<Activity>;
 }
@@ -123,6 +127,19 @@ export class SqlActivityRepository implements ActivityRepository {
     const row = await queryOne<ActivityRow>('UPDATE "Activity" SET "status" = $1 WHERE "id" = $2 RETURNING *', [status, id]);
     if (!row) throw new Error(`Activity ${id} no encontrada`);
     return toDomain(row);
+  }
+
+  async findOpenOrScheduled(): Promise<Activity[]> {
+    const rows = await query<ActivityRow>(`SELECT * FROM "Activity" WHERE "status" IN ('PUBLICADA', 'PROGRAMADA')`);
+    return rows.map(toDomain);
+  }
+
+  async findOpenOrScheduledByCourse(courseId: string): Promise<Activity[]> {
+    const rows = await query<ActivityRow>(
+      `SELECT * FROM "Activity" WHERE "courseId" = $1 AND "status" IN ('PUBLICADA', 'PROGRAMADA') ORDER BY "createdAt" DESC`,
+      [courseId],
+    );
+    return rows.map(toDomain);
   }
 
   async closeAndPurgeText(id: string): Promise<Activity> {

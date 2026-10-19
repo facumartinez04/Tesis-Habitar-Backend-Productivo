@@ -49,6 +49,10 @@ export class ActivityController {
     res.json(activities);
   }
 
+  async live(req: Request, res: Response): Promise<void> {
+    res.json(await activityService.getLive(String(req.params.id)));
+  }
+
   async listReviews(req: Request, res: Response): Promise<void> {
     const queue = await activityService.listReviews(String(req.params.id));
     res.json(queue);

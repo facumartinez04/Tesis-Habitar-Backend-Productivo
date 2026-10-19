@@ -10,7 +10,8 @@ import { env } from '../config/env';
 import { aiUsageService } from './aiUsage.service';
 import { alertService } from './alert.service';
 import { resolveStudentIdentity } from './student-identity';
-import { hasClosed, hasOpened } from './activity-window';
+import { activityWindow, hasClosed, hasOpened } from './activity-window';
+import { realtime } from '../realtime/realtime';
 import { BadRequestError, ConflictError, NotFoundError, UpstreamError } from '../utils/http-error';
 import type { Activity, CreateActivityInput } from '../domain/activity';
 import type { Question } from '../domain/question';
@@ -115,6 +116,33 @@ export interface PublicActivityView {
   studentIdMode: StudentIdMode;
 }
 
+export interface LiveActivityView {
+  id: string;
+  code: string;
+  name: string;
+  status: Activity['status'];
+  attemptPolicy: Activity['attemptPolicy'];
+  diagnosticType: Activity['diagnosticType'];
+  availableFrom: string;
+  startTime: string;
+  endTime: string;
+  opensAt: string | null;
+  closesAt: string | null;
+  courseId: string;
+  courseName: string;
+  courseQrCode: string | null;
+  questionCount: number;
+  devicesInClassroom: number;
+  pendingReviews: number;
+  responses: {
+    responseId: string;
+    studentDisplayName: string;
+    submittedAt: string;
+    scores: AxisScores;
+    criticoPending: boolean;
+  }[];
+}
+
 export interface ReviewQueue {
   pending: number;
   items: ReviewQueueItem[];
@@ -131,6 +159,9 @@ export interface ActivityService {
   listByCourse(courseId: string): Promise<Activity[]>;
   listReviews(activityId: string): Promise<ReviewQueue>;
   reviewAnswer(activityId: string, answerId: string, score: number, reviewerId: string): Promise<ReviewQueue>;
+  syncStatus(activity: Activity): Promise<Activity>;
+  currentForCourse(courseId: string): Promise<{ open: Activity | null; upcoming: Activity | null }>;
+  getLive(activityId: string): Promise<LiveActivityView>;
 }
 
 const templateFallback = new TemplateQuestionGenerator();
@@ -188,19 +219,80 @@ export class DefaultActivityService implements ActivityService {
         throw new BadRequestError(`La opción correcta de «${q.prompt.slice(0, 40)}» no está entre sus opciones`);
       }
     }
-    return activityRepository.create(input);
+    // Hasta la hora de inicio queda programada; el reloj la abre sola y avisa al aula en tiempo real.
+    const created = await activityRepository.create({
+      ...input,
+      status: input.status ?? (hasOpened(input) ? 'PUBLICADA' : 'PROGRAMADA'),
+    });
+    realtime.activityChanged(created);
+    return created;
   }
 
-  /** Actualiza el estado según la ventana horaria: publica la programada y cierra la vencida, borrando su texto. */
-  private async syncStatus(activity: Activity): Promise<Activity> {
+  /**
+   * Actualiza el estado según la ventana horaria: publica la programada y cierra la vencida, borrando su texto.
+   * Si cambió, avisa en tiempo real al aula, al alumno y al panel del docente.
+   */
+  async syncStatus(activity: Activity): Promise<Activity> {
     if (activity.status === 'BORRADOR') return activity;
+    let updated = activity;
     if (activity.status !== 'CERRADA' && hasClosed(activity)) {
-      return activityRepository.closeAndPurgeText(activity.id);
+      updated = await activityRepository.closeAndPurgeText(activity.id);
+    } else if (activity.status === 'PROGRAMADA' && hasOpened(activity)) {
+      updated = await activityRepository.updateStatus(activity.id, 'PUBLICADA');
     }
-    if (activity.status === 'PROGRAMADA' && hasOpened(activity)) {
-      return activityRepository.updateStatus(activity.id, 'PUBLICADA');
-    }
-    return activity;
+    if (updated.status !== activity.status) realtime.activityChanged(updated);
+    return updated;
+  }
+
+  /** Actividad que el aula le ofrece al alumno: la abierta más reciente o, si no hay, la próxima programada. */
+  async currentForCourse(courseId: string): Promise<{ open: Activity | null; upcoming: Activity | null }> {
+    const candidates = await Promise.all(
+      (await activityRepository.findOpenOrScheduledByCourse(courseId)).map((a) => this.syncStatus(a)),
+    );
+    const open = candidates.find((a) => a.status === 'PUBLICADA') ?? null;
+    const upcoming = open ? null : candidates.find((a) => a.status === 'PROGRAMADA') ?? null;
+    return { open, upcoming };
+  }
+
+  /** Estado en vivo para el panel del docente: ventana, respuestas que van llegando y revisiones pendientes. */
+  async getLive(activityId: string): Promise<LiveActivityView> {
+    const found = await activityRepository.findById(activityId);
+    if (!found) throw new NotFoundError('Actividad no encontrada');
+    const activity = await this.syncStatus(found);
+    const course = await courseRepository.findById(activity.courseId);
+    const [responses, devices, pendingReviews, questions] = await Promise.all([
+      responseRepository.listForActivity(activityId),
+      course ? courseRepository.listStudentDevices(course.id) : Promise.resolve([]),
+      responseRepository.countPendingReviews(activityId),
+      questionRepository.findByActivity(activityId),
+    ]);
+    const { opensAt, closesAt } = activityWindow(activity);
+    return {
+      id: activity.id,
+      code: activity.code,
+      name: activity.name,
+      status: activity.status,
+      attemptPolicy: activity.attemptPolicy,
+      diagnosticType: activity.diagnosticType,
+      availableFrom: activity.availableFrom,
+      startTime: activity.startTime,
+      endTime: activity.endTime,
+      opensAt: opensAt?.toISOString() ?? null,
+      closesAt: closesAt?.toISOString() ?? null,
+      courseId: activity.courseId,
+      courseName: course?.name ?? '',
+      courseQrCode: course?.qrCode ?? null,
+      questionCount: questions.filter((q) => q.approved).length,
+      devicesInClassroom: devices.length,
+      pendingReviews,
+      responses: responses.map((r) => ({
+        responseId: r.responseId,
+        studentDisplayName: r.studentDisplayName,
+        submittedAt: r.submittedAt.toISOString(),
+        scores: { literal: r.literal, inferencial: r.inferencial, critico: r.critico },
+        criticoPending: !r.criticoReviewed,
+      })),
+    };
   }
 
   async getPublicByCode(code: string): Promise<PublicActivityView> {
@@ -264,13 +356,17 @@ export class DefaultActivityService implements ActivityService {
     const activity = await activityRepository.findById(activityId);
     if (!activity) throw new NotFoundError('Actividad no encontrada');
     if (activity.status === 'CERRADA') throw new BadRequestError('No se puede publicar una actividad cerrada');
-    return activityRepository.updateStatus(activityId, 'PUBLICADA');
+    const updated = await activityRepository.updateStatus(activityId, 'PUBLICADA');
+    realtime.activityChanged(updated);
+    return updated;
   }
 
   async closeNow(activityId: string): Promise<Activity> {
     const activity = await activityRepository.findById(activityId);
     if (!activity) throw new NotFoundError('Actividad no encontrada');
-    return activityRepository.closeAndPurgeText(activityId);
+    const updated = await activityRepository.closeAndPurgeText(activityId);
+    realtime.activityChanged(updated);
+    return updated;
   }
 
   async listByCourse(courseId: string): Promise<Activity[]> {
@@ -332,6 +428,7 @@ export class DefaultActivityService implements ActivityService {
       criticoReviewed,
     });
 
+    realtime.liveChanged(activity.id);
     // La propuesta de la IA y la evaluación de alertas corren después de responderle al alumno.
     void this.afterSubmit(activity, course.id, institution, sourceText, identity.displayName, questions, created.pendingOpenAnswers);
 
@@ -387,6 +484,7 @@ export class DefaultActivityService implements ActivityService {
               access.options,
             );
             await responseRepository.setAiGrade(item.answerId, grade.score, grade.rationale);
+            realtime.liveChanged(activity.id);
             await aiUsageService.record({
               institutionId: institution.id,
               provider,
@@ -427,6 +525,7 @@ export class DefaultActivityService implements ActivityService {
 
     await responseRepository.setTeacherScore(answerId, score, reviewerId);
     await responseRepository.recomputeCritico(answer.responseId);
+    realtime.liveChanged(activityId);
 
     const activity = await activityRepository.findById(activityId);
     if (activity) {
