@@ -199,6 +199,8 @@ export class SqlActivityRepository implements ActivityRepository {
       [id],
     );
     if (!row) throw new Error(`Activity ${id} no encontrada`);
+    // El documento original se borra con el texto: el alumno ya no lo necesita leer.
+    await query('DELETE FROM "ActivityDocument" WHERE "activityId" = $1', [id]);
     return toDomain(row);
   }
 }

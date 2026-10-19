@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { activityController } from '../controllers/activity.controller';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware';
 import { requireCourseAccess, requireActivityAccess } from '../middlewares/access.middleware';
@@ -87,6 +87,17 @@ activityRouter.post(
   validateBody(studentSessionSchema),
   activityController.studentState.bind(activityController),
 );
+
+// Documento original: el docente lo sube como binario (hasta 15 MB); el alumno lo pide para leerlo.
+activityRouter.post(
+  '/:id/document',
+  requireAuth,
+  requireRole('DOCENTE'),
+  requireActivityAccess('id'),
+  express.raw({ type: () => true, limit: '15mb' }),
+  activityController.uploadDocument.bind(activityController),
+);
+activityRouter.get('/:code/document', publicReadLimit, activityController.document.bind(activityController));
 
 activityRouter.post('/:code/help', helpLimit, validateBody(askHelpSchema), activityController.askHelp.bind(activityController));
 

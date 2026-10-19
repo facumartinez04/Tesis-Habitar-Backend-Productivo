@@ -2,6 +2,7 @@ import { activityRepository } from '../repositories/activity.repository';
 import { activitySessionService, resolveStudentInActivity } from './activity-session.service';
 import { progressRepository } from '../repositories/progress.repository';
 import { readingHelpRepository } from '../repositories/reading-help.repository';
+import { activityDocumentRepository, type ActivityDocumentMeta } from '../repositories/activity-document.repository';
 import { pageOf, type Page, type PageRequest } from '../utils/pagination';
 import { questionRepository } from '../repositories/question.repository';
 import { criticoFromAnswers, responseRepository, type ReviewQueueItem } from '../repositories/response.repository';
@@ -114,6 +115,8 @@ export type PublicQuestion = Omit<Question, 'correctOption' | 'expectedAnswer'>;
 
 export interface PublicActivityView {
   activity: Omit<Activity, 'sourcePurgedAt'>;
+  /** Documento original (PDF o Word) para leer tal como lo subió el docente; null si se cargó texto. */
+  document: ActivityDocumentMeta | null;
   /** Vacío mientras el docente no habilite las preguntas (modo «el docente habilita»). */
   questions: PublicQuestion[];
   questionCount: number;
@@ -393,9 +396,10 @@ export class DefaultActivityService implements ActivityService {
     }
     if (activity.status !== 'PUBLICADA') throw new ConflictError('La actividad todavía no está disponible');
 
-    const [questions, course] = await Promise.all([
+    const [questions, course, document] = await Promise.all([
       questionRepository.findByActivity(activity.id),
       courseRepository.findById(activity.courseId),
+      activityDocumentRepository.meta(activity.id),
     ]);
     const institution = course ? await institutionRepository.findById(course.institutionId) : null;
 
@@ -405,6 +409,7 @@ export class DefaultActivityService implements ActivityService {
     const questionsReleased = activity.readingMode !== 'DOCENTE_HABILITA' || Boolean(activity.questionsReleasedAt);
     return {
       activity: publicActivity,
+      document,
       questions: questionsReleased ? approved.map(({ correctOption: _c, expectedAnswer: _e, ...q }) => q) : [],
       questionCount: approved.length,
       questionsReleased,
@@ -424,7 +429,7 @@ export class DefaultActivityService implements ActivityService {
 
     const questions = await questionRepository.findByActivity(activityId);
 
-    return activityRepository.create({
+    const copy = await activityRepository.create({
       name: `${original.name} (copia)`,
       educationLevel: original.educationLevel,
       axis: original.axis,
@@ -448,6 +453,8 @@ export class DefaultActivityService implements ActivityService {
         approved: q.approved,
       })),
     });
+    await activityDocumentRepository.copy(activityId, copy.id);
+    return copy;
   }
 
   async publishNow(activityId: string): Promise<Activity> {
