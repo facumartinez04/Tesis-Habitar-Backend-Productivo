@@ -7,7 +7,9 @@ const biodiversidadText =
 async function main() {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    await client.query('BEGIN');
+
+    // Limpiar datos existentes (orden que respeta las foreign keys).
     for (const table of [
       'Answer',
       'StudentResult',
