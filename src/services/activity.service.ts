@@ -429,7 +429,7 @@ export class DefaultActivityService implements ActivityService {
       questions: questionsReleased ? approved.map(({ correctOption: _c, expectedAnswer: _e, ...q }) => q) : [],
       questionCount: approved.length,
       questionsReleased,
-      studentIdMode: institution?.studentIdMode ?? 'LISTA',
+      studentIdMode: institution?.studentIdMode ?? 'NOMBRE',
     };
   }
 

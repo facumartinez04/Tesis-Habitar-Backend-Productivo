@@ -88,7 +88,7 @@ export class DefaultCourseService implements CourseService {
       upcomingActivity: upcoming
         ? { code: upcoming.code, name: upcoming.name, availableFrom: upcoming.availableFrom, startTime: upcoming.startTime }
         : null,
-      studentIdMode: institution?.studentIdMode ?? 'LISTA',
+      studentIdMode: institution?.studentIdMode ?? 'NOMBRE',
     };
   }
 
@@ -141,7 +141,7 @@ export class DefaultCourseService implements CourseService {
     }
 
     const institution = await institutionRepository.findById(course.institutionId);
-    const identity = resolveStudentIdentity(institution?.studentIdMode ?? 'LISTA', input.studentName);
+    const identity = resolveStudentIdentity(institution?.studentIdMode ?? 'NOMBRE', input.studentName);
     const trimmedName = identity.displayName;
     const norm = identity.normalized;
     const existing = await courseRepository.findStudentDevice(input.courseId, norm);
