@@ -1,9 +1,9 @@
 import { query, queryOne } from '../config/db';
 
 export interface RawAxisAverages {
-  literal: number;
-  inferencial: number;
-  critico: number;
+  literal: number | null;
+  inferencial: number | null;
+  critico: number | null;
 }
 
 export interface RawStudentResult {
@@ -12,14 +12,31 @@ export interface RawStudentResult {
   literal: number | null;
   inferencial: number | null;
   critico: number | null;
+  /** false si el último intento tiene respuestas abiertas sin revisar por el docente. */
+  criticoReviewed: boolean;
+}
+
+export interface DiagnosticActivityRef {
+  activityId: string;
+  name: string;
+  date: string;
+}
+
+export interface RawDiagnosticRow {
+  studentId: string;
+  studentName: string;
+  kind: 'INICIO' | 'CIERRE';
+  literal: number | null;
+  inferencial: number | null;
+  critico: number | null;
 }
 
 export interface RawResultHistoryRow {
   activityName: string;
   date: Date;
-  literal: number;
-  inferencial: number;
-  critico: number;
+  literal: number | null;
+  inferencial: number | null;
+  critico: number | null;
 }
 
 export interface ResultRepository {
@@ -30,6 +47,11 @@ export interface ResultRepository {
   getInstitutionActivityCount(institutionId: string): Promise<number>;
   getStudentHistory(studentId: string): Promise<RawResultHistoryRow[]>;
   getCourseAveragesBetween(courseId: string, from: Date, to: Date): Promise<RawAxisAverages>;
+  /** Última actividad diagnóstica de inicio y de cierre del curso. */
+  getDiagnosticActivities(courseId: string): Promise<{ inicio: DiagnosticActivityRef | null; cierre: DiagnosticActivityRef | null }>;
+  /** Último intento de cada alumno en las actividades indicadas. */
+  getLatestResultsForActivities(activityIds: { id: string; kind: 'INICIO' | 'CIERRE' }[]): Promise<RawDiagnosticRow[]>;
+  countPendingReviewsByCourse(courseId: string): Promise<number>;
 }
 
 interface AveragesRow {
@@ -38,11 +60,16 @@ interface AveragesRow {
   critico: string | null;
 }
 
+// Un promedio sin datos es null, no 0: mostrar 0 sería afirmar que nadie acertó.
+function avg(value: string | null | undefined): number | null {
+  return value === null || value === undefined ? null : Math.round(Number(value));
+}
+
 function toAverages(row: AveragesRow | null): RawAxisAverages {
   return {
-    literal: row?.literal ? Math.round(Number(row.literal)) : 0,
-    inferencial: row?.inferencial ? Math.round(Number(row.inferencial)) : 0,
-    critico: row?.critico ? Math.round(Number(row.critico)) : 0,
+    literal: avg(row?.literal),
+    inferencial: avg(row?.inferencial),
+    critico: avg(row?.critico),
   };
 }
 
@@ -66,10 +93,11 @@ export class SqlResultRepository implements ResultRepository {
   async getCourseLatestScoresPerStudent(courseId: string): Promise<RawStudentResult[]> {
     const rows = await query<RawStudentResult>(
       `SELECT s."id" AS "studentId", s."name" AS "studentName",
-              lr."literalScore" AS literal, lr."inferencialScore" AS inferencial, lr."criticoScore" AS critico
+              lr."literalScore" AS literal, lr."inferencialScore" AS inferencial, lr."criticoScore" AS critico,
+              COALESCE(lr."criticoReviewed", true) AS "criticoReviewed"
          FROM "Student" s
          LEFT JOIN LATERAL (
-           SELECT "literalScore", "inferencialScore", "criticoScore"
+           SELECT "literalScore", "inferencialScore", "criticoScore", "criticoReviewed"
              FROM "StudentResult" sr
             WHERE sr."studentId" = s."id"
             ORDER BY sr."createdAt" DESC
@@ -84,6 +112,7 @@ export class SqlResultRepository implements ResultRepository {
       literal: r.literal ?? null,
       inferencial: r.inferencial ?? null,
       critico: r.critico ?? null,
+      criticoReviewed: r.criticoReviewed,
     }));
   }
 
@@ -128,6 +157,49 @@ export class SqlResultRepository implements ResultRepository {
         ORDER BY sr."createdAt" DESC`,
       [studentId],
     );
+  }
+
+  async getDiagnosticActivities(
+    courseId: string,
+  ): Promise<{ inicio: DiagnosticActivityRef | null; cierre: DiagnosticActivityRef | null }> {
+    const rows = await query<DiagnosticActivityRef & { kind: 'INICIO' | 'CIERRE' }>(
+      `SELECT DISTINCT ON ("diagnosticType") "id" AS "activityId", "name", "availableFrom" AS "date", "diagnosticType" AS "kind"
+         FROM "Activity"
+        WHERE "courseId" = $1 AND "diagnosticType" IS NOT NULL
+        ORDER BY "diagnosticType", "createdAt" DESC`,
+      [courseId],
+    );
+    const pick = (kind: 'INICIO' | 'CIERRE') => {
+      const row = rows.find((r) => r.kind === kind);
+      return row ? { activityId: row.activityId, name: row.name, date: row.date } : null;
+    };
+    return { inicio: pick('INICIO'), cierre: pick('CIERRE') };
+  }
+
+  async getLatestResultsForActivities(activityIds: { id: string; kind: 'INICIO' | 'CIERRE' }[]): Promise<RawDiagnosticRow[]> {
+    if (activityIds.length === 0) return [];
+    return query<RawDiagnosticRow>(
+      `SELECT DISTINCT ON (sr."activityId", sr."studentId")
+              sr."studentId", s."name" AS "studentName", k."kind",
+              sr."literalScore" AS literal, sr."inferencialScore" AS inferencial, sr."criticoScore" AS critico
+         FROM "StudentResult" sr
+         JOIN "Student" s ON s."id" = sr."studentId"
+         JOIN UNNEST($1::text[], $2::text[]) AS k("activityId", "kind") ON k."activityId" = sr."activityId"
+        ORDER BY sr."activityId", sr."studentId", sr."createdAt" DESC`,
+      [activityIds.map((a) => a.id), activityIds.map((a) => a.kind)],
+    );
+  }
+
+  async countPendingReviewsByCourse(courseId: string): Promise<number> {
+    const row = await queryOne<{ count: string }>(
+      `SELECT COUNT(*) FROM "Answer" an
+         JOIN "Response" r ON r."id" = an."responseId"
+         JOIN "Activity" a ON a."id" = r."activityId"
+         JOIN "Question" q ON q."id" = an."questionId"
+        WHERE a."courseId" = $1 AND q."axis" = 'CRITICO' AND q."correctOption" IS NULL AND an."teacherScore" IS NULL`,
+      [courseId],
+    );
+    return Number(row?.count ?? 0);
   }
 }
 

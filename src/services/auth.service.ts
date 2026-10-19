@@ -1,5 +1,6 @@
 import { userRepository } from '../repositories/user.repository';
 import { institutionRepository } from '../repositories/institution.repository';
+import { revokedTokenRepository } from '../repositories/revokedToken.repository';
 import { signToken } from '../utils/jwt';
 import { ForbiddenError, UnauthorizedError } from '../utils/http-error';
 import { getProviderConfig, getRedirectUri, loadClient } from './oidc-providers';
@@ -7,11 +8,6 @@ import { env } from '../config/env';
 import type { OAuthProviderId, Role } from '../domain/enums';
 import type { Session } from '../domain/auth';
 import type { Institution } from '../domain/institution';
-
-const providerDefaultRole: Record<OAuthProviderId, Role> = {
-  GOOGLE: 'DOCENTE',
-  MICROSOFT: 'COORDINADOR',
-};
 
 export interface OAuthAuthorizationRequest {
   authorizationUrl: string;
@@ -21,47 +17,42 @@ export interface OAuthAuthorizationRequest {
 
 export interface HandleOAuthCallbackInput {
   provider: OAuthProviderId;
-
   callbackUrl: URL;
   expectedState: string;
   codeVerifier: string;
 }
 
 export interface AuthService {
-  loginWithProvider(provider: OAuthProviderId): Promise<Session>;
   getSessionUser(userId: string): Promise<Session['user']>;
-  createAdminSession(): Promise<Session>;
   buildAuthorizationRequest(provider: OAuthProviderId): Promise<OAuthAuthorizationRequest>;
   handleOAuthCallback(input: HandleOAuthCallbackInput): Promise<Session>;
+  logout(jti: string, userId: string, expiresAtEpochSeconds: number): Promise<void>;
 }
 
 function emailDomain(email: string): string {
   return email.split('@')[1]?.toLowerCase() ?? '';
 }
 
-export class DefaultAuthService implements AuthService {
-
-  async loginWithProvider(provider: OAuthProviderId): Promise<Session> {
-    const role = providerDefaultRole[provider];
-    const user = await userRepository.findFirstByProviderAndRole(provider, role);
-    if (!user) throw new UnauthorizedError('No existe un usuario para este proveedor');
-
-    const token = signToken({ sub: user.id, role: user.role, institutionId: user.institutionId, provider: user.provider });
-    return { token, user };
+/**
+ * Rol de un usuario que entra por primera vez. Antes dependía del proveedor
+ * elegido (Microsoft daba coordinador), así que cualquier cuenta del dominio
+ * podía darse permisos de coordinación. Ahora sólo es coordinador el correo
+ * cargado como coordinador al dar de alta la institución; el resto entra como
+ * docente, sin importar el proveedor, y la coordinación ajusta el rol después.
+ */
+function initialRoleFor(email: string, institution: Institution, isSuperAdmin: boolean): Role {
+  if (isSuperAdmin) return 'ADMIN';
+  if (institution.coordinatorEmail && institution.coordinatorEmail.toLowerCase() === email.toLowerCase()) {
+    return 'COORDINADOR';
   }
+  return 'DOCENTE';
+}
 
+export class DefaultAuthService implements AuthService {
   async getSessionUser(userId: string): Promise<Session['user']> {
     const user = await userRepository.findById(userId);
     if (!user) throw new UnauthorizedError('Usuario no encontrado');
     return user;
-  }
-
-  async createAdminSession(): Promise<Session> {
-    const user = await userRepository.findFirstByRole('ADMIN');
-    if (!user) throw new UnauthorizedError('No existe un usuario administrador configurado');
-
-    const token = signToken({ sub: user.id, role: user.role, institutionId: user.institutionId, provider: user.provider });
-    return { token, user };
   }
 
   async buildAuthorizationRequest(provider: OAuthProviderId): Promise<OAuthAuthorizationRequest> {
@@ -93,12 +84,10 @@ export class DefaultAuthService implements AuthService {
         expectedState: input.expectedState,
       });
     } catch (err) {
-
+      // Sin la URL completa: lleva el código de autorización y el state.
       console.error('[auth] falló authorizationCodeGrant', {
         provider: input.provider,
-        derivedRedirectUri: `${input.callbackUrl.origin}${input.callbackUrl.pathname}`,
-        configuredRedirectUri: getRedirectUri(input.provider),
-        error: err,
+        error: err instanceof Error ? err.message : String(err),
       });
       throw new UnauthorizedError('No se pudo validar la respuesta del proveedor de login');
     }
@@ -121,19 +110,22 @@ export class DefaultAuthService implements AuthService {
       user = await userRepository.create({
         name,
         email,
-        role: isSuperAdmin ? 'ADMIN' : providerDefaultRole[input.provider],
+        role: initialRoleFor(email, institution, isSuperAdmin),
         provider: input.provider,
         institutionId: institution.id,
       });
     } else if (!user.active) {
       throw new ForbiddenError('Tu cuenta fue desactivada. Contactá a tu coordinador/a.');
     } else if (user.institutionId !== institution.id) {
-
       throw new ForbiddenError('El email no corresponde a la institución registrada.');
     }
 
     const token = signToken({ sub: user.id, role: user.role, institutionId: user.institutionId, provider: user.provider });
     return { token, user };
+  }
+
+  async logout(jti: string, userId: string, expiresAtEpochSeconds: number): Promise<void> {
+    await revokedTokenRepository.revoke(jti, userId, new Date(expiresAtEpochSeconds * 1000));
   }
 
   private async getOrCreateSuperAdminInstitution(email: string): Promise<Institution> {
@@ -153,6 +145,7 @@ export const authService = new DefaultAuthService();
 
 export function dashboardPathForRole(role: Role): string {
   if (role === 'ADMIN') return '/admin/instituciones/nueva';
-  if (role === 'COORDINADOR') return '/institucional';
+  // El director ve el panel institucional, igual que la coordinación.
+  if (role === 'COORDINADOR' || role === 'DIRECTOR') return '/institucional';
   return '/docente/cursos';
 }

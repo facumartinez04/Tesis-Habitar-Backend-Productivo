@@ -2,34 +2,47 @@ import type { Request, Response } from 'express';
 import { institutionService } from '../services/institution.service';
 import { aiUsageService } from '../services/aiUsage.service';
 import { aiQuestionGenerator } from '../services/ai-question-generator.service';
+import { assertSameInstitution } from '../middlewares/access.middleware';
+import type { Institution } from '../domain/institution';
 import type { CreateInstitutionDto, UpdateInstitutionConfigDto, UpdateInstitutionStatusDto, TestAiConfigDto } from '../dto/institution.dto';
+
+/**
+ * La clave de IA propia de la institución nunca sale por la API: sólo su versión
+ * enmascarada. La clave completa se usa únicamente dentro del servicio que llama
+ * al proveedor.
+ */
+export function toPublicInstitution(institution: Institution): Omit<Institution, 'aiCustomApiKey'> {
+  const { aiCustomApiKey: _secreto, ...publica } = institution;
+  return publica;
+}
 
 export class InstitutionController {
   async list(_req: Request, res: Response): Promise<void> {
     const institutions = await institutionService.list();
-    res.json(institutions);
+    res.json(institutions.map(toPublicInstitution));
   }
 
   async getBySlug(req: Request, res: Response): Promise<void> {
     const institution = await institutionService.getBySlug(String(req.params.slug));
-    res.json(institution);
+    assertSameInstitution(req, institution.id);
+    res.json(toPublicInstitution(institution));
   }
 
   async getById(req: Request, res: Response): Promise<void> {
     const institution = await institutionService.getById(String(req.params.institutionId));
-    res.json(institution);
+    res.json(toPublicInstitution(institution));
   }
 
   async create(req: Request, res: Response): Promise<void> {
     const input = req.body as CreateInstitutionDto;
     const institution = await institutionService.create(input);
-    res.status(201).json(institution);
+    res.status(201).json(toPublicInstitution(institution));
   }
 
   async updateConfig(req: Request, res: Response): Promise<void> {
     const input = req.body as UpdateInstitutionConfigDto;
     const institution = await institutionService.updateConfig(String(req.params.institutionId), input);
-    res.json(institution);
+    res.json(toPublicInstitution(institution));
   }
 
   async testAiConfig(req: Request, res: Response): Promise<void> {
@@ -42,7 +55,7 @@ export class InstitutionController {
   async updateStatus(req: Request, res: Response): Promise<void> {
     const input = req.body as UpdateInstitutionStatusDto;
     const institution = await institutionService.updateStatus(String(req.params.institutionId), input.status);
-    res.json(institution);
+    res.json(toPublicInstitution(institution));
   }
 
   async getAiUsage(req: Request, res: Response): Promise<void> {
@@ -52,4 +65,3 @@ export class InstitutionController {
 }
 
 export const institutionController = new InstitutionController();
-

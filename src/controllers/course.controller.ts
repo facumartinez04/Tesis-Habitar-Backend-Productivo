@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { courseService } from '../services/course.service';
 import type { CreateCourseDto } from '../dto/course.dto';
 import { BadRequestError } from '../utils/http-error';
+import { assertCourseAccess, assertSameInstitution, assertUserAccess } from '../middlewares/access.middleware';
 
 export class CourseController {
   async listMine(req: Request, res: Response): Promise<void> {
@@ -19,6 +20,7 @@ export class CourseController {
     const qrCode = String(req.params.qrCode);
     if (!qrCode) throw new BadRequestError('Falta el código QR del aula');
     const course = await courseService.getByQrCode(qrCode);
+    assertSameInstitution(req, course.institutionId);
     res.json(course);
   }
 
@@ -48,6 +50,7 @@ export class CourseController {
     const courseId = String(req.params.id);
     const { teacherId } = req.body as { teacherId: string };
     if (!teacherId) throw new BadRequestError('El ID del docente es obligatorio');
+    await assertUserAccess(req, teacherId);
 
     const course = await courseService.assignTeacher(courseId, teacherId);
     res.json(course);
@@ -63,6 +66,7 @@ export class CourseController {
     const courseId = String(req.params.id);
     const { teacherIds } = req.body as { teacherIds: string[] };
     if (!Array.isArray(teacherIds)) throw new BadRequestError('teacherIds debe ser una lista');
+    for (const id of teacherIds) await assertUserAccess(req, String(id));
 
     const teachers = await courseService.setCourseTeachers(courseId, teacherIds);
     res.json(teachers);
@@ -75,6 +79,7 @@ export class CourseController {
 
     if (!institutionId) throw new BadRequestError('No se identificó la institución del usuario');
     if (!Array.isArray(courseIds)) throw new BadRequestError('courseIds debe ser una lista de IDs de cursos');
+    for (const id of courseIds) await assertCourseAccess(req, String(id));
 
     const courses = await courseService.setTeacherCourses(institutionId, teacherId, courseIds);
     res.json(courses);

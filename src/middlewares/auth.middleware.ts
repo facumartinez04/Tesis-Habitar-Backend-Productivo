@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
-import { verifyToken } from '../utils/jwt';
+import { verifyToken, type VerifiedToken } from '../utils/jwt';
+import { revokedTokenRepository } from '../repositories/revokedToken.repository';
 import { userRepository } from '../repositories/user.repository';
 import { ForbiddenError, UnauthorizedError } from '../utils/http-error';
 import type { JwtPayload } from '../domain/auth';
@@ -8,7 +9,7 @@ import type { Role } from '../domain/enums';
 declare global {
   namespace Express {
     interface Request {
-      auth?: JwtPayload;
+      auth?: JwtPayload & { jti?: string; exp?: number };
     }
   }
 }
@@ -20,11 +21,16 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
   }
 
   const token = header.slice('Bearer '.length);
-  let payload: JwtPayload;
+  let payload: VerifiedToken;
   try {
     payload = verifyToken(token);
   } catch {
     throw new UnauthorizedError('Token inválido o expirado');
+  }
+
+  // Los tokens sin identificador son anteriores a la revocación: se rechazan.
+  if (!payload.jti || (await revokedTokenRepository.isRevoked(payload.jti))) {
+    throw new UnauthorizedError('La sesión fue cerrada. Volvé a ingresar.');
   }
 
   const user = await userRepository.findById(payload.sub);

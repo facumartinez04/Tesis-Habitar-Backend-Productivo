@@ -7,7 +7,9 @@ interface ActivityRow {
   name: string;
   educationLevel: string;
   axis: Activity['axis'];
-  sourceText: string;
+  sourceText: string | null;
+  sourcePurgedAt: Date | null;
+  diagnosticType: Activity['diagnosticType'];
   availableFrom: string;
   startTime: string;
   endTime: string;
@@ -25,7 +27,7 @@ function generateCode(): string {
 }
 
 function toDomain(row: ActivityRow): Activity {
-  return { ...row };
+  return { ...row, sourcePurgedAt: row.sourcePurgedAt ?? null, diagnosticType: row.diagnosticType ?? null };
 }
 
 export interface ActivityRepository {
@@ -35,6 +37,8 @@ export interface ActivityRepository {
   create(input: CreateActivityInput): Promise<Activity>;
   countResponses(activityId: string): Promise<number>;
   updateStatus(id: string, status: Activity['status']): Promise<Activity>;
+  /** Cierra la actividad y borra su texto fuente: el alumno ya no lo necesita leer. */
+  closeAndPurgeText(id: string): Promise<Activity>;
 }
 
 export class SqlActivityRepository implements ActivityRepository {
@@ -67,8 +71,8 @@ export class SqlActivityRepository implements ActivityRepository {
     return withTransaction(async (client) => {
       const { rows } = await client.query<ActivityRow>(
         `INSERT INTO "Activity"
-           ("code", "name", "educationLevel", "axis", "sourceText", "availableFrom", "startTime", "endTime", "attemptPolicy", "status", "courseId")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           ("code", "name", "educationLevel", "axis", "sourceText", "availableFrom", "startTime", "endTime", "attemptPolicy", "status", "courseId", "diagnosticType")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING *`,
         [
           code,
@@ -82,6 +86,7 @@ export class SqlActivityRepository implements ActivityRepository {
           input.attemptPolicy,
           status,
           input.courseId,
+          input.diagnosticType ?? null,
         ],
       );
       const activity = rows[0];
@@ -89,8 +94,8 @@ export class SqlActivityRepository implements ActivityRepository {
       for (const [index, question] of input.questions.entries()) {
         await client.query(
           `INSERT INTO "Question"
-             ("activityId", "axis", "prompt", "expectedAnswer", "optionsJson", "correctOption", "approved", "order")
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+             ("activityId", "axis", "prompt", "expectedAnswer", "optionsJson", "correctOption", "approved", "order", "edited")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
           [
             activity.id,
             question.axis,
@@ -100,6 +105,7 @@ export class SqlActivityRepository implements ActivityRepository {
             question.correctOption ?? null,
             question.approved,
             index,
+            question.edited ?? false,
           ],
         );
       }
@@ -115,6 +121,18 @@ export class SqlActivityRepository implements ActivityRepository {
 
   async updateStatus(id: string, status: Activity['status']): Promise<Activity> {
     const row = await queryOne<ActivityRow>('UPDATE "Activity" SET "status" = $1 WHERE "id" = $2 RETURNING *', [status, id]);
+    if (!row) throw new Error(`Activity ${id} no encontrada`);
+    return toDomain(row);
+  }
+
+  async closeAndPurgeText(id: string): Promise<Activity> {
+    const row = await queryOne<ActivityRow>(
+      `UPDATE "Activity"
+          SET "status" = 'CERRADA', "sourceText" = NULL, "sourcePurgedAt" = COALESCE("sourcePurgedAt", CURRENT_TIMESTAMP)
+        WHERE "id" = $1
+        RETURNING *`,
+      [id],
+    );
     if (!row) throw new Error(`Activity ${id} no encontrada`);
     return toDomain(row);
   }

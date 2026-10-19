@@ -80,7 +80,9 @@ export const jiraService = {
   },
 
   async listTokens(): Promise<JiraToken[]> {
-    return jiraRepository.listTokens();
+    // El valor completo del token sólo se muestra una vez, al crearlo.
+    const tokens = await jiraRepository.listTokens();
+    return tokens.map((t) => ({ ...t, token: `${t.prefix}••••` }));
   },
 
   async revokeToken(id: string): Promise<{ success: boolean }> {
