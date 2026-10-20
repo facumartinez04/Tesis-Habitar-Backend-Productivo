@@ -17,8 +17,8 @@ export interface IncidentRecord {
 
 export interface MonitoringSnapshot {
   updatedAt: string;
-  monthlyUptimePercent: number;
-  latencyP95Seconds: number;
+  monthlyUptimePercent: number | null;
+  latencyP95Seconds: number | null;
   incidentsThisMonth: number;
   components: SystemComponentStatus[];
   incidents: IncidentRecord[];
