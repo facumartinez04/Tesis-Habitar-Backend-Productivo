@@ -89,8 +89,9 @@ export class DefaultAuthService implements AuthService {
     if (!email) throw new UnauthorizedError('La cuenta no expone un email verificado');
 
     const existing = await userRepository.findByEmail(email);
+    const tagged = (err: Error, institutionId: string | null) => Object.assign(err, { loginEmail: email, loginUserId: existing?.id ?? null, loginInstitutionId: institutionId });
     if (existing && !existing.active) {
-      throw new ForbiddenError('Tu cuenta fue desactivada. Contactá a tu coordinador/a.');
+      throw tagged(new ForbiddenError('Tu cuenta fue desactivada. Contactá a tu coordinador/a.'), existing.institutionId);
     }
     const isSuperAdmin = !existing && env.superAdminEmails.includes(email.toLowerCase());
     const institution = existing
@@ -99,7 +100,7 @@ export class DefaultAuthService implements AuthService {
         ? await this.getOrCreateSuperAdminInstitution(email)
         : await institutionRepository.findByDomain(emailDomain(email));
     if (!institution || institution.status !== 'ACTIVO') {
-      throw new ForbiddenError('Tu institución no está habilitada en Habitar. Contactá a tu coordinador/a.');
+      throw tagged(new ForbiddenError('Tu institución no está habilitada en Habitar. Contactá a tu coordinador/a.'), institution?.id ?? null);
     }
 
     let user = existing;

@@ -274,7 +274,9 @@ export class DefaultResultService implements ResultService {
       ].join(','),
     );
 
+    const course = await courseRepository.findById(courseId);
     await complianceRepository.createAuditLogEntry({
+      institutionId: course!.institutionId,
       studentId: null,
       studentName: `Curso ${summary.courseName} (reporte de desempeño)`,
       operation: 'EXPORTACION',

@@ -4,6 +4,7 @@ import { env } from '../config/env';
 import { getRedirectUri } from '../services/oidc-providers';
 import { BadRequestError, UnauthorizedError } from '../utils/http-error';
 import type { OAuthProviderId } from '../domain/enums';
+import { logService } from '../bll/log.service';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -76,6 +77,14 @@ export class AuthController {
         codeVerifier,
       });
 
+      void logService.event({
+        actor: { userId: session.user.id, role: session.user.role, institutionId: session.user.institutionId, impersonated: false, userName: session.user.name, userEmail: session.user.email },
+        institutionId: session.user.institutionId,
+        category: 'ACCESO',
+        type: 'LOGIN',
+        description: `Inició sesión con ${providerParam === 'GOOGLE' ? 'Google' : 'Microsoft'}.`,
+      });
+
       const redirectTo = new URL('/auth/callback', env.frontendUrl);
       redirectTo.hash = new URLSearchParams({
         token: session.token,
@@ -91,6 +100,14 @@ export class AuthController {
         else if (err.message.includes('expiró')) errorCode = 'session_expired';
         else if (err.message.includes('proveedor')) errorCode = 'unauthorized';
       }
+      const tag = (err ?? {}) as { loginEmail?: string; loginUserId?: string | null; loginInstitutionId?: string | null };
+      void logService.event({
+        actor: { userId: tag.loginUserId ?? null, role: null, institutionId: tag.loginInstitutionId ?? null, impersonated: false, userEmail: tag.loginEmail ?? null },
+        institutionId: tag.loginInstitutionId ?? null,
+        category: 'ACCESO',
+        type: 'LOGIN_FALLIDO',
+        description: `Inicio de sesión rechazado con ${providerParam === 'GOOGLE' ? 'Google' : 'Microsoft'} (${errorCode}).`,
+      });
       const redirectTo = new URL('/login', env.frontendUrl);
       redirectTo.searchParams.set('error', errorCode);
       res.redirect(redirectTo.toString());

@@ -3,6 +3,7 @@ import type { ArcoStudentRecord, AuditLogEntry, ConsentAcceptance, ConsentDocume
 import type { AuditOperation } from '../domain/enums';
 
 export interface CreateAuditLogInput {
+  institutionId: string;
   studentId: string | null;
   studentName: string;
   operation: AuditOperation;
@@ -65,11 +66,9 @@ export class SqlComplianceRepository implements ComplianceRepository {
 
   async getAuditLog(institutionId: string): Promise<AuditLogEntry[]> {
     const rows = await query<AuditLogRow>(
-      `SELECT DISTINCT ale.* FROM "AuditLogEntry" ale
-         LEFT JOIN "Student" s ON s."id" = ale."studentId"
-         LEFT JOIN "Course" c ON c."id" = s."courseId"
-         LEFT JOIN "User" u ON u."id" = ale."performedById"
-        WHERE c."institutionId" = $1 OR u."institutionId" = $1
+      `SELECT ale."id", ale."studentId", ale."studentName", ale."operation", ale."performedBy", ale."performedById", ale."date"
+         FROM "AuditLogEntry" ale
+        WHERE ale."institutionId" = $1
         ORDER BY ale."date" DESC`,
       [institutionId],
     );
@@ -78,10 +77,10 @@ export class SqlComplianceRepository implements ComplianceRepository {
 
   async createAuditLogEntry(input: CreateAuditLogInput): Promise<AuditLogEntry> {
     const row = await queryOne<AuditLogRow>(
-      `INSERT INTO "AuditLogEntry" ("studentId", "studentName", "operation", "performedBy", "performedById")
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO "AuditLogEntry" ("institutionId", "studentId", "studentName", "operation", "performedBy", "performedById")
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [input.studentId, input.studentName, input.operation, input.performedBy, input.performedById ?? null],
+      [input.institutionId, input.studentId, input.studentName, input.operation, input.performedBy, input.performedById ?? null],
     );
     return row!;
   }

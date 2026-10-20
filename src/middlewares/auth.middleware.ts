@@ -5,6 +5,7 @@ import { userRepository } from '../dal/user.repository';
 import { ForbiddenError, UnauthorizedError } from '../utils/http-error';
 import type { JwtPayload } from '../domain/auth';
 import type { Role } from '../domain/enums';
+import { logService } from '../bll/log.service';
 
 declare global {
   namespace Express {
@@ -62,6 +63,7 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
     realRole: user.role,
     impersonated,
   };
+  if (impersonated) logService.noteImpersonation(req);
   next();
 }
 

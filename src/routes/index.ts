@@ -15,6 +15,7 @@ import { statusRouter } from './status.routes';
 import { jiraRouter } from './jira.routes';
 import { roleRouter } from './role.routes';
 import { financeRouter } from './finance.routes';
+import { logRouter } from './log.routes';
 
 export const apiRouter = Router();
 
@@ -34,3 +35,4 @@ apiRouter.use('/roles', roleRouter);
 apiRouter.use('/finances', financeRouter);
 apiRouter.use('/admin', adminDataRouter);
 apiRouter.use('/dashboard', dashboardRouter);
+apiRouter.use('/logs', logRouter);

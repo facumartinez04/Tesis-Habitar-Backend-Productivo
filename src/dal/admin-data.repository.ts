@@ -163,9 +163,10 @@ export class SqlAdminDataRepository {
       let responses = 0;
       for (const a of activities) responses += await deleteActivityTx(client, a.id);
       await client.query('DELETE FROM "PerformanceAlert" WHERE "courseId" = $1', [course.id]);
-      const { rows: students } = await client.query<{ n: number }>('SELECT COUNT(*)::int AS "n" FROM "Student" WHERE "courseId" = $1', [course.id]);
+      const { rows: students } = await client.query<{ name: string }>('SELECT "name" FROM "Student" WHERE "courseId" = $1', [course.id]);
+      for (const s of students) await this.auditTx(client, course.institutionId, s.name, actor);
       await client.query('DELETE FROM "Course" WHERE "id" = $1', [course.id]);
-      const details = { activities: activities.length, responses, students: students[0]?.n ?? 0 };
+      const details = { activities: activities.length, responses, students: students.length };
       await this.logTx(client, course.institutionId, 'AULA', course.id, course.name, details, actor);
       return details;
     });
@@ -177,11 +178,20 @@ export class SqlAdminDataRepository {
   ): Promise<{ results: number }> {
     return withTransaction(async (client) => {
       const { rows } = await client.query<{ n: number }>('SELECT COUNT(*)::int AS "n" FROM "StudentResult" WHERE "studentId" = $1', [student.id]);
+      await this.auditTx(client, student.institutionId, student.name, actor);
       await client.query('DELETE FROM "Student" WHERE "id" = $1', [student.id]);
       const details = { results: rows[0]?.n ?? 0, course: student.courseName };
       await this.logTx(client, student.institutionId, 'ALUMNO', student.id, student.name, details, actor);
       return { results: details.results };
     });
+  }
+
+  private async auditTx(client: PoolClient, institutionId: string, studentName: string, actor: { name: string; id: string }): Promise<void> {
+    await client.query(
+      `INSERT INTO "AuditLogEntry" ("institutionId", "studentId", "studentName", "operation", "performedBy", "performedById")
+       VALUES ($1, NULL, $2, 'ELIMINACION', $3, $4)`,
+      [institutionId, studentName, `${actor.name} (administración de plataforma)`, actor.id],
+    );
   }
 
   private async logTx(
