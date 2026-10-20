@@ -14,14 +14,14 @@ export class DefaultMonitoringService implements MonitoringService {
 
     const monthlyUptimePercent = components.length
       ? Number((components.reduce((sum, c) => sum + c.uptimePercent, 0) / components.length).toFixed(1))
-      : 100;
+      : null;
 
     const incidentsThisMonth = incidents.filter((incident) => incident.status !== 'PLANIFICADO').length;
 
     return {
       updatedAt: new Date().toISOString(),
       monthlyUptimePercent,
-      latencyP95Seconds: 1.2,
+      latencyP95Seconds: null,
       incidentsThisMonth,
       components,
       incidents,
