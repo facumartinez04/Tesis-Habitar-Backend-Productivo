@@ -73,7 +73,6 @@ financeRouter.post(
   financeController.createTestPayment.bind(financeController)
 );
 
-// Página de resultado al volver de Mercado Pago (pública: el estado sale de la API de Mercado Pago).
 financeRouter.get(
   '/payments/return',
   rateLimit({ windowMs: 10 * 60 * 1000, max: 120, name: 'payment-return' }),

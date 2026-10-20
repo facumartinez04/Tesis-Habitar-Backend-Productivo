@@ -17,12 +17,9 @@ import {
 
 export const activityRouter = Router();
 
-// Los alumnos de un aula suelen salir a internet por la misma IP: los límites públicos contemplan un curso entero.
 const publicReadLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 600, name: 'activity-read' });
 const submitLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 300, name: 'activity-submit' });
 const generateLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 60, name: 'activity-generate' });
-// Cada alumno reporta su avance al cambiar de pregunta o de respuesta (con pausa): un curso de 40 entra holgado.
-// Ayuda con el texto: el límite fino es por alumno (20 por actividad); éste cubre a un curso entero detrás de una IP.
 const helpLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 800, name: 'activity-help' });
 const progressLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 4000, name: 'activity-progress' });
 
@@ -51,7 +48,6 @@ activityRouter.get(
   activityController.listByCourse.bind(activityController),
 );
 
-// Panel en vivo de la actividad: estado, ventana y respuestas que van llegando.
 activityRouter.get(
   '/:id/live',
   requireAuth,
@@ -60,7 +56,6 @@ activityRouter.get(
   activityController.live.bind(activityController),
 );
 
-// Bandeja de revisión de respuestas abiertas (mejora 0).
 activityRouter.get(
   '/:id/reviews',
   requireAuth,
@@ -78,7 +73,6 @@ activityRouter.patch(
   activityController.reviewAnswer.bind(activityController),
 );
 
-// Banco de actividades de la institución (antes de «/:code» para que «templates» no se tome como un código).
 activityRouter.get(
   '/templates',
   requireAuth,
@@ -107,7 +101,6 @@ activityRouter.post(
 
 activityRouter.get('/:code', publicReadLimit, activityController.getByCode.bind(activityController));
 
-// Devolución al alumno (sólo con la actividad cerrada y desde su celular).
 activityRouter.post(
   '/:code/feedback',
   publicReadLimit,
@@ -115,7 +108,6 @@ activityRouter.post(
   activityController.studentFeedback.bind(activityController),
 );
 
-// Estado del alumno en la actividad (POST para no dejar el nombre en la URL).
 activityRouter.post(
   '/:code/me',
   publicReadLimit,
@@ -123,7 +115,6 @@ activityRouter.post(
   activityController.studentState.bind(activityController),
 );
 
-// Documento original: el docente lo sube como binario (hasta 15 MB); el alumno lo pide para leerlo.
 activityRouter.post(
   '/:id/document',
   requireAuth,

@@ -13,20 +13,16 @@ import type { Activity } from '../domain/activity';
 import type { Course } from '../domain/course';
 import type { Question } from '../domain/question';
 
-/** Respuestas en borrador: por pregunta, la opción elegida o el texto escrito. */
 export type DraftAnswers = Record<string, { selectedOption?: string; textAnswer?: string }>;
 
 export interface StudentSessionState {
-  /** NUEVO: todavía no empezó. EN_CURSO: tiene un borrador. ENVIADO: ya completó la actividad. */
   status: 'NUEVO' | 'EN_CURSO' | 'ENVIADO';
   phase: ProgressPhase | null;
   currentIndex: number;
   answers: DraftAnswers;
-  /** Con reintentos habilitados, quien ya envió puede volver a hacerla. */
   canRetry: boolean;
 }
 
-/** Actividad abierta para el alumno, o el error que corresponde. */
 export async function openActivity(code: string): Promise<Activity> {
   const { activityService } = await import('./activity.service');
   const found = await activityRepository.findByCode(code);
@@ -37,11 +33,6 @@ export async function openActivity(code: string): Promise<Activity> {
   return activity;
 }
 
-/**
- * Identidad del alumno dentro del aula, atada a su dispositivo. El mismo número de lista desde otro celular se
- * rechaza y queda registrado como posible suplantación; un celular que responde por varios alumnos se registra
- * como dispositivo compartido (puede ser una tablet del aula, por eso no se bloquea: decide el docente).
- */
 export async function resolveStudentInActivity(
   activity: Activity,
   rawName: string,
@@ -115,7 +106,6 @@ export function sanitizeDraft(questions: Question[], draft: unknown): DraftAnswe
 }
 
 export class ActivitySessionService {
-  /** Estado del alumno en la actividad: si ya la completó, no puede volver a empezarla. */
   async getStudentState(code: string, rawName: string, deviceId: string | undefined): Promise<StudentSessionState> {
     const activity = await openActivity(code);
     if (pastEndTime(activity)) throw new ConflictError('[Error-REA_001] La actividad ya no está disponible');
@@ -138,7 +128,6 @@ export class ActivitySessionService {
     };
   }
 
-  /** Guarda el avance (fase, pregunta actual y borrador) y avisa al panel del docente. */
   async saveProgress(
     code: string,
     input: { studentDisplayName: string; deviceId?: string; phase: 'LEYENDO' | 'RESPONDIENDO'; currentIndex: number; answers: unknown; retry?: boolean },
@@ -152,7 +141,6 @@ export class ActivitySessionService {
       }
       await progressRepository.reopen(activity.id, identity.normalized);
     }
-    // Con «el docente habilita», nadie pasa a las preguntas antes de que el docente lo indique.
     const phase =
       input.phase === 'RESPONDIENDO' && activity.readingMode === 'DOCENTE_HABILITA' && !activity.questionsReleasedAt
         ? 'LEYENDO'
@@ -173,7 +161,6 @@ export class ActivitySessionService {
     return { ok: true };
   }
 
-  /** El docente pasa a todos los alumnos a las preguntas. */
   async releaseQuestions(activityId: string): Promise<Activity> {
     const activity = await activityRepository.findById(activityId);
     if (!activity) throw new NotFoundError('Actividad no encontrada');
@@ -183,10 +170,6 @@ export class ActivitySessionService {
     return updated;
   }
 
-  /**
-   * El docente corrige una pregunta durante la actividad. Los alumnos reciben la versión nueva sin la respuesta
-   * correcta, y los resultados ya enviados se recalculan con la corrección.
-   */
   async editQuestion(
     activityId: string,
     questionId: string,
@@ -226,7 +209,6 @@ export class ActivitySessionService {
     return updated;
   }
 
-  /** Recalcula literal, inferencial y crítico de todos los intentos con las preguntas actuales. */
   private async rescore(activityId: string): Promise<void> {
     const { computeScores } = await import('./activity.service');
     const questions = (await questionRepository.findByActivity(activityId)).filter((q) => q.approved);
@@ -245,7 +227,6 @@ export class ActivitySessionService {
     realtime.liveChanged(activityId);
   }
 
-  /** Al enviar: el progreso queda como enviado (no se puede volver a empezar con intento único). */
   async markSubmitted(input: {
     activityId: string;
     studentKey: string;

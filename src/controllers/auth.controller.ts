@@ -4,6 +4,7 @@ import { env } from '../config/env';
 import { getRedirectUri } from '../services/oidc-providers';
 import { BadRequestError, UnauthorizedError } from '../utils/http-error';
 import type { OAuthProviderId } from '../domain/enums';
+import { logService } from '../bll/log.service';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -16,17 +17,11 @@ function assertProvider(value: string): asserts value is OAuthProviderId {
 }
 
 export class AuthController {
-  /**
-   * Datos públicos para elegir textos desde Google Drive u OneDrive en el navegador. El archivo se lee en el
-   * dispositivo del docente con su propio permiso: no pasa por el servidor ni se guarda (modelo BYOC, §8.3).
-   */
   integrations(_req: Request, res: Response): void {
     const google = env.oauth.google;
     const microsoft = env.oauth.microsoft;
-    // El número de proyecto (prefijo del client ID) es el appId que el selector necesita con el permiso drive.file.
     const appId = google.clientId.split('-')[0];
     res.json({
-      // La clave del selector es opcional: con el token OAuth del docente el selector suele funcionar sin ella.
       googleDrive: google.clientId ? { clientId: google.clientId, apiKey: google.pickerApiKey, appId } : null,
       oneDrive: microsoft.clientId ? { clientId: microsoft.clientId, tenantId: microsoft.tenantId || 'common' } : null,
     });
@@ -37,7 +32,6 @@ export class AuthController {
     res.json({ user });
   }
 
-  /** Revoca el token actual: deja de servir aunque todavía no haya vencido. */
   async logout(req: Request, res: Response): Promise<void> {
     const { jti, exp, sub } = req.auth!;
     if (jti && exp) await authService.logout(jti, sub, exp);
@@ -83,8 +77,14 @@ export class AuthController {
         codeVerifier,
       });
 
-      // El token viaja en el fragmento (#), no en el query string: el navegador
-      // no lo envía a ningún servidor y no queda en logs ni en el Referer.
+      void logService.event({
+        actor: { userId: session.user.id, role: session.user.role, institutionId: session.user.institutionId, impersonated: false, userName: session.user.name, userEmail: session.user.email },
+        institutionId: session.user.institutionId,
+        category: 'ACCESO',
+        type: 'LOGIN',
+        description: `Inició sesión con ${providerParam === 'GOOGLE' ? 'Google' : 'Microsoft'}.`,
+      });
+
       const redirectTo = new URL('/auth/callback', env.frontendUrl);
       redirectTo.hash = new URLSearchParams({
         token: session.token,
@@ -100,6 +100,14 @@ export class AuthController {
         else if (err.message.includes('expiró')) errorCode = 'session_expired';
         else if (err.message.includes('proveedor')) errorCode = 'unauthorized';
       }
+      const tag = (err ?? {}) as { loginEmail?: string; loginUserId?: string | null; loginInstitutionId?: string | null };
+      void logService.event({
+        actor: { userId: tag.loginUserId ?? null, role: null, institutionId: tag.loginInstitutionId ?? null, impersonated: false, userEmail: tag.loginEmail ?? null },
+        institutionId: tag.loginInstitutionId ?? null,
+        category: 'ACCESO',
+        type: 'LOGIN_FALLIDO',
+        description: `Inicio de sesión rechazado con ${providerParam === 'GOOGLE' ? 'Google' : 'Microsoft'} (${errorCode}).`,
+      });
       const redirectTo = new URL('/login', env.frontendUrl);
       redirectTo.searchParams.set('error', errorCode);
       res.redirect(redirectTo.toString());

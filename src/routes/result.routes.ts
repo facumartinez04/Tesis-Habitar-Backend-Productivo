@@ -39,7 +39,6 @@ resultRouter.get(
   requireCourseAccess('courseId'), resultController.exportCourseReport.bind(resultController),
 );
 
-// Evolución entre la diagnóstica de inicio y la de cierre del ciclo (mejora 1).
 resultRouter.get(
   '/courses/:courseId/diagnostic',
   requireAuth,
@@ -48,7 +47,6 @@ resultRouter.get(
   resultController.getDiagnostic.bind(resultController),
 );
 
-// Eje que conviene reforzar con la próxima actividad (mejora 2).
 resultRouter.get(
   '/courses/:courseId/recommendation',
   requireAuth,

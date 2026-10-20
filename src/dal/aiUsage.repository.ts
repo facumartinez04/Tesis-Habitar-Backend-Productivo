@@ -29,7 +29,6 @@ export interface InstitutionAiCostRow {
   helpCostUsd: number;
 }
 
-/** Comienzo de un mes en hora argentina (UTC−3), como texto ISO para comparar contra "createdAt" (UTC). */
 export function monthRange(month: string): { from: string; to: string } {
   const [y, m] = month.split('-').map(Number);
   const from = new Date(Date.UTC(y, m - 1, 1, 3, 0, 0));
@@ -37,7 +36,6 @@ export function monthRange(month: string): { from: string; to: string } {
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
-/** Mes actual en hora argentina (AAAA-MM). */
 export function currentMonthAR(): string {
   return new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 7);
 }
@@ -50,10 +48,6 @@ export interface AiUsageRepository {
 }
 
 export class SqlAiUsageRepository implements AiUsageRepository {
-  /**
-   * Registra la llamada con su costo: tokens × precio del modelo (o, si el modelo no está en la tabla, el último
-   * precio cargado de ese proveedor).
-   */
   async record(input: RecordAiUsageInput): Promise<void> {
     await pool.query(
       `INSERT INTO "AiUsageEvent"
@@ -87,7 +81,6 @@ export class SqlAiUsageRepository implements AiUsageRepository {
     return Number(row?.count ?? 0);
   }
 
-  /** Gasto del mes con la clave de la plataforma. */
   async platformSpend(institutionId: string, month: string): Promise<number> {
     const { from, to } = monthRange(month);
     const row = await queryOne<{ total: string }>(
@@ -99,7 +92,6 @@ export class SqlAiUsageRepository implements AiUsageRepository {
     return num(row?.total);
   }
 
-  /** Costo y uso de cada institución en el mes. */
   async costByInstitution(month: string): Promise<InstitutionAiCostRow[]> {
     const { from, to } = monthRange(month);
     const rows = await query(
@@ -145,7 +137,6 @@ export class SqlAiUsageRepository implements AiUsageRepository {
     }));
   }
 
-  /** Gasto total de la plataforma por mes (últimos `months` meses, del más viejo al actual). */
   async monthlyTotals(months: number): Promise<{ month: string; costUsd: number; calls: number }[]> {
     const current = currentMonthAR();
     const [y, m] = current.split('-').map(Number);
@@ -165,7 +156,6 @@ export class SqlAiUsageRepository implements AiUsageRepository {
     return out;
   }
 
-  /** Modelos usados en el mes, con sus llamadas y si tienen precio propio en la tabla. */
   async modelsUsed(month: string): Promise<{ provider: string; model: string; calls: number; hasPrice: boolean }[]> {
     const { from, to } = monthRange(month);
     const rows = await query(

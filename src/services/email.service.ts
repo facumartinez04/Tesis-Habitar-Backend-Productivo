@@ -138,7 +138,6 @@ export class EmailService {
     }
   }
 
-  /** Alerta de rendimiento bajo umbral para la coordinación (CU-03-03). */
   async sendPerformanceAlertEmail(input: SendPerformanceAlertEmailInput): Promise<EmailSendResult> {
     const client = this.getClient();
     const axisLabel = { LITERAL: 'literal', INFERENCIAL: 'inferencial', CRITICO: 'crítico' }[input.axis];

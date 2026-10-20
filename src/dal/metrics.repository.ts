@@ -6,24 +6,19 @@ export interface WeeklyActiveTeachers {
 }
 
 export interface UsageMetrics {
-  /** Docentes con al menos una actividad creada o respondida en la semana, últimas 8 semanas. */
   weeklyActiveTeachers: WeeklyActiveTeachers[];
   activeTeachersLast30: number;
   activitiesLast30: number;
   activitiesPerActiveTeacherLast30: number | null;
-  /** Alumnos que respondieron sobre alumnos registrados en el curso, en las actividades de los últimos 30 días. */
   completionRate: number | null;
-  /** Preguntas aprobadas sin que el docente las modificara, sobre el total de aprobadas (últimos 90 días). */
   questionsApprovedUnedited: number | null;
   questionsApproved: number;
-  /** Correcciones de la IA que el docente confirmó sin cambiar el puntaje, sobre las revisadas. */
   aiGradesConfirmed: number | null;
   aiGradesReviewed: number;
   aiCallsLast30: { generation: number; grading: number; failed: number };
   aiCallsPerActivityLast30: number | null;
 }
 
-/** Filtro por institución, o toda la plataforma si es null. */
 function scope(institutionId: string | null, alias: string, param: number): { sql: string; params: unknown[] } {
   return institutionId ? { sql: ` AND ${alias}."institutionId" = $${param}`, params: [institutionId] } : { sql: '', params: [] };
 }

@@ -7,11 +7,6 @@ import { assertSameInstitution } from '../middlewares/access.middleware';
 import type { Institution } from '../domain/institution';
 import type { CreateInstitutionDto, UpdateInstitutionConfigDto, UpdateInstitutionStatusDto, TestAiConfigDto } from '../dto/institution.dto';
 
-/**
- * La clave de IA propia de la institución nunca sale por la API: sólo su versión
- * enmascarada. La clave completa se usa únicamente dentro del servicio que llama
- * al proveedor.
- */
 export function toPublicInstitution(institution: Institution): Omit<Institution, 'aiCustomApiKey'> {
   const { aiCustomApiKey: _secreto, ...publica } = institution;
   return publica;

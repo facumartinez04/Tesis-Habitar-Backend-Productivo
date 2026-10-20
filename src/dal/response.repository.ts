@@ -5,7 +5,6 @@ export interface CreateAnswerInput {
   questionId: string;
   selectedOption: string | null;
   textAnswer: string | null;
-  /** Respuestas abiertas en blanco: se puntúan 0 sin pasar por la IA ni por la revisión. */
   autoScore?: number | null;
 }
 
@@ -22,7 +21,6 @@ export interface CreateResponseInput {
 export interface CreatedResponse {
   responseId: string;
   resultId: string;
-  /** Respuestas abiertas que esperan la propuesta de la IA, con el id de cada una. */
   pendingOpenAnswers: { answerId: string; questionId: string; textAnswer: string }[];
 }
 
@@ -65,16 +63,11 @@ export interface ResponseRepository {
   listReviewQueue(activityId: string): Promise<ReviewQueueItem[]>;
   findAnswerForReview(answerId: string): Promise<{ answerId: string; responseId: string; activityId: string } | null>;
   setTeacherScore(answerId: string, score: number, reviewerId: string): Promise<void>;
-  /** Recalcula el eje crítico de un intento a partir de sus respuestas críticas. */
   recomputeCritico(responseId: string): Promise<{ criticoScore: number | null; criticoReviewed: boolean }>;
   countPendingReviews(activityId: string): Promise<number>;
   listForActivity(activityId: string): Promise<LiveResponseRow[]>;
 }
 
-/**
- * Puntaje crítico de un intento, de 0 a 100: las preguntas cerradas valen 100 o 0 y las abiertas
- * teacherScore / 3. Mientras quede una abierta sin revisar, el eje queda pendiente (null).
- */
 export function criticoFromAnswers(rows: CriticoAnswerRow[]): { criticoScore: number | null; criticoReviewed: boolean } {
   if (rows.length === 0) return { criticoScore: null, criticoReviewed: true };
   let total = 0;
@@ -195,7 +188,6 @@ export class SqlResponseRepository implements ResponseRepository {
         WHERE r."id" = $1 AND q."axis" = 'CRITICO'`,
       [responseId],
     );
-    // Una pregunta abierta sin respuesta guardada cuenta como no respondida (0); una cerrada, como incorrecta.
     const normalized = rows.map((row) =>
       row.answerId === null && !row.correctOption ? { ...row, teacherScore: 0 } : row,
     );
@@ -231,7 +223,6 @@ export class SqlResponseRepository implements ResponseRepository {
     );
   }
 
-  /** Todas las respuestas de la actividad, para recalcular los puntajes si el docente corrige una pregunta. */
   async listClosedAnswers(activityId: string): Promise<
     { responseId: string; questionId: string; selectedOption: string | null; textAnswer: string | null; teacherScore: number | null }[]
   > {

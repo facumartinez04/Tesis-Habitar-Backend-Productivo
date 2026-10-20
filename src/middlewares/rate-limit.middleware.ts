@@ -10,17 +10,10 @@ class TooManyRequestsError extends HttpError {
 interface Options {
   windowMs: number;
   max: number;
-  /** Separa los contadores de cada limitador. */
   name: string;
-  /** Por defecto, la IP del cliente (con trust proxy activo en app.ts). */
   key?: (req: Request) => string;
 }
 
-/**
- * Limitador de ventana fija en memoria. Alcanza para una instancia única del
- * servidor; si se escala a varias, hay que mover los contadores a un almacén
- * compartido.
- */
 export function rateLimit({ windowMs, max, name, key }: Options) {
   const hits = new Map<string, { count: number; resetAt: number }>();
 

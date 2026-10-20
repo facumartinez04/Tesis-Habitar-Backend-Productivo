@@ -35,7 +35,6 @@ export class SqlProgressRepository {
     ]);
   }
 
-  /** Guarda el avance del alumno. Una vez enviado, el progreso ya no vuelve atrás. */
   async upsert(input: {
     activityId: string;
     studentKey: string;
@@ -71,7 +70,6 @@ export class SqlProgressRepository {
     return row!;
   }
 
-  /** Marca el intento como enviado y descarta el borrador: las respuestas ya quedaron en Response/Answer. */
   async markSubmitted(input: {
     activityId: string;
     studentKey: string;
@@ -88,7 +86,6 @@ export class SqlProgressRepository {
     );
   }
 
-  /** Vuelve a habilitar a un alumno que envió, si la actividad permite reintentos. */
   async reopen(activityId: string, studentKey: string): Promise<void> {
     await query(
       `UPDATE "ActivityProgress" SET "phase" = 'RESPONDIENDO', "currentIndex" = 0, "answeredCount" = 0, "updatedAt" = CURRENT_TIMESTAMP
@@ -101,7 +98,6 @@ export class SqlProgressRepository {
     return query<ProgressRow>(`SELECT ${COLUMNS} FROM "ActivityProgress" WHERE "activityId" = $1 ORDER BY "startedAt"`, [activityId]);
   }
 
-  /** Otros alumnos que ya usaron este mismo dispositivo en la actividad. */
   async otherStudentsOnDevice(activityId: string, deviceId: string, studentKey: string): Promise<string[]> {
     const rows = await query<{ studentDisplayName: string }>(
       `SELECT "studentDisplayName" FROM "ActivityProgress" WHERE "activityId" = $1 AND "deviceId" = $2 AND "studentKey" <> $3`,
@@ -110,7 +106,6 @@ export class SqlProgressRepository {
     return rows.map((r) => r.studentDisplayName);
   }
 
-  /** Registra un aviso de integridad una sola vez por actividad, tipo, alumno y dispositivo. */
   async addIntegrityEvent(input: {
     activityId: string;
     kind: IntegrityEventRow['kind'];

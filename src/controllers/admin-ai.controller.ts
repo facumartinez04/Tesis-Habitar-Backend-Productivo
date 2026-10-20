@@ -14,7 +14,6 @@ const priceSchema = z.object({
 
 const round = (n: number, d = 4) => Math.round(n * 10 ** d) / 10 ** d;
 
-/** Costo y gasto de IA por institución, para el administrador de la plataforma. */
 export class AdminAiController {
   async costs(req: Request, res: Response): Promise<void> {
     const month = String(req.query.month ?? currentMonthAR());
@@ -53,7 +52,6 @@ export class AdminAiController {
       history: history.map((h) => ({ ...h, costUsd: round(h.costUsd) })),
       institutions,
       prices,
-      /** Modelos del mes; los que no tienen precio propio se cobran con el último precio cargado de su proveedor. */
       models,
     });
   }

@@ -32,6 +32,7 @@ export class DefaultComplianceService implements ComplianceService {
     if (!student) throw new NotFoundError('Alumno no encontrado');
 
     await complianceRepository.createAuditLogEntry({
+      institutionId,
       studentId,
       studentName: student.name,
       operation: 'EXPORTACION',
@@ -46,12 +47,11 @@ export class DefaultComplianceService implements ComplianceService {
     const student = await studentRepository.findById(studentId);
     if (!student) throw new NotFoundError('Alumno no encontrado');
 
-    // Segunda barrera, además del middleware de la ruta: un alumno sólo se
-    // suprime desde su propia institución.
     const course = await courseRepository.findById(student.courseId);
     if (!course || course.institutionId !== institutionId) throw new NotFoundError('Alumno no encontrado');
 
     await complianceRepository.createAuditLogEntry({
+      institutionId,
       studentId: null,
       studentName: student.name,
       operation: 'ELIMINACION',
@@ -73,6 +73,7 @@ export class DefaultComplianceService implements ComplianceService {
     const acceptance = await complianceRepository.createConsentAcceptance(institutionId, acceptedBy, document.version);
 
     await complianceRepository.createAuditLogEntry({
+      institutionId,
       studentId: null,
       studentName: acceptedBy,
       operation: 'CONSENTIMIENTO',
@@ -99,6 +100,7 @@ export class DefaultComplianceService implements ComplianceService {
 
     for (const student of eligible) {
       await complianceRepository.createAuditLogEntry({
+        institutionId,
         studentId: null,
         studentName: student.name,
         operation: 'ELIMINACION',

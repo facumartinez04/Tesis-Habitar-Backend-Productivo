@@ -1,4 +1,3 @@
--- Tabla intermedia para asignación de docentes a aulas físicas y cursos
 CREATE TABLE IF NOT EXISTS "CourseTeacher" (
     "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid()::text,
     "courseId" TEXT NOT NULL,
@@ -13,7 +12,6 @@ CREATE TABLE IF NOT EXISTS "CourseTeacher" (
 CREATE INDEX IF NOT EXISTS "CourseTeacher_courseId_idx" ON "CourseTeacher"("courseId");
 CREATE INDEX IF NOT EXISTS "CourseTeacher_teacherId_idx" ON "CourseTeacher"("teacherId");
 
--- Sincronizar docentes actuales de la tabla Course hacia CourseTeacher
 INSERT INTO "CourseTeacher" ("courseId", "teacherId", "roleInCourse")
 SELECT "id", "teacherId", 'TITULAR'
 FROM "Course"

@@ -33,13 +33,6 @@ function emailDomain(email: string): string {
   return email.split('@')[1]?.toLowerCase() ?? '';
 }
 
-/**
- * Rol de un usuario que entra por primera vez. Antes dependía del proveedor
- * elegido (Microsoft daba coordinador), así que cualquier cuenta del dominio
- * podía darse permisos de coordinación. Ahora sólo es coordinador el correo
- * cargado como coordinador al dar de alta la institución; el resto entra como
- * docente, sin importar el proveedor, y la coordinación ajusta el rol después.
- */
 function initialRoleFor(email: string, institution: Institution, isSuperAdmin: boolean): Role {
   if (isSuperAdmin) return 'ADMIN';
   if (institution.coordinatorEmail && institution.coordinatorEmail.toLowerCase() === email.toLowerCase()) {
@@ -84,7 +77,6 @@ export class DefaultAuthService implements AuthService {
         expectedState: input.expectedState,
       });
     } catch (err) {
-      // Sin la URL completa: lleva el código de autorización y el state.
       console.error('[auth] falló authorizationCodeGrant', {
         provider: input.provider,
         error: err instanceof Error ? err.message : String(err),
@@ -96,13 +88,10 @@ export class DefaultAuthService implements AuthService {
     const email = claims?.email as string | undefined;
     if (!email) throw new UnauthorizedError('La cuenta no expone un email verificado');
 
-    // Una cuenta ya dada de alta (por la administración o por la coordinación) entra a su institución
-    // aunque su correo no sea del dominio institucional, por ejemplo un Gmail: el usuario guardado es la
-    // fuente de verdad. El alta automática por dominio queda sólo para cuentas nuevas, y SUPER_ADMIN_EMAILS
-    // sólo sirve para dar de alta al primer administrador.
     const existing = await userRepository.findByEmail(email);
+    const tagged = (err: Error, institutionId: string | null) => Object.assign(err, { loginEmail: email, loginUserId: existing?.id ?? null, loginInstitutionId: institutionId });
     if (existing && !existing.active) {
-      throw new ForbiddenError('Tu cuenta fue desactivada. Contactá a tu coordinador/a.');
+      throw tagged(new ForbiddenError('Tu cuenta fue desactivada. Contactá a tu coordinador/a.'), existing.institutionId);
     }
     const isSuperAdmin = !existing && env.superAdminEmails.includes(email.toLowerCase());
     const institution = existing
@@ -111,7 +100,7 @@ export class DefaultAuthService implements AuthService {
         ? await this.getOrCreateSuperAdminInstitution(email)
         : await institutionRepository.findByDomain(emailDomain(email));
     if (!institution || institution.status !== 'ACTIVO') {
-      throw new ForbiddenError('Tu institución no está habilitada en Habitar. Contactá a tu coordinador/a.');
+      throw tagged(new ForbiddenError('Tu institución no está habilitada en Habitar. Contactá a tu coordinador/a.'), institution?.id ?? null);
     }
 
     let user = existing;
@@ -151,7 +140,6 @@ export const authService = new DefaultAuthService();
 
 export function dashboardPathForRole(role: Role): string {
   if (role === 'ADMIN') return '/admin/instituciones/nueva';
-  // El director ve el panel institucional, igual que la coordinación.
   if (role === 'COORDINADOR' || role === 'DIRECTOR') return '/institucional';
   return '/docente/cursos';
 }

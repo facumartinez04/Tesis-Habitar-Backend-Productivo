@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import { apiRouter } from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 import { securityHeaders } from './middlewares/security-headers.middleware';
+import { eventLog } from './middlewares/event-log.middleware';
 import { env } from './config/env';
 
 export function createApp() {
@@ -15,8 +16,6 @@ export function createApp() {
   app.use(securityHeaders);
   app.use(
     cors({
-      // Sólo el frontend puede llamar a la API desde un navegador. Los pedidos sin
-      // Origin (webhooks, monitoreo, herramientas) no pasan por CORS.
       origin(origin, callback) {
         if (!origin || env.corsOrigins.includes(origin.replace(/\/$/, ''))) callback(null, true);
         else callback(null, false);
@@ -42,7 +41,7 @@ export function createApp() {
     res.type('text/html').send('google-site-verification: google1e293a64d735c85d.html');
   });
 
-  app.use('/api', apiRouter);
+  app.use('/api', eventLog, apiRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

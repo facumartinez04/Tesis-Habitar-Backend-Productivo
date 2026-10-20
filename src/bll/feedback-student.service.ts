@@ -5,7 +5,6 @@ import { institutionRepository } from '../dal/institution.repository';
 import { resolveStudentIdentity } from './student-identity';
 import { ConflictError, ForbiddenError, NotFoundError } from '../utils/http-error';
 
-/** Rúbrica del eje crítico en palabras para el alumno (la misma que usa el docente al revisar). */
 const RUBRIC = ['No responde o no se relaciona con la pregunta', 'Da su opinión, pero sin fundamentarla', 'Fundamenta con el texto', 'Fundamenta con el texto y lo evalúa'];
 
 export interface StudentFeedback {
@@ -15,12 +14,10 @@ export interface StudentFeedback {
   questions: {
     axis: string;
     prompt: string;
-    /** Pregunta cerrada: opciones, la elegida y la correcta. */
     options: string[] | null;
     selectedOption: string | null;
     correctOption: string | null;
     correct: boolean | null;
-    /** Pregunta abierta: lo que escribió y, si el docente ya la revisó, su puntaje de 0 a 3. */
     textAnswer: string | null;
     score: number | null;
     scoreLabel: string | null;
@@ -28,10 +25,6 @@ export interface StudentFeedback {
   }[];
 }
 
-/**
- * Devolución al alumno: cuando la actividad se cierra, ve sus respuestas corregidas. Sólo desde el celular con el
- * que respondió (el que quedó vinculado a su nombre), para que nadie vea los resultados de otro.
- */
 export class StudentFeedbackService {
   async get(code: string, rawName: string, deviceId: string): Promise<StudentFeedback> {
     const activity = await activityRepository.findByCode(code);

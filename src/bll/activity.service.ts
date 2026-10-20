@@ -30,11 +30,6 @@ type SubmitResponsePayload = Omit<SubmitResponseInput, 'activityId'>;
 
 const MAX_OPEN_ANSWER_LENGTH = 2000;
 
-/**
- * Puntajes del intento. Las preguntas cerradas sin responder cuentan como incorrectas (el envío automático
- * por vencimiento manda respuestas parciales). Un eje sin preguntas queda sin dato, nunca en un valor por defecto.
- * El eje crítico combina cerradas y abiertas; mientras haya abiertas sin revisar, queda pendiente.
- */
 export function computeScores(
   questions: Question[],
   answers: CreateAnswerInput[],
@@ -64,7 +59,6 @@ export function computeScores(
   };
 }
 
-/** Saca de la respuesta el nombre del alumno y el de la institución antes de enviarla al proveedor de IA (§8.5). */
 export function pseudonymize(text: string, names: string[]): string {
   let result = text;
   for (const name of names) {
@@ -81,7 +75,6 @@ export interface AiAccess {
   isCustom: boolean;
 }
 
-/** Junta los tokens de una llamada para registrarla con su costo y con quién la paga. */
 export function usageCollector(access: AiAccess) {
   let last: AiCallUsage | null = null;
   return {
@@ -118,23 +111,18 @@ export interface GenerateQuestionsResult {
   questions: Awaited<ReturnType<typeof aiQuestionGenerator.generate>>;
 }
 
-/** Lo que recibe el alumno al enviar: sólo la confirmación. Los puntajes los ve el docente. */
 export interface SubmitResponseResult {
   responseId: string;
   submittedAt: string;
 }
 
-/** Pregunta tal como la ve el alumno: sin la opción correcta ni la respuesta esperada. */
 export type PublicQuestion = Omit<Question, 'correctOption' | 'expectedAnswer'>;
 
 export interface PublicActivityView {
   activity: Omit<Activity, 'sourcePurgedAt'>;
-  /** Documento original (PDF o Word) para leer tal como lo subió el docente; null si se cargó texto. */
   document: ActivityDocumentMeta | null;
-  /** Vacío mientras el docente no habilite las preguntas (modo «el docente habilita»). */
   questions: PublicQuestion[];
   questionCount: number;
-  /** true si el alumno ya puede pasar a las preguntas. */
   questionsReleased: boolean;
   studentIdMode: StudentIdMode;
 }
@@ -160,7 +148,6 @@ export interface LiveActivityView {
   pendingReviews: number;
   readingMode: Activity['readingMode'];
   questionsReleasedAt: string | null;
-  /** Avance de cada alumno, en vivo. */
   students: {
     studentDisplayName: string;
     phase: 'LEYENDO' | 'RESPONDIENDO' | 'ENVIADO';
@@ -168,10 +155,8 @@ export interface LiveActivityView {
     answeredCount: number;
     startedAt: string;
     updatedAt: string;
-    /** Últimos 4 caracteres del dispositivo, para distinguir celulares sin exponer el identificador. */
     deviceTag: string;
   }[];
-  /** Posible suplantación (mismo alumno desde otro celular) o un celular que responde por varios alumnos. */
   integrityEvents: {
     id: string;
     kind: 'OTRO_DISPOSITIVO' | 'DISPOSITIVO_COMPARTIDO';
@@ -180,7 +165,6 @@ export interface LiveActivityView {
     createdAt: string;
   }[];
   readingHelp: boolean;
-  /** Dudas de los alumnos sobre el texto: muestran qué palabras o frases no entendieron. */
   helpQuestions: {
     id: string;
     studentDisplayName: string;
@@ -285,7 +269,6 @@ export class DefaultActivityService implements ActivityService {
         throw new BadRequestError(`La opción correcta de «${q.prompt.slice(0, 40)}» no está entre sus opciones`);
       }
     }
-    // Hasta la hora de inicio queda programada; el reloj la abre sola y avisa al aula en tiempo real.
     const created = await activityRepository.create({
       ...input,
       status: input.status ?? (hasOpened(input) ? 'PUBLICADA' : 'PROGRAMADA'),
@@ -294,10 +277,6 @@ export class DefaultActivityService implements ActivityService {
     return created;
   }
 
-  /**
-   * Actualiza el estado según la ventana horaria: publica la programada y cierra la vencida, borrando su texto.
-   * Si cambió, avisa en tiempo real al aula, al alumno y al panel del docente.
-   */
   async syncStatus(activity: Activity): Promise<Activity> {
     if (activity.status === 'BORRADOR') return activity;
     let updated = activity;
@@ -310,7 +289,6 @@ export class DefaultActivityService implements ActivityService {
     return updated;
   }
 
-  /** Actividad que el aula le ofrece al alumno: la abierta más reciente o, si no hay, la próxima programada. */
   async currentForCourse(courseId: string): Promise<{ open: Activity | null; upcoming: Activity | null }> {
     const candidates = await Promise.all(
       (await activityRepository.findOpenOrScheduledByCourse(courseId)).map((a) => this.syncStatus(a)),
@@ -320,7 +298,6 @@ export class DefaultActivityService implements ActivityService {
     return { open, upcoming };
   }
 
-  /** Estado en vivo para el panel del docente: ventana, respuestas que van llegando y revisiones pendientes. */
   async getLive(activityId: string): Promise<LiveActivityView> {
     const found = await activityRepository.findById(activityId);
     if (!found) throw new NotFoundError('Actividad no encontrada');
@@ -406,7 +383,6 @@ export class DefaultActivityService implements ActivityService {
     if (!found) throw new NotFoundError('Actividad no encontrada');
     const activity = await this.syncStatus(found);
 
-    // Pasada la hora de cierre ya no se puede empezar; la tolerancia es sólo para los envíos finales.
     if (activity.status === 'CERRADA' || pastEndTime(activity)) {
       throw new ConflictError('[Error-REA_001] La actividad ya no está disponible');
     }
@@ -421,7 +397,6 @@ export class DefaultActivityService implements ActivityService {
 
     const { sourcePurgedAt: _purged, ...publicActivity } = activity;
     const approved = questions.filter((q) => q.approved);
-    // Con «el docente habilita», las preguntas ni siquiera viajan al celular hasta que el docente las libera.
     const questionsReleased = activity.readingMode !== 'DOCENTE_HABILITA' || Boolean(activity.questionsReleasedAt);
     return {
       activity: publicActivity,
@@ -508,7 +483,6 @@ export class DefaultActivityService implements ActivityService {
   async submitResponse(activityCode: string, input: SubmitResponsePayload): Promise<SubmitResponseResult> {
     const found = await activityRepository.findByCode(activityCode);
     if (!found) throw new NotFoundError('Actividad no encontrada');
-    // El texto se toma antes de sincronizar el estado: si la ventana vence justo ahora, la corrección igual lo necesita.
     const sourceText = found.sourceText;
     const activity = await this.syncStatus(found);
 
@@ -516,13 +490,9 @@ export class DefaultActivityService implements ActivityService {
       throw new ConflictError('La actividad todavía no está disponible');
     }
 
-    // El dispositivo queda vinculado al alumno en el aula: nadie puede responder a nombre de otro desde otro equipo,
-    // y el intento queda registrado en el panel del docente como posible suplantación.
     const { identity, course, deviceId } = await resolveStudentInActivity(activity, input.studentDisplayName, input.deviceId);
     const institution = await institutionRepository.findById(course.institutionId);
 
-    // Si el docente la cerró mientras el alumno respondía, todavía se recibe lo que tenía (envío automático), pero
-    // sólo de quien ya estaba adentro y dentro de la tolerancia. Nadie nuevo puede entrar a una actividad cerrada.
     if (activity.status === 'CERRADA') {
       const progress = await progressRepository.find(activity.id, identity.normalized);
       const wasInside = progress !== null && progress.phase !== 'ENVIADO';
@@ -558,7 +528,6 @@ export class DefaultActivityService implements ActivityService {
     });
 
     realtime.liveChanged(activity.id);
-    // La propuesta de la IA y la evaluación de alertas corren después de responderle al alumno.
     void this.afterSubmit(activity, course.id, institution, sourceText, identity.displayName, questions, created.pendingOpenAnswers);
 
     return { responseId: created.responseId, submittedAt: new Date().toISOString() };
@@ -625,7 +594,6 @@ export class DefaultActivityService implements ActivityService {
               ...call.usage(),
             });
           } catch (err) {
-            // Sin propuesta de la IA, el docente puntúa a mano: la respuesta queda igual en la bandeja de revisión.
             console.error(`[activity.service] No se pudo proponer la corrección de ${item.answerId}:`, (err as Error).message);
             await aiUsageService.record({
               institutionId: institution.id,

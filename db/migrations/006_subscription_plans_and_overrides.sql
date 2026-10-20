@@ -1,6 +1,3 @@
--- Migración 006: Planes de suscripción dinámicos y personalización por negocio
-
--- 1. Ampliación de la tabla Plan
 ALTER TABLE "Plan"
   ADD COLUMN IF NOT EXISTS "description" TEXT DEFAULT '',
   ADD COLUMN IF NOT EXISTS "annualPriceArs" INTEGER NOT NULL DEFAULT 0,
@@ -13,7 +10,6 @@ ALTER TABLE "Plan"
   ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
--- 2. Ampliación de la tabla Subscription para personalizaciones por negocio
 ALTER TABLE "Subscription"
   ADD COLUMN IF NOT EXISTS "customMaxUsers" INTEGER,
   ADD COLUMN IF NOT EXISTS "customMaxStudents" INTEGER,
@@ -23,7 +19,6 @@ ALTER TABLE "Subscription"
   ADD COLUMN IF NOT EXISTS "customNotes" TEXT DEFAULT '',
   ADD COLUMN IF NOT EXISTS "billingCycle" TEXT NOT NULL DEFAULT 'MONTHLY';
 
--- 3. Actualizar o insertar planes base de referencia si faltan
 INSERT INTO "Plan" ("id", "name", "description", "monthlyPriceArs", "annualPriceArs", "maxUsers", "maxStudents", "maxCourses", "storageGb", "features", "badge", "isActive")
 VALUES
   (

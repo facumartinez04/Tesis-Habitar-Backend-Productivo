@@ -45,10 +45,6 @@ export class DefaultAiUsageService implements AiUsageService {
     };
   }
 
-  /**
-   * Tope de gasto mensual con la clave de la plataforma. Con el tope alcanzado, la IA deja de usarse ese mes: las
-   * preguntas se generan por plantilla, las respuestas abiertas las corrige el docente y la ayuda queda pausada.
-   */
   async withinBudget(institutionId: string): Promise<boolean> {
     const budget = await aiUsageRepository.getBudget(institutionId);
     if (budget === null) return true;

@@ -6,12 +6,10 @@ export interface Activity {
   name: string;
   educationLevel: string;
   axis: ComprehensionAxis;
-  /** El texto se conserva sólo mientras la actividad está abierta; al cerrarse se borra (§8.4). */
   sourceText: string | null;
   sourcePurgedAt: Date | null;
   availableFrom: string;
   startTime: string;
-  /** Fecha de cierre (AAAA-MM-DD); null = el mismo día que abre. */
   endDate: string | null;
   endTime: string;
   attemptPolicy: AttemptPolicy;
@@ -19,20 +17,15 @@ export interface Activity {
   qrValidUntil: string;
   courseId: string;
   diagnosticType: DiagnosticType | null;
-  /** Cómo empieza el alumno: lee primero (por defecto), espera que el docente habilite, o todo junto. */
   readingMode: ReadingMode;
-  /** Cuándo el docente pasó a todos a las preguntas. */
   questionsReleasedAt: Date | null;
-  /** Si los alumnos pueden preguntarle a la IA qué significa algo del texto (por defecto, sí). */
   readingHelp: boolean;
-  /** Si al cerrarse el alumno ve sus respuestas corregidas (por defecto, sí). */
   showFeedback: boolean;
   createdAt: Date;
 }
 
 export type ReadingMode = 'LECTURA_PRIMERO' | 'DOCENTE_HABILITA' | 'LIBRE';
 
-/** Actividad diagnóstica de inicio o de cierre del ciclo lectivo (mejora 1). */
 export type DiagnosticType = 'INICIO' | 'CIERRE';
 
 export interface CreateActivityInput {
@@ -62,6 +55,5 @@ export interface CreateQuestionInput {
   options?: string[];
   correctOption?: string;
   approved: boolean;
-  /** true si el docente modificó la pregunta que propuso la IA (métrica de calidad, mejora 4). */
   edited?: boolean;
 }

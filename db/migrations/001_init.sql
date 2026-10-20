@@ -1,43 +1,29 @@
--- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "public";
 
--- CreateEnum
 CREATE TYPE "Role" AS ENUM ('DOCENTE', 'COORDINADOR', 'ADMIN');
 
--- CreateEnum
 CREATE TYPE "OAuthProvider" AS ENUM ('GOOGLE', 'MICROSOFT');
 
--- CreateEnum
 CREATE TYPE "EducationLevel" AS ENUM ('PRIMARIO', 'SECUNDARIO');
 
--- CreateEnum
 CREATE TYPE "InstitutionStatus" AS ENUM ('ACTIVO', 'PILOTO_NO_CONFIRMADO');
 
--- CreateEnum
 CREATE TYPE "ComprehensionAxis" AS ENUM ('LITERAL', 'INFERENCIAL', 'CRITICO');
 
--- CreateEnum
 CREATE TYPE "AttemptPolicy" AS ENUM ('UNICO', 'REINTENTOS');
 
--- CreateEnum
 CREATE TYPE "ActivityStatus" AS ENUM ('BORRADOR', 'PROGRAMADA', 'PUBLICADA', 'CERRADA');
 
--- CreateEnum
 CREATE TYPE "AlertSeverity" AS ENUM ('CRITICA', 'ADVERTENCIA', 'RESUELTA');
 
--- CreateEnum
 CREATE TYPE "AuditOperation" AS ENUM ('EXPORTACION', 'ELIMINACION', 'CONSENTIMIENTO');
 
--- CreateEnum
 CREATE TYPE "SubscriptionManagementStatus" AS ENUM ('EN_NEGOCIACION', 'CONFIRMADO');
 
--- CreateEnum
 CREATE TYPE "ComponentHealth" AS ENUM ('OPERATIVO', 'DEGRADADO', 'CAIDO');
 
--- CreateEnum
 CREATE TYPE "IncidentStatus" AS ENUM ('RESUELTO', 'PLANIFICADO', 'EN_CURSO');
 
--- CreateTable
 CREATE TABLE "Institution" (
     "id" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -52,7 +38,6 @@ CREATE TABLE "Institution" (
     CONSTRAINT "Institution_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "InstitutionLevel" (
     "id" TEXT NOT NULL,
     "institutionId" TEXT NOT NULL,
@@ -61,7 +46,6 @@ CREATE TABLE "InstitutionLevel" (
     CONSTRAINT "InstitutionLevel_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -76,7 +60,6 @@ CREATE TABLE "User" (
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Course" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -87,7 +70,6 @@ CREATE TABLE "Course" (
     CONSTRAINT "Course_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Student" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -98,7 +80,6 @@ CREATE TABLE "Student" (
     CONSTRAINT "Student_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Activity" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
@@ -118,7 +99,6 @@ CREATE TABLE "Activity" (
     CONSTRAINT "Activity_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Question" (
     "id" TEXT NOT NULL,
     "activityId" TEXT NOT NULL,
@@ -134,7 +114,6 @@ CREATE TABLE "Question" (
     CONSTRAINT "Question_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Response" (
     "id" TEXT NOT NULL,
     "activityId" TEXT NOT NULL,
@@ -145,7 +124,6 @@ CREATE TABLE "Response" (
     CONSTRAINT "Response_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Answer" (
     "id" TEXT NOT NULL,
     "responseId" TEXT NOT NULL,
@@ -155,7 +133,6 @@ CREATE TABLE "Answer" (
     CONSTRAINT "Answer_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "StudentResult" (
     "id" TEXT NOT NULL,
     "studentId" TEXT NOT NULL,
@@ -169,7 +146,6 @@ CREATE TABLE "StudentResult" (
     CONSTRAINT "StudentResult_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "PerformanceAlert" (
     "id" TEXT NOT NULL,
     "courseId" TEXT NOT NULL,
@@ -183,7 +159,6 @@ CREATE TABLE "PerformanceAlert" (
     CONSTRAINT "PerformanceAlert_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "AuditLogEntry" (
     "id" TEXT NOT NULL,
     "studentId" TEXT,
@@ -196,7 +171,6 @@ CREATE TABLE "AuditLogEntry" (
     CONSTRAINT "AuditLogEntry_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "ConsentDocument" (
     "id" TEXT NOT NULL,
     "version" TEXT NOT NULL,
@@ -207,7 +181,6 @@ CREATE TABLE "ConsentDocument" (
     CONSTRAINT "ConsentDocument_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "ConsentAcceptance" (
     "id" TEXT NOT NULL,
     "institutionId" TEXT NOT NULL,
@@ -218,7 +191,6 @@ CREATE TABLE "ConsentAcceptance" (
     CONSTRAINT "ConsentAcceptance_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Plan" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -228,7 +200,6 @@ CREATE TABLE "Plan" (
     CONSTRAINT "Plan_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Subscription" (
     "id" TEXT NOT NULL,
     "institutionId" TEXT NOT NULL,
@@ -241,7 +212,6 @@ CREATE TABLE "Subscription" (
     CONSTRAINT "Subscription_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "OAuthIntegration" (
     "id" TEXT NOT NULL,
     "institutionId" TEXT NOT NULL,
@@ -252,7 +222,6 @@ CREATE TABLE "OAuthIntegration" (
     CONSTRAINT "OAuthIntegration_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "MonitoringComponent" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -262,7 +231,6 @@ CREATE TABLE "MonitoringComponent" (
     CONSTRAINT "MonitoringComponent_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Incident" (
     "id" TEXT NOT NULL,
     "date" TEXT NOT NULL,
@@ -273,7 +241,6 @@ CREATE TABLE "Incident" (
     CONSTRAINT "Incident_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Feedback" (
     "id" TEXT NOT NULL,
     "studentId" TEXT NOT NULL,
@@ -284,7 +251,6 @@ CREATE TABLE "Feedback" (
     CONSTRAINT "Feedback_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "RetentionPolicy" (
     "id" TEXT NOT NULL,
     "institutionId" TEXT NOT NULL,
@@ -295,7 +261,6 @@ CREATE TABLE "RetentionPolicy" (
     CONSTRAINT "RetentionPolicy_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "AiUsageEvent" (
     "id" TEXT NOT NULL,
     "institutionId" TEXT NOT NULL,
@@ -307,150 +272,101 @@ CREATE TABLE "AiUsageEvent" (
     CONSTRAINT "AiUsageEvent_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
 CREATE UNIQUE INDEX "Institution_slug_key" ON "Institution"("slug");
 
--- CreateIndex
 CREATE UNIQUE INDEX "InstitutionLevel_institutionId_level_key" ON "InstitutionLevel"("institutionId", "level");
 
--- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
--- CreateIndex
 CREATE INDEX "User_institutionId_idx" ON "User"("institutionId");
 
--- CreateIndex
 CREATE INDEX "Course_institutionId_idx" ON "Course"("institutionId");
 
--- CreateIndex
 CREATE INDEX "Course_teacherId_idx" ON "Course"("teacherId");
 
--- CreateIndex
 CREATE INDEX "Student_courseId_idx" ON "Student"("courseId");
 
--- CreateIndex
 CREATE UNIQUE INDEX "Activity_code_key" ON "Activity"("code");
 
--- CreateIndex
 CREATE INDEX "Activity_courseId_idx" ON "Activity"("courseId");
 
--- CreateIndex
 CREATE INDEX "Question_activityId_idx" ON "Question"("activityId");
 
--- CreateIndex
 CREATE INDEX "Response_activityId_idx" ON "Response"("activityId");
 
--- CreateIndex
 CREATE INDEX "Response_studentId_idx" ON "Response"("studentId");
 
--- CreateIndex
 CREATE UNIQUE INDEX "Answer_responseId_questionId_key" ON "Answer"("responseId", "questionId");
 
--- CreateIndex
 CREATE UNIQUE INDEX "StudentResult_responseId_key" ON "StudentResult"("responseId");
 
--- CreateIndex
 CREATE INDEX "StudentResult_studentId_idx" ON "StudentResult"("studentId");
 
--- CreateIndex
 CREATE INDEX "StudentResult_activityId_idx" ON "StudentResult"("activityId");
 
--- CreateIndex
 CREATE INDEX "PerformanceAlert_courseId_idx" ON "PerformanceAlert"("courseId");
 
--- CreateIndex
 CREATE UNIQUE INDEX "ConsentDocument_version_key" ON "ConsentDocument"("version");
 
--- CreateIndex
 CREATE INDEX "ConsentAcceptance_institutionId_idx" ON "ConsentAcceptance"("institutionId");
 
--- CreateIndex
 CREATE UNIQUE INDEX "Subscription_institutionId_key" ON "Subscription"("institutionId");
 
--- CreateIndex
 CREATE UNIQUE INDEX "OAuthIntegration_institutionId_key" ON "OAuthIntegration"("institutionId");
 
--- CreateIndex
 CREATE INDEX "Feedback_studentId_idx" ON "Feedback"("studentId");
 
--- CreateIndex
 CREATE UNIQUE INDEX "RetentionPolicy_institutionId_key" ON "RetentionPolicy"("institutionId");
 
--- CreateIndex
 CREATE INDEX "AiUsageEvent_institutionId_idx" ON "AiUsageEvent"("institutionId");
 
--- AddForeignKey
 ALTER TABLE "InstitutionLevel" ADD CONSTRAINT "InstitutionLevel_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "Institution"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "Institution"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Course" ADD CONSTRAINT "Course_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "Institution"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Course" ADD CONSTRAINT "Course_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Student" ADD CONSTRAINT "Student_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Activity" ADD CONSTRAINT "Activity_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Question" ADD CONSTRAINT "Question_activityId_fkey" FOREIGN KEY ("activityId") REFERENCES "Activity"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Response" ADD CONSTRAINT "Response_activityId_fkey" FOREIGN KEY ("activityId") REFERENCES "Activity"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Response" ADD CONSTRAINT "Response_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Answer" ADD CONSTRAINT "Answer_responseId_fkey" FOREIGN KEY ("responseId") REFERENCES "Response"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Answer" ADD CONSTRAINT "Answer_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "StudentResult" ADD CONSTRAINT "StudentResult_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "StudentResult" ADD CONSTRAINT "StudentResult_activityId_fkey" FOREIGN KEY ("activityId") REFERENCES "Activity"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "StudentResult" ADD CONSTRAINT "StudentResult_responseId_fkey" FOREIGN KEY ("responseId") REFERENCES "Response"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "PerformanceAlert" ADD CONSTRAINT "PerformanceAlert_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "AuditLogEntry" ADD CONSTRAINT "AuditLogEntry_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "AuditLogEntry" ADD CONSTRAINT "AuditLogEntry_performedById_fkey" FOREIGN KEY ("performedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "ConsentAcceptance" ADD CONSTRAINT "ConsentAcceptance_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "Institution"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "Institution"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "OAuthIntegration" ADD CONSTRAINT "OAuthIntegration_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "Institution"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Feedback" ADD CONSTRAINT "Feedback_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Feedback" ADD CONSTRAINT "Feedback_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "RetentionPolicy" ADD CONSTRAINT "RetentionPolicy_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "Institution"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "AiUsageEvent" ADD CONSTRAINT "AiUsageEvent_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "Institution"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 

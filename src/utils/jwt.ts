@@ -8,11 +8,6 @@ export interface VerifiedToken extends JwtPayload {
   exp: number;
 }
 
-/**
- * Cada token lleva un identificador único (jti) para poder revocarlo al cerrar
- * sesión. La duración se configura con JWT_EXPIRES_IN; por defecto 12 horas, en
- * lugar de los 7 días anteriores, para acotar el daño de un token filtrado.
- */
 export function signToken(payload: JwtPayload): string {
   return jwt.sign(payload, env.jwtSecret, {
     expiresIn: env.jwtExpiresIn as jwt.SignOptions['expiresIn'],

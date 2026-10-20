@@ -1,7 +1,6 @@
 import type { PoolClient } from 'pg';
 import { query, queryOne, withTransaction } from '../config/db';
 
-/** Datos de una institución que el administrador de la plataforma puede revisar y borrar. */
 export interface AdminActivityRow {
   id: string;
   code: string;
@@ -61,7 +60,6 @@ async function paged<T>(select: string, from: string, order: string, params: unk
   return { items: rows as T[], total: Number(count?.total ?? 0) };
 }
 
-/** Borra una actividad con todo lo que cuelga de ella (respuestas, resultados, progreso, avisos y dudas). */
 async function deleteActivityTx(client: PoolClient, activityId: string): Promise<number> {
   const { rowCount } = await client.query('DELETE FROM "Response" WHERE "activityId" = $1', [activityId]);
   await client.query('DELETE FROM "StudentResult" WHERE "activityId" = $1', [activityId]);
@@ -145,7 +143,6 @@ export class SqlAdminDataRepository {
     );
   }
 
-  /** Borra la actividad y deja el registro en el historial, todo o nada. */
   async deleteActivity(
     activity: { id: string; name: string; institutionId: string },
     actor: { name: string; id: string },
@@ -157,7 +154,6 @@ export class SqlAdminDataRepository {
     });
   }
 
-  /** Borra el aula con sus actividades, alumnos, alertas y celulares vinculados. */
   async deleteCourse(
     course: { id: string; name: string; institutionId: string },
     actor: { name: string; id: string },
@@ -167,26 +163,35 @@ export class SqlAdminDataRepository {
       let responses = 0;
       for (const a of activities) responses += await deleteActivityTx(client, a.id);
       await client.query('DELETE FROM "PerformanceAlert" WHERE "courseId" = $1', [course.id]);
-      const { rows: students } = await client.query<{ n: number }>('SELECT COUNT(*)::int AS "n" FROM "Student" WHERE "courseId" = $1', [course.id]);
+      const { rows: students } = await client.query<{ name: string }>('SELECT "name" FROM "Student" WHERE "courseId" = $1', [course.id]);
+      for (const s of students) await this.auditTx(client, course.institutionId, s.name, actor);
       await client.query('DELETE FROM "Course" WHERE "id" = $1', [course.id]);
-      const details = { activities: activities.length, responses, students: students[0]?.n ?? 0 };
+      const details = { activities: activities.length, responses, students: students.length };
       await this.logTx(client, course.institutionId, 'AULA', course.id, course.name, details, actor);
       return details;
     });
   }
 
-  /** Borra al alumno con sus respuestas y resultados. */
   async deleteStudent(
     student: { id: string; name: string; courseName: string; institutionId: string },
     actor: { name: string; id: string },
   ): Promise<{ results: number }> {
     return withTransaction(async (client) => {
       const { rows } = await client.query<{ n: number }>('SELECT COUNT(*)::int AS "n" FROM "StudentResult" WHERE "studentId" = $1', [student.id]);
+      await this.auditTx(client, student.institutionId, student.name, actor);
       await client.query('DELETE FROM "Student" WHERE "id" = $1', [student.id]);
       const details = { results: rows[0]?.n ?? 0, course: student.courseName };
       await this.logTx(client, student.institutionId, 'ALUMNO', student.id, student.name, details, actor);
       return { results: details.results };
     });
+  }
+
+  private async auditTx(client: PoolClient, institutionId: string, studentName: string, actor: { name: string; id: string }): Promise<void> {
+    await client.query(
+      `INSERT INTO "AuditLogEntry" ("institutionId", "studentId", "studentName", "operation", "performedBy", "performedById")
+       VALUES ($1, NULL, $2, 'ELIMINACION', $3, $4)`,
+      [institutionId, studentName, `${actor.name} (administración de plataforma)`, actor.id],
+    );
   }
 
   private async logTx(

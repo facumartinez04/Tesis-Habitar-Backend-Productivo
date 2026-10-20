@@ -4,11 +4,6 @@ import { getMpPayment, mercadoPagoService, verifyMpSignature } from '../services
 import { subscriptionService } from './subscription.service';
 import { BadRequestError, ConflictError, UnauthorizedError } from '../utils/http-error';
 
-/**
- * Referencia que viaja en cada pago de Mercado Pago (external_reference) y que vuelve en el aviso:
- * «tx:<id>» para una transacción de la plataforma (suscripción o pago de prueba) y «fee:<institución>:<id>» para una
- * cuota escolar. Así el aviso sabe qué registro actualizar.
- */
 type PaymentRef = { kind: 'tx'; id: string } | { kind: 'fee'; institutionId: string; id: string };
 
 function parseRef(ref: string): PaymentRef | null {
@@ -18,7 +13,6 @@ function parseRef(ref: string): PaymentRef | null {
   return null;
 }
 
-/** Estado de Mercado Pago → estado de la transacción y de la cuota. */
 function mapStatus(mpStatus: string): { tx: string; fee: string | null } {
   switch (mpStatus) {
     case 'approved':
@@ -53,7 +47,6 @@ export interface PaymentStatusView {
 }
 
 export class PaymentsService {
-  /** Credenciales con las que se cobra: las del colegio si tiene, si no las de la plataforma. */
   private async tokenFor(institutionId?: string | null): Promise<{ token: string; sandbox: boolean; secret: string }> {
     const own = institutionId ? await financeRepository.getFinanceConfig(institutionId) : null;
     const global = await financeRepository.getFinanceConfig(null);
@@ -63,12 +56,10 @@ export class PaymentsService {
     return { token, sandbox: cfg?.mpIsSandbox ?? true, secret: cfg?.mpWebhookSecret?.trim() ?? '' };
   }
 
-  /** Link de pago: en modo de prueba, el del entorno de pruebas de Mercado Pago. */
   private link(pref: { initPoint: string; sandboxInitPoint?: string }, sandbox: boolean): string {
     return sandbox && pref.sandboxInitPoint ? pref.sandboxInitPoint : pref.initPoint;
   }
 
-  /** Cobro de la plataforma (suscripción o pago de prueba): primero la transacción, después el link con su referencia. */
   async platformCheckout(input: {
     institutionId?: string;
     subscriptionId?: string;
@@ -109,7 +100,6 @@ export class PaymentsService {
     return { transaction, preferenceUrl: url, sandbox };
   }
 
-  /** Cuota escolar con su link de pago. */
   async feeCheckout(
     institutionId: string,
     data: { courseId?: string; studentId?: string; title: string; period: string; amountArs: number; dueDate: string; tutorEmail?: string; tutorName?: string },
@@ -131,10 +121,6 @@ export class PaymentsService {
     return financeRepository.setFeePreference(fee.id, pref.id, this.link(pref, sandbox));
   }
 
-  /**
-   * Aviso de Mercado Pago. Se verifica la firma (si hay clave secreta configurada) y el pago se consulta a la API de
-   * Mercado Pago: el estado y el monto salen de ahí, no del aviso.
-   */
   async handleWebhook(input: {
     query: Record<string, unknown>;
     body: Record<string, any>;
@@ -153,10 +139,6 @@ export class PaymentsService {
     return { handled: Boolean(result), reason: result ? undefined : 'pago no encontrado o sin referencia de Habitar' };
   }
 
-  /**
-   * Al volver de Mercado Pago, la página de resultado pide sincronizar el pago (sirve aunque el aviso no llegue,
-   * por ejemplo en pruebas locales). También consulta a Mercado Pago: el navegador no puede marcar nada como pagado.
-   */
   async syncFromReturn(paymentId: string, reference: string): Promise<PaymentStatusView | null> {
     const ref = parseRef(reference);
     if (!ref) throw new BadRequestError('Referencia de pago inválida');
@@ -176,7 +158,6 @@ export class PaymentsService {
     if (ref.kind === 'tx') {
       const tx = await financeRepository.findTransaction(ref.id);
       if (!tx) return null;
-      // Un pago aprobado por otro monto no aprueba la transacción: queda pendiente para revisarla.
       const amountOk = Math.round(payment.amount) === Math.round(Number(tx.amountArs));
       const status = mapped.tx === 'APROBADO' && !amountOk ? 'PENDIENTE' : mapped.tx;
       if (tx.status !== status || tx.mpPaymentId !== payment.id) {

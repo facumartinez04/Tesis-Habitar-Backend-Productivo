@@ -12,7 +12,6 @@ export const revokedTokenRepository = {
        ON CONFLICT ("jti") DO NOTHING`,
       [jti, userId, expiresAt],
     );
-    // Los tokens vencidos ya no sirven: no hace falta seguir recordándolos.
     await query('DELETE FROM "RevokedToken" WHERE "expiresAt" < now()');
   },
 };

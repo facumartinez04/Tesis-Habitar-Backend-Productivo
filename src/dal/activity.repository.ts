@@ -44,15 +44,10 @@ export interface ActivityRepository {
   create(input: CreateActivityInput): Promise<Activity>;
   countResponses(activityId: string): Promise<number>;
   updateStatus(id: string, status: Activity['status']): Promise<Activity>;
-  /** Actividades abiertas o programadas: el reloj las publica o las cierra a la hora indicada. */
   findOpenOrScheduled(): Promise<Activity[]>;
-  /** Actividades abiertas o programadas de un curso, la más reciente primero. */
   findOpenOrScheduledByCourse(courseId: string): Promise<Activity[]>;
-  /** Cierra la actividad y borra su texto fuente: el alumno ya no lo necesita leer. */
   closeAndPurgeText(id: string): Promise<Activity>;
-  /** El docente pasó a todos a las preguntas. */
   releaseQuestions(id: string): Promise<Activity>;
-  /** true si la actividad se cerró hace menos de `ms` (la cuenta la hace la base, sin depender de zonas horarias). */
   closedWithin(id: string, ms: number): Promise<boolean>;
 }
 
@@ -201,7 +196,6 @@ export class SqlActivityRepository implements ActivityRepository {
       [id],
     );
     if (!row) throw new Error(`Activity ${id} no encontrada`);
-    // El documento original se borra con el texto: el alumno ya no lo necesita leer.
     await query('DELETE FROM "ActivityDocument" WHERE "activityId" = $1', [id]);
     return toDomain(row);
   }

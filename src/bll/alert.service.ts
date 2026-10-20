@@ -5,9 +5,7 @@ import { emailService } from '../services/email.service';
 import type { PerformanceAlert } from '../domain/alert';
 import type { ComprehensionAxis } from '../domain/enums';
 
-/** Actividades recientes del curso sobre las que se calcula el promedio que se compara con el umbral. */
 const RECENT_ACTIVITIES = 5;
-/** Más de esta cantidad de puntos debajo del umbral, la alerta es crítica. */
 const CRITICAL_GAP = 15;
 
 const AXES: ComprehensionAxis[] = ['LITERAL', 'INFERENCIAL', 'CRITICO'];
@@ -16,7 +14,6 @@ const AXIS_LABEL: Record<ComprehensionAxis, string> = { LITERAL: 'literal', INFE
 export interface AlertService {
   getByInstitution(institutionId: string): Promise<PerformanceAlert[]>;
   countOpen(institutionId: string): Promise<number>;
-  /** Compara el promedio reciente del curso con el umbral de la institución y abre, actualiza o resuelve alertas. */
   evaluateCourse(courseId: string): Promise<void>;
 }
 
@@ -49,7 +46,6 @@ export class DefaultAlertService implements AlertService {
 
     for (const axis of AXES) {
       const value = averages[axis];
-      // Un eje sin datos, o pendiente de revisión docente, no abre ni resuelve alertas.
       if (value === null) continue;
       const existing = open.find((a) => a.axis === axis);
 
@@ -71,8 +67,6 @@ export class DefaultAlertService implements AlertService {
       }
     }
 
-    // Un solo correo por evaluación y sólo por alertas nuevas, para no generar fatiga de notificaciones
-    // (CU-03-03, flujo 2.1). Si la institución desactivó los correos, la alerta igual queda registrada (2.2).
     if (nuevas.length > 0 && institution.alertEmailsEnabled && institution.coordinatorEmail) {
       const peor = nuevas.reduce((a, b) => (b.value < a.value ? b : a));
       await emailService.sendPerformanceAlertEmail({

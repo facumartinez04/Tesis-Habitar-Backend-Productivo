@@ -1,7 +1,3 @@
--- Migración 016: «pendiente de revisión» sólo cuando hay una respuesta escrita sin revisar.
--- La 014 agregó "criticoReviewed" con valor por defecto false, y los resultados anteriores
--- quedaron como pendientes aunque no tuvieran ninguna respuesta abierta que revisar.
-
 ALTER TABLE "StudentResult" ALTER COLUMN "criticoReviewed" SET DEFAULT true;
 
 UPDATE "StudentResult" sr

@@ -1,6 +1,5 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 
-/** API de Mercado Pago (se puede apuntar a un simulador en las pruebas con MP_API_URL). */
 const MP_API = (process.env.MP_API_URL ?? 'https://api.mercadopago.com').replace(/\/$/, '');
 
 export interface CreatePreferenceInput {
@@ -23,7 +22,6 @@ export interface PreferenceResult {
   sandboxInitPoint?: string;
 }
 
-/** Lo que importa de un pago según Mercado Pago (la fuente de verdad: nunca se confía en lo que llega en el aviso). */
 export interface MpPayment {
   id: string;
   status: string;
@@ -35,10 +33,6 @@ export interface MpPayment {
   dateApproved: string | null;
 }
 
-/**
- * Firma de los avisos de Mercado Pago: el encabezado x-signature trae «ts=…,v1=…», donde v1 es el HMAC-SHA256 (con
- * la clave secreta del webhook) de «id:<data.id>;request-id:<x-request-id>;ts:<ts>;».
- */
 export function verifyMpSignature(input: { signature?: string; requestId?: string; dataId: string; secret: string }): boolean {
   if (!input.signature) return false;
   const parts = Object.fromEntries(

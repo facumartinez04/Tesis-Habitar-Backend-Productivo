@@ -65,7 +65,6 @@ export class FinanceController {
     res.status(201).json(result);
   }
 
-  /** Pago de prueba del administrador: crea un cobro chico para probar el circuito completo de Mercado Pago. */
   async createTestPayment(req: Request, res: Response): Promise<void> {
     const amountArs = Number(req.body?.amountArs ?? 100);
     const result = await paymentsService.platformCheckout({
@@ -78,7 +77,6 @@ export class FinanceController {
     res.status(201).json(result);
   }
 
-  /** La página de resultado sincroniza el pago al volver de Mercado Pago (consulta a Mercado Pago, no al navegador). */
   async paymentReturn(req: Request, res: Response): Promise<void> {
     const paymentId = String(req.query.payment_id ?? req.query.collection_id ?? '').replace(/[^0-9]/g, '');
     const reference = String(req.query.external_reference ?? '');
@@ -228,10 +226,6 @@ export class FinanceController {
     res.json(saved);
   }
 
-  /**
-   * Aviso de Mercado Pago. Responde 200 cuando el aviso se procesó o no es de un pago de Habitar; si algo falla
-   * (por ejemplo, la API de Mercado Pago no responde) devuelve error para que Mercado Pago lo reintente.
-   */
   async handleMercadoPagoWebhook(req: Request, res: Response): Promise<void> {
     const result = await paymentsService.handleWebhook({
       query: req.query as Record<string, unknown>,
