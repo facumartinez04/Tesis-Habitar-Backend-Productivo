@@ -4,6 +4,7 @@ import { alertController } from '../controllers/alert.controller';
 import { resultController } from '../controllers/result.controller';
 import { userController } from '../controllers/user.controller';
 import { metricsController } from '../controllers/metrics.controller';
+import { adminAiController } from '../controllers/admin-ai.controller';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware';
 import {
   requireSameInstitution,
@@ -67,6 +68,14 @@ institutionRouter.patch(
   requireRole('ADMIN'),
   validateBody(updateInstitutionStatusSchema),
   institutionController.updateStatus.bind(institutionController),
+);
+
+institutionRouter.get(
+  '/:institutionId/ai-costs',
+  requireAuth,
+  requireRole('COORDINADOR', 'ADMIN'),
+  requireSameInstitution(),
+  adminAiController.institutionCosts.bind(adminAiController),
 );
 
 institutionRouter.get(

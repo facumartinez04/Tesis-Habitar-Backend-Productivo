@@ -1,5 +1,6 @@
 import { pool, query, queryOne } from '../config/db';
 import type { RecordAiUsageInput } from '../domain/aiUsage';
+import type { AiCostBreakdownRow, AiCostInstitution, AiCostMonthRow } from '../domain/aiCost';
 
 export interface AiPriceRow {
   provider: string;
@@ -198,6 +199,69 @@ export class SqlAiUsageRepository implements AiUsageRepository {
 
   async deletePrice(provider: string, model: string): Promise<void> {
     await query('DELETE FROM "AiPrice" WHERE "provider" = $1 AND "model" = $2', [provider.toUpperCase(), model]);
+  }
+
+  async institution(institutionId: string): Promise<AiCostInstitution | null> {
+    const row = await queryOne<Record<string, unknown>>(
+      `SELECT "id", "name", "aiKeySource", "aiProvider", "aiMonthlyBudgetUsd" FROM "Institution" WHERE "id" = $1`,
+      [institutionId],
+    );
+    if (!row) return null;
+    return {
+      institutionId: String(row.id),
+      name: String(row.name),
+      keySource: String(row.aiKeySource ?? 'PLATFORM'),
+      provider: String(row.aiProvider ?? 'DEEPSEEK'),
+      budgetUsd: row.aiMonthlyBudgetUsd === null || row.aiMonthlyBudgetUsd === undefined ? null : num(row.aiMonthlyBudgetUsd),
+    };
+  }
+
+  async institutionBreakdown(institutionId: string, month: string): Promise<AiCostBreakdownRow[]> {
+    const { from, to } = monthRange(month);
+    const rows = await query(
+      `SELECT "kind", UPPER("provider") AS "provider", "model", COALESCE("keySource", 'PLATAFORMA') AS "keySource",
+              COUNT(*) FILTER (WHERE "success") AS "calls",
+              COUNT(*) FILTER (WHERE NOT "success") AS "failed",
+              COALESCE(SUM("promptTokens"), 0) AS "promptTokens",
+              COALESCE(SUM("completionTokens"), 0) AS "completionTokens",
+              COALESCE(SUM("costUsd"), 0) AS "costUsd"
+         FROM "AiUsageEvent"
+        WHERE "institutionId" = $1
+          AND "createdAt" >= ($2::timestamptz AT TIME ZONE 'UTC') AND "createdAt" < ($3::timestamptz AT TIME ZONE 'UTC')
+        GROUP BY "kind", UPPER("provider"), "model", COALESCE("keySource", 'PLATAFORMA')`,
+      [institutionId, from, to],
+    );
+    return rows.map((r: Record<string, unknown>) => ({
+      kind: String(r.kind) as AiCostBreakdownRow['kind'],
+      provider: String(r.provider),
+      model: r.model === null || r.model === undefined ? null : String(r.model),
+      keySource: String(r.keySource) === 'PROPIA' ? 'PROPIA' : 'PLATAFORMA',
+      calls: num(r.calls),
+      failed: num(r.failed),
+      promptTokens: num(r.promptTokens),
+      completionTokens: num(r.completionTokens),
+      costUsd: num(r.costUsd),
+    }));
+  }
+
+  async institutionHistory(institutionId: string, months: number): Promise<AiCostMonthRow[]> {
+    const [y, m] = currentMonthAR().split('-').map(Number);
+    const out: AiCostMonthRow[] = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const month = new Date(Date.UTC(y, m - 1 - i, 1)).toISOString().slice(0, 7);
+      const { from, to } = monthRange(month);
+      const row = await queryOne<Record<string, unknown>>(
+        `SELECT COALESCE(SUM("costUsd") FILTER (WHERE COALESCE("keySource", 'PLATAFORMA') = 'PLATAFORMA'), 0) AS "platform",
+                COALESCE(SUM("costUsd") FILTER (WHERE "keySource" = 'PROPIA'), 0) AS "own",
+                COUNT(*) FILTER (WHERE "success") AS "calls"
+           FROM "AiUsageEvent"
+          WHERE "institutionId" = $1
+            AND "createdAt" >= ($2::timestamptz AT TIME ZONE 'UTC') AND "createdAt" < ($3::timestamptz AT TIME ZONE 'UTC')`,
+        [institutionId, from, to],
+      );
+      out.push({ month, platformCostUsd: num(row?.platform), ownCostUsd: num(row?.own), calls: num(row?.calls) });
+    }
+    return out;
   }
 
   async getBudget(institutionId: string): Promise<number | null> {
