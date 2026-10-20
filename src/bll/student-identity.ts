@@ -2,9 +2,7 @@ import { BadRequestError } from '../utils/http-error';
 import type { StudentIdMode } from '../domain/institution';
 
 export interface StudentIdentity {
-  /** Cómo se guarda y se muestra al docente: «N.º 12» o el nombre ingresado. */
   displayName: string;
-  /** Clave de comparación para la vinculación de dispositivos: sin mayúsculas, tildes ni espacios dobles. */
   normalized: string;
 }
 
@@ -17,10 +15,6 @@ export function normalizeStudentName(name: string): string {
     .replace(/\s+/g, ' ');
 }
 
-/**
- * Identificación del alumno: con nombre y apellido (por defecto) o, si la institución lo elige, con su número de
- * lista. El alumno no crea cuenta ni deja datos de contacto.
- */
 export function resolveStudentIdentity(mode: StudentIdMode, raw: string | undefined | null): StudentIdentity {
   const value = (raw ?? '').trim().replace(/\s+/g, ' ');
 
@@ -34,8 +28,6 @@ export function resolveStudentIdentity(mode: StudentIdMode, raw: string | undefi
     return { displayName, normalized: normalizeStudentName(displayName) };
   }
 
-  // Nombre y apellido: sólo letras (con tildes, ñ, apóstrofo o guion), al menos dos palabras. Se guarda con
-  // mayúscula inicial para que «juan pérez» y «Juan Pérez» sean el mismo alumno y se vean iguales.
   if (value.length < 3 || value.length > 80 || !/^[\p{L}][\p{L}'’\- ]*[\p{L}]$/u.test(value)) {
     throw new BadRequestError('Ingresá tu nombre y apellido, sólo con letras');
   }
@@ -46,7 +38,6 @@ export function resolveStudentIdentity(mode: StudentIdMode, raw: string | undefi
   return { displayName, normalized: normalizeStudentName(displayName) };
 }
 
-/** Mayúscula inicial en cada palabra (y después de guion o apóstrofo): «maría-josé o'neill» → «María-José O'Neill». */
 export function formatStudentName(value: string): string {
   return value
     .trim()

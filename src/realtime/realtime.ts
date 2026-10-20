@@ -7,16 +7,6 @@ import { userRepository } from '../dal/user.repository';
 import { activityRepository } from '../dal/activity.repository';
 import { courseRepository } from '../dal/course.repository';
 
-/**
- * Avisos en tiempo real por WebSocket (Socket.IO). El canal sólo avisa que algo cambió; cada pantalla vuelve a
- * pedir los datos por la API, que sigue siendo la única fuente de verdad y aplica sus controles de acceso.
- *
- * Salas:
- *   course:<id>   público — el aula (QR fijo): se abrió, se cerró o se creó una actividad.
- *   activity:<id> público — la pantalla del alumno: cambió el estado de la actividad.
- *   live:<id>     docente — el panel en vivo: llegó una respuesta, se revisó una corrección, cambió el estado.
- */
-
 let io: Server | null = null;
 
 const MAX_ROOMS_PER_SOCKET = 6;
@@ -97,33 +87,25 @@ export function attachRealtime(server: HttpServer): Server {
 }
 
 export const realtime = {
-  /** Cambió el estado o los datos de una actividad (creada, publicada, cerrada). */
   activityChanged(activity: { id: string; courseId: string; status: string }): void {
     if (!io) return;
     io.to(`course:${activity.courseId}`).emit('course:changed');
     io.to(`activity:${activity.id}`).emit('activity:changed', { status: activity.status });
     io.to(`live:${activity.id}`).emit('live:changed');
   },
-  /** Pasó la hora de cierre: el aula deja de ofrecer la actividad (los envíos finales todavía entran). */
   courseChanged(courseId: string): void {
     io?.to(`course:${courseId}`).emit('course:changed');
   },
-  /** El docente pasó a todos a las preguntas. */
   questionsReleased(activity: { id: string; status: string }): void {
     if (!io) return;
     io.to(`activity:${activity.id}`).emit('activity:changed', { status: activity.status, event: 'questions-released' });
     io.to(`live:${activity.id}`).emit('live:changed');
   },
-  /** El docente corrigió una pregunta: los alumnos vuelven a pedirlas (sin la respuesta correcta). */
   questionsUpdated(activity: { id: string; status: string }): void {
     if (!io) return;
     io.to(`activity:${activity.id}`).emit('activity:changed', { status: activity.status, event: 'questions-updated' });
     io.to(`live:${activity.id}`).emit('live:changed');
   },
-  /**
-   * Llegó una respuesta, avanzó un alumno, la IA propuso una corrección o el docente revisó una. Con un curso entero
-   * avanzando a la vez, se agrupan los avisos: como mucho uno por segundo por actividad.
-   */
   liveChanged(activityId: string): void {
     if (!io || pendingLive.has(activityId)) return;
     const last = lastLive.get(activityId) ?? 0;

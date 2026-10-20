@@ -1,4 +1,3 @@
-/** Puntaje de 0 a 100, o null si el eje no se midió en ese intento. */
 export type Score = number | null;
 
 export interface AxisScores {
@@ -14,7 +13,6 @@ export interface StudentResultRow {
   studentName: string;
   scores: AxisScores | null;
   status: PerformanceStatus;
-  /** El eje crítico del último intento espera la revisión del docente. */
   criticoPending: boolean;
 }
 
@@ -27,7 +25,6 @@ export interface CourseResultSummary {
   averages: AxisScores;
   status: PerformanceStatus;
   rows: StudentResultRow[];
-  /** Respuestas abiertas del curso que esperan la revisión del docente. */
   pendingReviews: number;
 }
 
@@ -82,7 +79,6 @@ export interface DiagnosticStudentRow {
   studentName: string;
   inicio: AxisScores | null;
   cierre: AxisScores | null;
-  /** cierre − inicio por eje; null si falta alguna de las dos o el eje no se midió. */
   delta: AxisScores | null;
 }
 
@@ -91,11 +87,8 @@ export interface DiagnosticComparison {
   courseName: string;
   inicio: { activityId: string; name: string; date: string } | null;
   cierre: { activityId: string; name: string; date: string } | null;
-  /** Promedio del curso entre los alumnos que respondieron las dos diagnósticas. */
   course: { inicio: AxisScores; cierre: AxisScores; delta: AxisScores } | null;
-  /** Alumnos con las dos diagnósticas respondidas. */
   students: DiagnosticStudentRow[];
-  /** Alumnos que respondieron sólo una: se muestran aparte, sin inventar el dato que falta. */
   incomplete: DiagnosticStudentRow[];
 }
 
@@ -103,7 +96,6 @@ export interface AxisRecommendation {
   courseId: string;
   threshold: number;
   averages: AxisScores;
-  /** Eje más bajo, si está debajo del umbral; null si todos lo superan o no hay datos. */
   focusAxis: 'LITERAL' | 'INFERENCIAL' | 'CRITICO' | null;
   message: string;
 }

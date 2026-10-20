@@ -21,7 +21,6 @@ export class SqlReadingHelpRepository {
     return row!;
   }
 
-  /** Conversación de un alumno en la actividad, de la más vieja a la más nueva. */
   async listForStudent(activityId: string, studentKey: string): Promise<ReadingHelpRow[]> {
     return query<ReadingHelpRow>(
       `SELECT * FROM "ReadingHelpMessage" WHERE "activityId" = $1 AND "studentKey" = $2 ORDER BY "createdAt"`,
@@ -29,7 +28,6 @@ export class SqlReadingHelpRepository {
     );
   }
 
-  /** Dudas de toda la actividad para el panel del docente, de la más nueva a la más vieja. */
   async listByActivity(activityId: string, limit = 200): Promise<ReadingHelpRow[]> {
     return query<ReadingHelpRow>(
       `SELECT * FROM "ReadingHelpMessage" WHERE "activityId" = $1 ORDER BY "createdAt" DESC LIMIT $2`,

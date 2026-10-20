@@ -7,7 +7,6 @@ import type { Role } from '../domain/enums';
 export interface DashboardFilters {
   courseId?: string;
   studentId?: string;
-  /** Rango de días en hora argentina (AAAA-MM-DD), inclusive. */
   from?: string;
   to?: string;
 }
@@ -15,7 +14,6 @@ export interface DashboardFilters {
 type Avg = { literal: number | null; inferencial: number | null; critico: number | null };
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
-/** Día en hora argentina de una marca guardada en UTC. */
 const AR_DAY = `(sr."createdAt" - interval '3 hours')::date`;
 
 const n = (v: unknown) => Number(v ?? 0);
@@ -27,10 +25,6 @@ const avgOf = (r: Record<string, unknown>): Avg => ({
 const AVGS = `AVG(sr."literalScore") AS "literal", AVG(sr."inferencialScore") AS "inferencial",
               AVG(sr."criticoScore") FILTER (WHERE sr."criticoReviewed") AS "critico"`;
 
-/**
- * Tablero de resultados con filtros por aula, alumno y días. El docente ve sus aulas; la coordinación, la dirección
- * y el administrador (viendo como la institución), todas las de la institución.
- */
 export class DashboardService {
   private async allowedCourses(auth: { sub: string; role: Role; institutionId: string }) {
     const courses = auth.role === 'DOCENTE' ? await courseRepository.findByTeacher(auth.sub) : await courseRepository.findByInstitution(auth.institutionId);
@@ -44,7 +38,6 @@ export class DashboardService {
     if (filters.courseId && !allowed.includes(filters.courseId)) throw new ForbiddenError('No tenés acceso a esa aula');
     const scope = filters.courseId ? [filters.courseId] : allowed;
 
-    // Alumnos para el filtro: los del aula elegida (o de todas las aulas visibles).
     const students = scope.length
       ? await query<{ id: string; name: string; courseName: string }>(
           `SELECT s."id", s."name", c."name" AS "courseName" FROM "Student" s JOIN "Course" c ON c."id" = s."courseId"
@@ -66,7 +59,6 @@ export class DashboardService {
       return { filters, courses, students: [], kpis: null, byDay: [], byCourse: [], byStudent: [], byActivity: [], timeline: [], diagnostic: { inicio: null, cierre: null } };
     }
 
-    // Evolución del alumno: una fila por actividad, en orden. Diagnóstica: inicio contra cierre en el filtro actual.
     const timeline = filters.studentId
       ? await query(
           `SELECT a."id", a."name", a."availableFrom" AS "date", a."diagnosticType", to_char(${AR_DAY}, 'YYYY-MM-DD') AS "day", ${AVGS}

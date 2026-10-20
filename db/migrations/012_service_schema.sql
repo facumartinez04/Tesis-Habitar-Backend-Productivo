@@ -1,6 +1,3 @@
--- Migración 012: Schema "service" para datos operacionales (chat, telemetría)
--- Las tablas de negocio quedan en public; las nuevas tablas operacionales van en service.
-
 CREATE SCHEMA IF NOT EXISTS service;
 
 CREATE TABLE IF NOT EXISTS service."ChatMessage" (

@@ -3,15 +3,9 @@ import { activityService } from '../bll/activity.service';
 import { pastEndTime } from '../bll/activity-window';
 import { realtime } from './realtime';
 
-/**
- * Reloj de actividades: cada 30 segundos publica las programadas que llegaron a su hora de inicio y cierra las
- * vencidas (borrando su texto). Antes esto sólo pasaba cuando alguien consultaba la actividad; ahora el aula y
- * el panel del docente se enteran solos, en tiempo real.
- */
 const INTERVAL_MS = 30_000;
 
 let running = false;
-/** Actividades cuya hora de cierre ya se avisó al aula (los envíos finales siguen entrando unos minutos). */
 const endNotified = new Set<string>();
 
 async function tick(): Promise<void> {

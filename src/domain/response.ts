@@ -1,8 +1,6 @@
 export interface AnswerInput {
   questionId: string;
-  /** Preguntas de opción múltiple (literal e inferencial). */
   selectedOption?: string;
-  /** Preguntas abiertas (eje crítico). */
   textAnswer?: string;
 }
 

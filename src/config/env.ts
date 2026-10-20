@@ -11,23 +11,16 @@ export const env = {
   jwtSecret: requireEnv('JWT_SECRET'),
   databaseUrl: requireEnv('DATABASE_URL'),
   frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:4321',
-  /** URL pública de esta API (Mercado Pago avisa los pagos acá). */
   apiPublicUrl: (process.env.API_PUBLIC_URL ?? 'https://api.habitar.lat').replace(/\/$/, ''),
-  /** Orígenes que pueden llamar a la API. Por defecto, sólo el frontend. */
   corsOrigins: (process.env.CORS_ORIGINS ?? process.env.FRONTEND_URL ?? 'http://localhost:4321')
     .split(',')
     .map((origin) => origin.trim().replace(/\/$/, ''))
     .filter(Boolean),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '12h',
-  /**
-   * Correos con acceso de administrador de la plataforma. Sin valor por defecto:
-   * un acceso privilegiado nunca puede quedar habilitado por omisión.
-   */
   superAdminEmails: (process.env.SUPER_ADMIN_EMAILS ?? '')
     .split(',')
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean),
-  /** Verificar el certificado TLS de la base. Recomendado; ver db.ts. */
   databaseSslStrict: process.env.DATABASE_SSL_STRICT === 'true',
   mercadoPagoWebhookSecret: process.env.MERCADOPAGO_WEBHOOK_SECRET ?? '',
   azureSpeech: {
@@ -54,7 +47,6 @@ export const env = {
       clientId: process.env.GOOGLE_CLIENT_ID ?? '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
       redirectUri: process.env.GOOGLE_REDIRECT_URI ?? '',
-      /** Clave de API del selector de archivos de Google (pública; restringirla por referer a habitar.lat). */
       pickerApiKey: process.env.GOOGLE_PICKER_API_KEY ?? '',
     },
     microsoft: {

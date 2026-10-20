@@ -8,11 +8,6 @@ export const jiraRouter = Router();
 
 const AI_TOKEN_PREFIX = 'hab_jira_';
 
-/**
- * Las tarjetas aceptan dos credenciales: un token de IA válido (para agentes
- * externos) o una sesión de administrador. Antes, un pedido sin credenciales
- * también pasaba.
- */
 async function aiTokenOrAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization ?? '';
   const token = header.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
@@ -36,8 +31,6 @@ jiraRouter.patch('/issues/:id', aiTokenOrAdmin, (req, res, next) => jiraControll
 jiraRouter.delete('/issues/:id', aiTokenOrAdmin, (req, res, next) => jiraController.remove(req, res, next));
 jiraRouter.post('/ai/cards', aiTokenOrAdmin, (req, res, next) => jiraController.aiCreateCards(req, res, next));
 
-// Administrar tokens exige una sesión de administrador: un token de IA no puede
-// crear ni listar otros tokens.
 jiraRouter.get('/tokens', requireAuth, requireRole('ADMIN'), (req, res, next) => jiraController.getTokens(req, res, next));
 jiraRouter.post('/tokens', requireAuth, requireRole('ADMIN'), (req, res, next) => jiraController.createToken(req, res, next));
 jiraRouter.delete('/tokens/:id', requireAuth, requireRole('ADMIN'), (req, res, next) => jiraController.deleteToken(req, res, next));

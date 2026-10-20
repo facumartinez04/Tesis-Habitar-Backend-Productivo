@@ -7,10 +7,6 @@ import { pageOf, type PageRequest } from '../utils/pagination';
 
 const args = (page: PageRequest) => ({ limit: page.pageSize, offset: (page.page - 1) * page.pageSize, q: page.q });
 
-/**
- * Datos de cada institución para el administrador de la plataforma: listados paginados y borrado definitivo de
- * actividades, aulas y alumnos. Todo borrado queda en el historial con quién lo hizo y qué arrastró.
- */
 export class AdminDataService {
   private async assertInstitution(institutionId: string): Promise<void> {
     if (!(await institutionRepository.findById(institutionId))) throw new NotFoundError('Institución no encontrada');
@@ -49,7 +45,6 @@ export class AdminDataService {
     if (!activity) throw new NotFoundError('Actividad no encontrada');
     const actor = await authService.getSessionUser(actorId);
     const result = await adminDataRepository.deleteActivity(activity, { name: actor.name, id: actor.id });
-    // Si estaba abierta, los alumnos y el aula se enteran de que ya no está.
     realtime.activityChanged({ ...activity, status: 'CERRADA' });
     return result;
   }

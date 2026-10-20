@@ -9,7 +9,6 @@ import { pastEndTime } from './activity-window';
 import { realtime } from '../realtime/realtime';
 import { BadRequestError, ConflictError, UpstreamError } from '../utils/http-error';
 
-/** Consultas por alumno y por actividad: alcanza para las palabras difíciles de un texto y acota el costo. */
 export const HELP_LIMIT = 20;
 const HISTORY_SENT = 6;
 
@@ -32,7 +31,6 @@ function toMessage(row: { id: string; question: string; answer: string; declined
 }
 
 export class ReadingHelpService {
-  /** Conversación del alumno, para mostrarla al volver a entrar. */
   async conversation(code: string, rawName: string, deviceId: string | undefined): Promise<HelpConversation> {
     const activity = await openActivity(code);
     const { identity } = await resolveStudentInActivity(activity, rawName, deviceId);
@@ -40,10 +38,6 @@ export class ReadingHelpService {
     return { enabled: activity.readingHelp, remaining: Math.max(0, HELP_LIMIT - rows.length), messages: rows.map(toMessage) };
   }
 
-  /**
-   * Responde una duda sobre el texto. La IA recibe el texto y las consignas de la actividad para no responderlas;
-   * la duda queda registrada y el docente la ve en el panel en vivo.
-   */
   async ask(
     code: string,
     input: { studentDisplayName: string; deviceId?: string; question: string },

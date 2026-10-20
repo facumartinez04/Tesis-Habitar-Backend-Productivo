@@ -5,14 +5,6 @@ import { activityRepository } from '../dal/activity.repository';
 import { userRepository } from '../dal/user.repository';
 import { ForbiddenError, NotFoundError, UnauthorizedError } from '../utils/http-error';
 
-/**
- * Control de pertenencia entre instituciones.
- *
- * Toda ruta que reciba un id de institución o de un recurso que pertenece a una
- * institución tiene que verificar que coincide con la del token. El administrador
- * de la plataforma (rol real ADMIN) es la única excepción.
- */
-
 function isPlatformAdmin(req: Request): boolean {
   return req.auth?.realRole === 'ADMIN';
 }
@@ -25,7 +17,6 @@ export function assertSameInstitution(req: Request, institutionId: string | null
   }
 }
 
-/** Para recursos: si no pertenece a la institución, se responde como si no existiera. */
 function assertOwned(req: Request, institutionId: string | null | undefined, what: string): void {
   if (!req.auth) throw new UnauthorizedError();
   if (isPlatformAdmin(req)) return;
@@ -58,7 +49,6 @@ export async function assertUserAccess(req: Request, userId: string): Promise<vo
   assertOwned(req, user?.institutionId ?? null, 'Usuario');
 }
 
-/** La institución de la URL tiene que ser la del token. */
 export function requireSameInstitution(param = 'institutionId') {
   return (req: Request, _res: Response, next: NextFunction): void => {
     assertSameInstitution(req, String(req.params[param] ?? ''));

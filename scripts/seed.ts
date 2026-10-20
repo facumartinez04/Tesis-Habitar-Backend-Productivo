@@ -9,7 +9,6 @@ async function main() {
   try {
     await client.query('BEGIN');
 
-    // Limpiar datos existentes (orden que respeta las foreign keys).
     for (const table of [
       'Answer',
       'StudentResult',

@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 export const generateQuestionsSchema = z.object({
   sourceText: z.string().min(10).max(20000),
-  /** Eje foco: la mezcla de preguntas se carga hacia ese eje (mejora 2). */
   focusAxis: z.enum(['LITERAL', 'INFERENCIAL', 'CRITICO']).optional(),
 });
 
@@ -25,7 +24,6 @@ export const createActivitySchema = z.object({
   sourceText: z.string().min(10),
   availableFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   startTime: z.string().regex(/^\d{2}:\d{2}$/),
-  /** Fecha de cierre; sin ella, cierra el mismo día que abre. */
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   endTime: z.string().regex(/^\d{2}:\d{2}$/),
   attemptPolicy: z.enum(['UNICO', 'REINTENTOS']),
@@ -35,7 +33,6 @@ export const createActivitySchema = z.object({
   readingMode: z.enum(['LECTURA_PRIMERO', 'DOCENTE_HABILITA', 'LIBRE']).optional(),
   readingHelp: z.boolean().optional(),
   showFeedback: z.boolean().optional(),
-  /** Actividad del banco de la que sale (para copiar su documento). */
   templateId: z.string().max(64).optional(),
 });
 

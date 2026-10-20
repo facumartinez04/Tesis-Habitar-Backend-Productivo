@@ -1,5 +1,3 @@
--- Migration 004: Tablas de Jira e integración para IA (Tokens de Acceso)
-
 CREATE TABLE IF NOT EXISTS "JiraIssue" (
   "id" VARCHAR(32) PRIMARY KEY,
   "title" TEXT NOT NULL,

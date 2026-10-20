@@ -15,9 +15,7 @@ export interface PublicCourseInfo {
     endTime: string;
     endDate: string;
   } | null;
-  /** Próxima actividad programada, si no hay ninguna abierta: el aula muestra a qué hora empieza. */
   upcomingActivity: { code: string; name: string; availableFrom: string; startTime: string } | null;
-  /** Cómo se identifica el alumno en esta institución, para que la pantalla pida el dato correcto. */
   studentIdMode: 'LISTA' | 'NOMBRE';
 }
 
@@ -75,8 +73,6 @@ export class DefaultCourseService implements CourseService {
 
   async getPublicCourseByQr(qrCode: string): Promise<PublicCourseInfo> {
     const course = await this.getByQrCode(qrCode);
-    // La actividad del aula se calcula a partir de las actividades del curso: la abierta más reciente o la
-    // próxima programada. Antes dependía de un puntero que nadie actualizaba al crear una actividad.
     const { activityService } = await import('./activity.service');
     const { open, upcoming } = await activityService.currentForCourse(course.id);
     const institution = await institutionRepository.findById(course.institutionId);

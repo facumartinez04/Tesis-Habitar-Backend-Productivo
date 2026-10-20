@@ -7,7 +7,6 @@ import { startActivityClock } from './realtime/activity-clock';
 const app = createApp();
 const server = createServer(app);
 
-// WebSocket en /realtime: avisos en vivo para el aula, el alumno y el panel del docente.
 attachRealtime(server);
 startActivityClock();
 

@@ -1,5 +1,3 @@
--- Migración 011: Dispositivos de alumnos vinculados al aula física y control de unicidad
-
 CREATE TABLE IF NOT EXISTS "CourseStudentDevice" (
   "id" TEXT PRIMARY KEY,
   "courseId" TEXT NOT NULL REFERENCES "Course"("id") ON DELETE CASCADE,

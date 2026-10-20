@@ -16,17 +16,11 @@ function assertProvider(value: string): asserts value is OAuthProviderId {
 }
 
 export class AuthController {
-  /**
-   * Datos públicos para elegir textos desde Google Drive u OneDrive en el navegador. El archivo se lee en el
-   * dispositivo del docente con su propio permiso: no pasa por el servidor ni se guarda (modelo BYOC, §8.3).
-   */
   integrations(_req: Request, res: Response): void {
     const google = env.oauth.google;
     const microsoft = env.oauth.microsoft;
-    // El número de proyecto (prefijo del client ID) es el appId que el selector necesita con el permiso drive.file.
     const appId = google.clientId.split('-')[0];
     res.json({
-      // La clave del selector es opcional: con el token OAuth del docente el selector suele funcionar sin ella.
       googleDrive: google.clientId ? { clientId: google.clientId, apiKey: google.pickerApiKey, appId } : null,
       oneDrive: microsoft.clientId ? { clientId: microsoft.clientId, tenantId: microsoft.tenantId || 'common' } : null,
     });
@@ -37,7 +31,6 @@ export class AuthController {
     res.json({ user });
   }
 
-  /** Revoca el token actual: deja de servir aunque todavía no haya vencido. */
   async logout(req: Request, res: Response): Promise<void> {
     const { jti, exp, sub } = req.auth!;
     if (jti && exp) await authService.logout(jti, sub, exp);
@@ -83,8 +76,6 @@ export class AuthController {
         codeVerifier,
       });
 
-      // El token viaja en el fragmento (#), no en el query string: el navegador
-      // no lo envía a ningún servidor y no queda en logs ni en el Referer.
       const redirectTo = new URL('/auth/callback', env.frontendUrl);
       redirectTo.hash = new URLSearchParams({
         token: session.token,

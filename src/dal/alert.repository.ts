@@ -44,7 +44,6 @@ export interface AlertRepository {
   open(input: Omit<PerformanceAlert, 'id' | 'courseName' | 'teacherName'>): Promise<void>;
   update(id: string, currentValue: number, severity: PerformanceAlert['severity'], message: string): Promise<void>;
   resolve(id: string, currentValue: number): Promise<void>;
-  /** Promedio por eje de las últimas actividades con resultados del curso (último intento de cada alumno). */
   recentCourseAverages(courseId: string, lastActivities: number): Promise<AxisAverages>;
 }
 

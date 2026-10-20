@@ -5,11 +5,7 @@ import { rateLimit } from '../middlewares/rate-limit.middleware';
 
 export const authRouter = Router();
 
-// El único camino a una sesión es el login institucional por OpenID Connect.
-// Se eliminaron POST /login y POST /admin-session, que emitían tokens sin
-// credenciales.
 authRouter.get('/me', requireAuth, authController.me.bind(authController));
-// Identificadores públicos para Google Drive y OneDrive en el navegador (sin secretos).
 authRouter.get('/integrations', authController.integrations.bind(authController));
 authRouter.post('/logout', requireAuth, authController.logout.bind(authController));
 

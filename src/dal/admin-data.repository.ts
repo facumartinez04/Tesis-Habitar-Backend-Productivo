@@ -1,7 +1,6 @@
 import type { PoolClient } from 'pg';
 import { query, queryOne, withTransaction } from '../config/db';
 
-/** Datos de una institución que el administrador de la plataforma puede revisar y borrar. */
 export interface AdminActivityRow {
   id: string;
   code: string;
@@ -61,7 +60,6 @@ async function paged<T>(select: string, from: string, order: string, params: unk
   return { items: rows as T[], total: Number(count?.total ?? 0) };
 }
 
-/** Borra una actividad con todo lo que cuelga de ella (respuestas, resultados, progreso, avisos y dudas). */
 async function deleteActivityTx(client: PoolClient, activityId: string): Promise<number> {
   const { rowCount } = await client.query('DELETE FROM "Response" WHERE "activityId" = $1', [activityId]);
   await client.query('DELETE FROM "StudentResult" WHERE "activityId" = $1', [activityId]);
@@ -145,7 +143,6 @@ export class SqlAdminDataRepository {
     );
   }
 
-  /** Borra la actividad y deja el registro en el historial, todo o nada. */
   async deleteActivity(
     activity: { id: string; name: string; institutionId: string },
     actor: { name: string; id: string },
@@ -157,7 +154,6 @@ export class SqlAdminDataRepository {
     });
   }
 
-  /** Borra el aula con sus actividades, alumnos, alertas y celulares vinculados. */
   async deleteCourse(
     course: { id: string; name: string; institutionId: string },
     actor: { name: string; id: string },
@@ -175,7 +171,6 @@ export class SqlAdminDataRepository {
     });
   }
 
-  /** Borra al alumno con sus respuestas y resultados. */
   async deleteStudent(
     student: { id: string; name: string; courseName: string; institutionId: string },
     actor: { name: string; id: string },

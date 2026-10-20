@@ -19,7 +19,6 @@ export const courseRouter = Router();
 courseRouter.get('/', requireAuth, requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'), courseController.listMine.bind(courseController));
 courseRouter.post('/', requireAuth, requireRole('COORDINADOR', 'ADMIN'), validateBody(createCourseSchema), courseController.create.bind(courseController));
 courseRouter.get('/by-qr/:qrCode', requireAuth, courseController.getByQr.bind(courseController));
-// Públicas para el alumno; los límites contemplan un aula entera detrás de la misma IP.
 const classroomLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 600, name: 'classroom' });
 
 courseRouter.get('/public-info/:qrCode', classroomLimit, courseController.getPublicInfoByQr.bind(courseController));

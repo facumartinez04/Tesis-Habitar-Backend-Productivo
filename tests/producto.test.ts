@@ -1,5 +1,3 @@
-// Pruebas de las reglas de producto que la tesis promete. No necesitan base de datos.
-// Correr con: npm test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { computeScores, pseudonymize } from '../src/bll/activity.service';
@@ -97,7 +95,6 @@ test('ventana horaria en hora argentina, con tolerancia para el envío automáti
   assert.equal(hasOpened(act, Date.parse('2026-10-18T11:00:00Z')), true);
   assert.equal(hasClosed(act, Date.parse('2026-10-18T15:00:00Z') + SUBMIT_GRACE_MS - 1), false);
   assert.equal(hasClosed(act, Date.parse('2026-10-18T15:00:00Z') + SUBMIT_GRACE_MS + 1), true);
-  // Un horario inválido no cierra la actividad.
   assert.equal(hasClosed({ availableFrom: '2026-10-18', startTime: '12:00', endTime: '08:00' }, Date.now() + 1e12), false);
 });
 
@@ -105,7 +102,6 @@ test('a la IA no le llega el nombre del alumno ni el de la institución', () => 
   const texto = 'Yo, Mateo González, del Colegio San José, opino que mateo tiene razón.';
   const salida = pseudonymize(texto, ['Mateo González', 'Colegio San José']);
   assert.ok(!/mateo|gonz|san jos/i.test(salida), salida);
-  // Los tokens cortos no se reemplazan, para no romper el texto.
   assert.equal(pseudonymize('Ana fue al río', ['Al']), 'Ana fue al río');
 });
 
@@ -125,12 +121,10 @@ test('la ventana puede cerrar otro día: de las 22:00 a las 10:00 del día sigui
   const { opensAt, closesAt } = activityWindow(act);
   assert.equal(opensAt?.toISOString(), '2026-10-20T01:00:00.000Z');
   assert.equal(closesAt?.toISOString(), '2026-10-20T13:00:00.000Z');
-  // A la medianoche sigue abierta; al otro día a las 9 también; a las 10:11 ya cerró.
   assert.equal(hasOpened(act, Date.parse('2026-10-20T03:00:00Z')), true);
   assert.equal(hasClosed(act, Date.parse('2026-10-20T03:00:00Z')), false);
   assert.equal(hasClosed(act, Date.parse('2026-10-20T12:00:00Z')), false);
   assert.equal(hasClosed(act, Date.parse('2026-10-20T13:00:00Z') + SUBMIT_GRACE_MS + 1), true);
-  // Sin fecha de cierre, una hora de cierre anterior a la de inicio no es una ventana válida.
   assert.equal(activityWindow({ availableFrom: '2026-10-19', startTime: '22:00', endTime: '10:00' }).closesAt, null);
 });
 

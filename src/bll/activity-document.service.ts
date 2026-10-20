@@ -10,7 +10,6 @@ import { BadRequestError, ConflictError, NotFoundError } from '../utils/http-err
 
 export const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
 
-/** El tipo se decide por el contenido, no por lo que dice el navegador: un PDF empieza con «%PDF» y un .docx es un ZIP. */
 function detectMime(data: Buffer): DocumentMime | null {
   if (data.subarray(0, 5).toString('latin1') === '%PDF-') return PDF_MIME;
   if (data[0] === 0x50 && data[1] === 0x4b && data[2] === 0x03 && data[3] === 0x04 && data.includes('word/document.xml')) return DOCX_MIME;
@@ -35,10 +34,6 @@ function parsePages(raw: string | undefined): number[] | null {
   return pages.sort((a, b) => a - b);
 }
 
-/**
- * Documento original de la actividad. El docente lo sube al crearla; el alumno lo lee mientras está abierta. Al
- * cerrarse, se borra junto con el texto (§8.5).
- */
 export class ActivityDocumentService {
   async upload(
     activityId: string,
@@ -59,7 +54,6 @@ export class ActivityDocumentService {
     });
   }
 
-  /** El archivo para el alumno, sólo mientras la actividad está abierta. */
   async forStudent(code: string): Promise<{ mimeType: DocumentMime; fileName: string; data: Buffer }> {
     const { openActivity } = await import('./activity-session.service');
     const activity = await openActivity(code);

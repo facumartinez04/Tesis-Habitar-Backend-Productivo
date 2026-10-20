@@ -65,10 +65,6 @@ function summary(r: TemplateRow, userId: string): TemplateSummary {
   };
 }
 
-/**
- * Banco de actividades de la institución. El docente guarda una actividad (texto, preguntas aprobadas y, si tiene,
- * el documento original) y cualquier docente de la misma institución la puede reutilizar sin volver a generar.
- */
 export class ActivityTemplateService {
   async saveFromActivity(activityId: string, auth: { sub: string; institutionId: string }): Promise<TemplateSummary> {
     const activity = await activityRepository.findById(activityId);
@@ -131,7 +127,6 @@ export class ActivityTemplateService {
     return row;
   }
 
-  /** Texto y preguntas para cargar en el asistente. Cuenta como un uso. */
   async use(id: string, auth: { sub: string; institutionId: string }): Promise<TemplateDetail> {
     const row = await this.own(id, auth.institutionId);
     await query('UPDATE "ActivityTemplate" SET "uses" = "uses" + 1 WHERE "id" = $1', [id]);
@@ -139,7 +134,6 @@ export class ActivityTemplateService {
     return { ...s, uses: s.uses + 1, sourceText: row.sourceText, questions: JSON.parse(row.questionsJson) as CreateQuestionInput[] };
   }
 
-  /** Copia el documento del banco a la actividad nueva (si la actividad no trae uno propio). */
   async copyDocument(templateId: string, activityId: string, institutionId: string): Promise<boolean> {
     await this.own(templateId, institutionId);
     const existing = await activityDocumentRepository.meta(activityId);
@@ -154,7 +148,6 @@ export class ActivityTemplateService {
     return r.length > 0;
   }
 
-  /** Lo borra quien lo guardó, o la coordinación. */
   async remove(id: string, auth: { sub: string; institutionId: string; role: string }): Promise<void> {
     const row = await this.own(id, auth.institutionId);
     if (row.authorId !== auth.sub && auth.role === 'DOCENTE') throw new ForbiddenError('Sólo quien la guardó o la coordinación puede borrarla');

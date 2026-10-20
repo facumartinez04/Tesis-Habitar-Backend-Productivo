@@ -1,5 +1,3 @@
--- Migration 005: Sistema de Roles Dinámicos y Matriz de Permisos por Módulo (RBAC)
-
 CREATE TABLE IF NOT EXISTS "RoleDefinition" (
   "id" TEXT PRIMARY KEY,
   "name" TEXT NOT NULL,
@@ -23,7 +21,6 @@ CREATE TABLE IF NOT EXISTS "RolePermission" (
 
 CREATE INDEX IF NOT EXISTS "idx_role_permission_role_id" ON "RolePermission"("roleId");
 
--- Seed de Roles Iniciales
 INSERT INTO "RoleDefinition" ("id", "name", "description", "isSystem")
 VALUES
   ('admin', 'Administrador Global', 'Control absoluto de la plataforma, infraestructura y multi-tenant.', true),
@@ -36,10 +33,6 @@ ON CONFLICT ("id") DO UPDATE
       "description" = EXCLUDED."description",
       "isSystem" = EXCLUDED."isSystem";
 
--- Módulos del sistema
--- instituciones, configuracion, usuarios, cursos, actividades, alumnos, resultados, alertas, cumplimiento, suscripciones, monitoreo, jira, roles
-
--- Permisos ADMIN (todo en true)
 INSERT INTO "RolePermission" ("roleId", "module", "canRead", "canCreate", "canUpdate", "canDelete", "canExport")
 SELECT 'admin', m, true, true, true, true, true
 FROM unnest(ARRAY[
@@ -49,7 +42,6 @@ FROM unnest(ARRAY[
 ]) AS m
 ON CONFLICT ("roleId", "module") DO NOTHING;
 
--- Permisos COORDINADOR
 INSERT INTO "RolePermission" ("roleId", "module", "canRead", "canCreate", "canUpdate", "canDelete", "canExport")
 VALUES
   ('coordinador', 'instituciones', true, false, true, false, true),
@@ -67,7 +59,6 @@ VALUES
   ('coordinador', 'roles', true, false, false, false, false)
 ON CONFLICT ("roleId", "module") DO NOTHING;
 
--- Permisos DOCENTE
 INSERT INTO "RolePermission" ("roleId", "module", "canRead", "canCreate", "canUpdate", "canDelete", "canExport")
 VALUES
   ('docente', 'instituciones', false, false, false, false, false),
@@ -85,7 +76,6 @@ VALUES
   ('docente', 'roles', false, false, false, false, false)
 ON CONFLICT ("roleId", "module") DO NOTHING;
 
--- Permisos DIRECTOR
 INSERT INTO "RolePermission" ("roleId", "module", "canRead", "canCreate", "canUpdate", "canDelete", "canExport")
 VALUES
   ('director', 'instituciones', true, false, false, false, true),
@@ -103,7 +93,6 @@ VALUES
   ('director', 'roles', false, false, false, false, false)
 ON CONFLICT ("roleId", "module") DO NOTHING;
 
--- Permisos AUDITOR
 INSERT INTO "RolePermission" ("roleId", "module", "canRead", "canCreate", "canUpdate", "canDelete", "canExport")
 VALUES
   ('auditor', 'instituciones', true, false, false, false, false),

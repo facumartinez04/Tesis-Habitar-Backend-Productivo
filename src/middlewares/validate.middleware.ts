@@ -2,7 +2,6 @@ import type { NextFunction, Request, Response } from 'express';
 import type { ZodType } from 'zod';
 import { BadRequestError } from '../utils/http-error';
 
-/** Mensaje en español para el usuario: qué campo falta o está mal, sin el detalle técnico de zod. */
 function describeIssues(issues: { path: PropertyKey[]; code: string; message: string }[]): string {
   return issues
     .map((issue) => {

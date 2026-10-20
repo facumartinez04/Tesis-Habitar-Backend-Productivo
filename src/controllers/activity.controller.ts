@@ -29,7 +29,6 @@ export class ActivityController {
     const input = req.body as CreateActivityDto;
     await assertCourseAccess(req, input.courseId);
     const activity = await activityService.createActivity(input);
-    // Si sale del banco de la institución, se copia su documento original (el docente puede subir otro después).
     if (input.templateId) {
       await activityTemplateService.copyDocument(input.templateId, activity.id, req.auth!.institutionId).catch((err: Error) =>
         console.error('[activity] No se pudo copiar el documento del banco:', err.message),
@@ -38,7 +37,6 @@ export class ActivityController {
     res.status(201).json(activity);
   }
 
-  /** Vista pública del alumno: sin opciones correctas ni respuestas esperadas. */
   async getByCode(req: Request, res: Response): Promise<void> {
     const result = await activityService.getPublicByCode(String(req.params.code));
     res.json(result);
@@ -50,7 +48,6 @@ export class ActivityController {
     res.status(201).json(result);
   }
 
-  /** Estado del alumno al entrar: si ya envió, no puede volver a empezar; si tenía un borrador, lo retoma. */
   async studentState(req: Request, res: Response): Promise<void> {
     const { studentDisplayName, deviceId } = req.body as StudentSessionDto;
     res.json(await activitySessionService.getStudentState(String(req.params.code), studentDisplayName, deviceId));
@@ -60,7 +57,6 @@ export class ActivityController {
     res.json(await activitySessionService.saveProgress(String(req.params.code), req.body as SaveProgressDto));
   }
 
-  /** El docente sube el PDF o Word original para que el alumno lo lea tal cual. */
   async uploadDocument(req: Request, res: Response): Promise<void> {
     const meta = await activityDocumentService.upload(String(req.params.id), {
       data: req.body,
@@ -70,7 +66,6 @@ export class ActivityController {
     res.status(201).json(meta);
   }
 
-  /** El documento para el alumno, sólo mientras la actividad está abierta. No queda en caché ni se ofrece descargar. */
   async document(req: Request, res: Response): Promise<void> {
     const doc = await activityDocumentService.forStudent(String(req.params.code));
     res.setHeader('Content-Type', doc.mimeType);
@@ -79,7 +74,6 @@ export class ActivityController {
     res.send(doc.data);
   }
 
-  /** Devolución al alumno: sus respuestas corregidas, cuando la actividad ya cerró. */
   async studentFeedback(req: Request, res: Response): Promise<void> {
     const { studentDisplayName, deviceId } = req.body as StudentSessionDto;
     res.json(await studentFeedbackService.get(String(req.params.code), studentDisplayName, deviceId));
@@ -102,7 +96,6 @@ export class ActivityController {
     res.status(204).send();
   }
 
-  /** Duda del alumno sobre el texto: la IA explica sin responder la actividad. */
   async askHelp(req: Request, res: Response): Promise<void> {
     res.json(await readingHelpService.ask(String(req.params.code), req.body as AskHelpDto));
   }
@@ -112,7 +105,6 @@ export class ActivityController {
     res.json(await readingHelpService.conversation(String(req.params.code), studentDisplayName, deviceId));
   }
 
-  /** El docente pasa a todos a las preguntas. */
   async releaseQuestions(req: Request, res: Response): Promise<void> {
     res.json(await activitySessionService.releaseQuestions(String(req.params.id)));
   }

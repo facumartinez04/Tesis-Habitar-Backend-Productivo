@@ -4,12 +4,10 @@ export const PDF_MIME = 'application/pdf';
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 export type DocumentMime = typeof PDF_MIME | typeof DOCX_MIME;
 
-/** Lo que el alumno necesita saber del documento, sin el contenido. */
 export interface ActivityDocumentMeta {
   fileName: string;
   mimeType: DocumentMime;
   sizeBytes: number;
-  /** Páginas del PDF a mostrar; null = todas. */
   pages: number[] | null;
 }
 
@@ -53,7 +51,6 @@ export class SqlActivityDocumentRepository {
     );
   }
 
-  /** Copia el documento a otra actividad (al duplicarla). */
   async copy(fromActivityId: string, toActivityId: string): Promise<void> {
     await query(
       `INSERT INTO "ActivityDocument" ("activityId", "fileName", "mimeType", "sizeBytes", "pagesJson", "data")

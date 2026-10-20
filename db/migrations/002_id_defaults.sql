@@ -1,5 +1,3 @@
--- Prisma generaba los ids (cuid()) del lado del cliente; sin Prisma, los generamos
--- en la base con gen_random_uuid(). Los repositories ya no mandan "id" en los INSERT.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 ALTER TABLE "Institution" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()::text;

@@ -46,8 +46,6 @@ export class DefaultComplianceService implements ComplianceService {
     const student = await studentRepository.findById(studentId);
     if (!student) throw new NotFoundError('Alumno no encontrado');
 
-    // Segunda barrera, además del middleware de la ruta: un alumno sólo se
-    // suprime desde su propia institución.
     const course = await courseRepository.findById(student.courseId);
     if (!course || course.institutionId !== institutionId) throw new NotFoundError('Alumno no encontrado');
 

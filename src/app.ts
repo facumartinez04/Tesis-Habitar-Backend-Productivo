@@ -15,8 +15,6 @@ export function createApp() {
   app.use(securityHeaders);
   app.use(
     cors({
-      // Sólo el frontend puede llamar a la API desde un navegador. Los pedidos sin
-      // Origin (webhooks, monitoreo, herramientas) no pasan por CORS.
       origin(origin, callback) {
         if (!origin || env.corsOrigins.includes(origin.replace(/\/$/, ''))) callback(null, true);
         else callback(null, false);

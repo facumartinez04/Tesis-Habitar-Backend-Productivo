@@ -20,7 +20,6 @@ import type {
   StudentDetailResult,
 } from '../domain/result';
 
-/** Estado según los ejes medidos: un eje sin dato no hace bajar ni subir la clasificación. */
 export function classify(scores: AxisScores | null): PerformanceStatus {
   if (!scores) return 'SIN_DATOS';
   const values = [scores.literal, scores.inferencial, scores.critico].filter((v): v is number => v !== null);
@@ -58,9 +57,7 @@ export interface ResultService {
   getInstitutionSummary(institutionId: string): Promise<InstitutionResultSummary>;
   getStudentDetail(studentId: string): Promise<StudentDetailResult>;
   comparePeriods(courseId: string, periodA: DateRange, periodB: DateRange): Promise<PeriodComparison>;
-  /** Evolución entre la diagnóstica de inicio y la de cierre del ciclo (mejora 1). */
   getDiagnostic(courseId: string): Promise<DiagnosticComparison>;
-  /** Eje que conviene reforzar con la próxima actividad (mejora 2). */
   getRecommendation(courseId: string): Promise<AxisRecommendation>;
   exportCourseReportCsv(courseId: string, performedBy: string, performedById?: string): Promise<string>;
 }

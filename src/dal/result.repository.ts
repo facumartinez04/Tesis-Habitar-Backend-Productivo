@@ -12,7 +12,6 @@ export interface RawStudentResult {
   literal: number | null;
   inferencial: number | null;
   critico: number | null;
-  /** false si el último intento tiene respuestas abiertas sin revisar por el docente. */
   criticoReviewed: boolean;
 }
 
@@ -47,9 +46,7 @@ export interface ResultRepository {
   getInstitutionActivityCount(institutionId: string): Promise<number>;
   getStudentHistory(studentId: string): Promise<RawResultHistoryRow[]>;
   getCourseAveragesBetween(courseId: string, from: Date, to: Date): Promise<RawAxisAverages>;
-  /** Última actividad diagnóstica de inicio y de cierre del curso. */
   getDiagnosticActivities(courseId: string): Promise<{ inicio: DiagnosticActivityRef | null; cierre: DiagnosticActivityRef | null }>;
-  /** Último intento de cada alumno en las actividades indicadas. */
   getLatestResultsForActivities(activityIds: { id: string; kind: 'INICIO' | 'CIERRE' }[]): Promise<RawDiagnosticRow[]>;
   countPendingReviewsByCourse(courseId: string): Promise<number>;
 }
@@ -60,7 +57,6 @@ interface AveragesRow {
   critico: string | null;
 }
 
-// Un promedio sin datos es null, no 0: mostrar 0 sería afirmar que nadie acertó.
 function avg(value: string | null | undefined): number | null {
   return value === null || value === undefined ? null : Math.round(Number(value));
 }

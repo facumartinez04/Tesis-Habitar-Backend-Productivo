@@ -5,7 +5,6 @@ import { env } from '../config/env';
 import type { AiProvider, AiKeySource } from '../domain/institution';
 import type { ComprehensionAxis } from '../domain/enums';
 
-/** Tokens que informó el proveedor en una llamada (para calcular el costo). */
 export interface AiCallUsage {
   model: string;
   promptTokens: number;
@@ -17,7 +16,6 @@ export interface GenerateWithAiOptions {
   apiKey: string;
   apiUrl?: string;
   model?: string;
-  /** Se llama con los tokens de cada llamada, aunque la respuesta después no sirva (igual se cobraron). */
   onUsage?: (usage: AiCallUsage) => void;
 }
 
@@ -25,7 +23,6 @@ export interface GradeOpenAnswerInput {
   questionPrompt: string;
   expectedAnswer: string;
   sourceText: string;
-  /** Texto escrito por el alumno. Nunca se envía su nombre ni el de la institución (§8.5). */
   answer: string;
 }
 
@@ -73,7 +70,6 @@ const AXIS_DESCRIPTION: Record<ComprehensionAxis, string> = {
     '"options" ni "correctOption", y en "expectedAnswer" describí brevemente los argumentos esperados.',
 };
 
-/** Mezcla de preguntas: 1/3/1 por defecto; con eje foco, 3 del eje foco y 1 de cada uno de los otros dos. */
 export function questionMix(focusAxis?: ComprehensionAxis): Record<ComprehensionAxis, number> {
   if (!focusAxis) return { LITERAL: 1, INFERENCIAL: 3, CRITICO: 1 };
   const mix: Record<ComprehensionAxis, number> = { LITERAL: 1, INFERENCIAL: 1, CRITICO: 1 };
@@ -148,17 +144,13 @@ function buildGradingPrompt(input: GradeOpenAnswerInput): { system: string; user
 
 export interface ReadingHelpInput {
   sourceText: string;
-  /** Consignas de la actividad: la ayuda no puede responderlas ni dar pistas que las resuelvan. */
   activityQuestions: string[];
-  /** Intercambios anteriores del mismo alumno, para entender preguntas como «¿y esa otra palabra?». */
   history: { question: string; answer: string }[];
-  /** Lo que pregunta el alumno. Nunca se envía su nombre ni el de la institución (§8.5). */
   question: string;
 }
 
 export interface ReadingHelpResult {
   answer: string;
-  /** true si no respondió porque buscaba la respuesta de la actividad o no era sobre el texto. */
   declined: boolean;
 }
 
@@ -236,7 +228,6 @@ export class AiQuestionGeneratorService {
     };
   }
 
-  /** Llamada de chat que devuelve el JSON de la respuesta del modelo, o UpstreamError. */
   private async chatJson(
     options: GenerateWithAiOptions,
     prompt: { system: string; user: string },
@@ -318,7 +309,6 @@ export class AiQuestionGeneratorService {
     }));
   }
 
-  /** Propone un puntaje de 0 a 3 para una respuesta abierta del eje crítico. */
   async gradeOpenAnswer(input: GradeOpenAnswerInput, options: GenerateWithAiOptions): Promise<GradeOpenAnswerResult> {
     const parsedJson = await this.chatJson(options, buildGradingPrompt(input), 0.1);
     const parsed = gradeSchema.safeParse(parsedJson);
@@ -328,7 +318,6 @@ export class AiQuestionGeneratorService {
     return parsed.data;
   }
 
-  /** Ayuda de lectura: explica el texto sin responder las preguntas de la actividad. */
   async explainText(input: ReadingHelpInput, options: GenerateWithAiOptions): Promise<ReadingHelpResult> {
     const parsedJson = await this.chatJson(options, buildReadingHelpPrompt(input), 0.3);
     const parsed = readingHelpSchema.safeParse(parsedJson);

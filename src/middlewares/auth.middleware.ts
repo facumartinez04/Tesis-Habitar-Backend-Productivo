@@ -28,7 +28,6 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
     throw new UnauthorizedError('Token inválido o expirado');
   }
 
-  // Los tokens sin identificador son anteriores a la revocación: se rechazan.
   if (!payload.jti || (await revokedTokenRepository.isRevoked(payload.jti))) {
     throw new UnauthorizedError('La sesión fue cerrada. Volvé a ingresar.');
   }
@@ -83,7 +82,6 @@ export function requireRole(...roles: Role[]) {
   };
 }
 
-/** Sólo el administrador de la plataforma (rol real ADMIN), aunque esté viendo como otra institución o rol. */
 export function requirePlatformAdmin(req: Request, _res: Response, next: NextFunction): void {
   if (!req.auth) throw new UnauthorizedError();
   if (req.auth.realRole !== 'ADMIN') throw new ForbiddenError('Sólo el administrador de la plataforma puede hacer esto');
