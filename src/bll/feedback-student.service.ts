@@ -38,9 +38,9 @@ export class StudentFeedbackService {
     if (!course) throw new NotFoundError('Curso no encontrado');
     const institution = await institutionRepository.findById(course.institutionId);
     const identity = resolveStudentIdentity(institution?.studentIdMode ?? 'NOMBRE', rawName);
-    const binding = await courseRepository.findStudentDevice(course.id, identity.normalized);
-    if (!binding || binding.deviceId !== deviceId.trim()) {
-      throw new ForbiddenError('Tus resultados se ven sólo desde el celular con el que respondiste.');
+    const binding = await courseRepository.findStudentDevice(course.id, identity.normalized, deviceId.trim());
+    if (!binding) {
+      throw new ForbiddenError('Tus resultados se ven sólo desde los dispositivos con los que entraste al aula.');
     }
 
     const response = await queryOne<{ id: string; submittedAt: Date }>(

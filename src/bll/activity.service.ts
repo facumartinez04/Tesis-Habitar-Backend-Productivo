@@ -9,7 +9,8 @@ import { questionRepository } from '../dal/question.repository';
 import { criticoFromAnswers, responseRepository, type ReviewQueueItem } from '../dal/response.repository';
 import { studentRepository } from '../dal/student.repository';
 import { courseRepository } from '../dal/course.repository';
-import { countWords, isWordCountValid, TemplateQuestionGenerator } from '../services/question-generator.service';
+import { countWords, isReadingLengthValid, TemplateQuestionGenerator } from '../services/question-generator.service';
+import { DEFAULT_READING_MAX_CHARS } from '../dal/institution.repository';
 import { type AiCallUsage, aiQuestionGenerator, type GenerateWithAiOptions } from '../services/ai-question-generator.service';
 import { institutionRepository } from '../dal/institution.repository';
 import { env } from '../config/env';
@@ -220,6 +221,13 @@ export interface ActivityService {
 
 const templateFallback = new TemplateQuestionGenerator();
 
+export function assertReadingLength(text: string, maxChars: number): void {
+  const chars = text.trim().length;
+  if (chars > maxChars) {
+    throw new BadRequestError(`El texto tiene ${chars} caracteres y la institución permite hasta ${maxChars}`);
+  }
+}
+
 export class DefaultActivityService implements ActivityService {
   async generateQuestions(
     sourceText: string,
@@ -229,6 +237,8 @@ export class DefaultActivityService implements ActivityService {
   ): Promise<GenerateQuestionsResult> {
     const wordCount = countWords(sourceText);
     const institution = await institutionRepository.findById(institutionId);
+    const maxChars = institution?.readingMaxChars ?? DEFAULT_READING_MAX_CHARS;
+    assertReadingLength(sourceText, maxChars);
     const access = resolveAiAccess(institution);
     const hasQuota = !access || access.isCustom ? true : await aiUsageService.hasQuotaAvailable(institutionId);
     const withinBudget = !access || access.isCustom ? true : await aiUsageService.withinBudget(institutionId);
@@ -255,10 +265,13 @@ export class DefaultActivityService implements ActivityService {
       }
     }
 
-    return { wordCount, isValid: isWordCountValid(wordCount), questions };
+    return { wordCount, isValid: isReadingLengthValid(sourceText, maxChars), questions };
   }
 
   async createActivity(input: CreateActivityInput): Promise<Activity> {
+    const targetCourse = await courseRepository.findById(input.courseId);
+    const targetInstitution = targetCourse ? await institutionRepository.findById(targetCourse.institutionId) : null;
+    assertReadingLength(input.sourceText, targetInstitution?.readingMaxChars ?? DEFAULT_READING_MAX_CHARS);
     if (input.questions.length === 0) throw new BadRequestError('La actividad necesita al menos una pregunta');
     if (!input.questions.some((q) => q.approved)) {
       throw new BadRequestError('[Error-QR_001] Debe aprobar al menos una pregunta antes de generar el código');

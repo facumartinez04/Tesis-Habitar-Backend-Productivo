@@ -72,3 +72,14 @@ test('todo mensaje de error fijo del código tiene traducción al inglés', () =
   }
   assert.deepEqual(missing, []);
 });
+
+test('mensajes nuevos: límite de lectura y dispositivos en inglés', () => {
+  assert.equal(
+    translateMessage('El texto tiene 6200 caracteres y la institución permite hasta 5000', 'en'),
+    'The text has 6200 characters and the institution allows up to 5000',
+  );
+  assert.equal(
+    translateMessage('Mateo González ya tiene su cuenta abierta en 2 dispositivos. Pedile a tu docente que cierre la sesión en uno de ellos.', 'en'),
+    'Mateo González already has their account open on 2 devices. Ask your teacher to close the session on one of them.',
+  );
+});

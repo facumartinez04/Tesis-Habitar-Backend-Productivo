@@ -33,8 +33,8 @@ export class AuthController {
 
   async me(req: Request, res: Response): Promise<void> {
     const user = await authService.getSessionUser(req.auth!.sub);
-    const institutionLanguage = await authService.getInstitutionLanguage(user.institutionId);
-    res.json({ user, institutionLanguage });
+    const settings = await authService.getInstitutionSettings(user.institutionId);
+    res.json({ user, ...settings });
   }
 
   async updateLanguage(req: Request, res: Response): Promise<void> {
@@ -59,8 +59,8 @@ export class AuthController {
     try {
       const result = await refreshSessionService.refresh(readRefreshCookie(req), req.header('user-agent') ?? null);
       if (result.refresh) setRefreshCookie(res, result.refresh);
-      const institutionLanguage = await authService.getInstitutionLanguage(result.user.institutionId);
-      res.json({ token: result.token, user: result.user, institutionLanguage });
+      const settings = await authService.getInstitutionSettings(result.user.institutionId);
+      res.json({ token: result.token, user: result.user, ...settings });
     } catch (err) {
       clearRefreshCookie(res);
       throw err;

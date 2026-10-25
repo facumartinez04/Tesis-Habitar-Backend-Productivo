@@ -63,7 +63,8 @@ export interface CourseRepository {
   setActiveActivity(courseId: string, activityId: string): Promise<void>;
   assignTeacher(courseId: string, teacherId: string): Promise<Course>;
   setTeacherCourses(institutionId: string, teacherId: string, courseIds: string[]): Promise<Course[]>;
-  findStudentDevice(courseId: string, normalizedStudentName: string): Promise<CourseStudentDevice | null>;
+  findStudentDevice(courseId: string, normalizedStudentName: string, deviceId: string): Promise<CourseStudentDevice | null>;
+  listStudentDevicesFor(courseId: string, normalizedStudentName: string): Promise<CourseStudentDevice[]>;
   findDeviceById(courseId: string, deviceRecordId: string): Promise<CourseStudentDevice | null>;
   bindStudentDevice(input: { courseId: string; studentName: string; normalizedStudentName: string; deviceId: string; userAgent?: string; ipAddress?: string }): Promise<CourseStudentDevice>;
   updateDeviceLastActive(id: string): Promise<void>;
@@ -224,15 +225,26 @@ export class SqlCourseRepository implements CourseRepository {
     return this.listCourseTeachers(courseId);
   }
 
-  async findStudentDevice(courseId: string, normalizedStudentName: string): Promise<CourseStudentDevice | null> {
+  async findStudentDevice(courseId: string, normalizedStudentName: string, deviceId: string): Promise<CourseStudentDevice | null> {
     const row = await queryOne<CourseStudentDevice>(
       `SELECT "id", "courseId", "studentName", "normalizedStudentName", "deviceId", "userAgent", "ipAddress",
               "linkedAt"::text, "lastActiveAt"::text
          FROM "CourseStudentDevice"
-        WHERE "courseId" = $1 AND "normalizedStudentName" = $2`,
-      [courseId, normalizedStudentName]
+        WHERE "courseId" = $1 AND "normalizedStudentName" = $2 AND "deviceId" = $3`,
+      [courseId, normalizedStudentName, deviceId]
     );
     return row || null;
+  }
+
+  async listStudentDevicesFor(courseId: string, normalizedStudentName: string): Promise<CourseStudentDevice[]> {
+    return query<CourseStudentDevice>(
+      `SELECT "id", "courseId", "studentName", "normalizedStudentName", "deviceId", "userAgent", "ipAddress",
+              "linkedAt"::text, "lastActiveAt"::text
+         FROM "CourseStudentDevice"
+        WHERE "courseId" = $1 AND "normalizedStudentName" = $2
+        ORDER BY "linkedAt" ASC`,
+      [courseId, normalizedStudentName]
+    );
   }
 
   async findDeviceById(courseId: string, deviceRecordId: string): Promise<CourseStudentDevice | null> {
@@ -287,7 +299,7 @@ export class SqlCourseRepository implements CourseRepository {
               "linkedAt"::text, "lastActiveAt"::text
          FROM "CourseStudentDevice"
         WHERE "courseId" = $1
-        ORDER BY "studentName" ASC`,
+        ORDER BY "studentName" ASC, "linkedAt" ASC`,
       [courseId]
     );
     return rows;
