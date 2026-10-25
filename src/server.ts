@@ -4,6 +4,7 @@ import { env } from './config/env';
 import { attachRealtime } from './realtime/realtime';
 import { startActivityClock } from './realtime/activity-clock';
 import { logService } from './bll/log.service';
+import { runMigrations } from './config/migrations';
 
 process.on('unhandledRejection', (reason) => {
   console.error('[proceso] promesa rechazada sin manejar', reason);
@@ -15,12 +16,21 @@ process.on('uncaughtException', (err) => {
   void logService.error(err, { source: 'PROCESO' }).finally(() => process.exit(1));
 });
 
-const app = createApp();
-const server = createServer(app);
+async function start(): Promise<void> {
+  await runMigrations();
 
-attachRealtime(server);
-startActivityClock();
+  const app = createApp();
+  const server = createServer(app);
 
-server.listen(env.port, () => {
-  console.log(`Habitar API escuchando en http://localhost:${env.port}`);
+  attachRealtime(server);
+  startActivityClock();
+
+  server.listen(env.port, () => {
+    console.log(`Habitar API escuchando en http://localhost:${env.port}`);
+  });
+}
+
+start().catch((err) => {
+  console.error('[inicio] no se pudo aplicar las migraciones de la base', err);
+  process.exit(1);
 });
