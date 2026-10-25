@@ -1,5 +1,5 @@
 import { userRepository } from '../dal/user.repository';
-import { institutionRepository } from '../dal/institution.repository';
+import { DEFAULT_READING_MAX_CHARS, institutionRepository } from '../dal/institution.repository';
 import { revokedTokenRepository } from '../dal/revokedToken.repository';
 import { signToken } from '../utils/jwt';
 import { ForbiddenError, UnauthorizedError } from '../utils/http-error';
@@ -25,7 +25,7 @@ export interface HandleOAuthCallbackInput {
 
 export interface AuthService {
   getSessionUser(userId: string): Promise<Session['user']>;
-  getInstitutionLanguage(institutionId: string): Promise<Locale>;
+  getInstitutionSettings(institutionId: string): Promise<{ institutionLanguage: Locale; readingMaxChars: number }>;
   updateLanguage(userId: string, language: Locale | null): Promise<Session['user']>;
   buildAuthorizationRequest(provider: OAuthProviderId): Promise<OAuthAuthorizationRequest>;
   handleOAuthCallback(input: HandleOAuthCallbackInput): Promise<Session>;
@@ -51,9 +51,12 @@ export class DefaultAuthService implements AuthService {
     return user;
   }
 
-  async getInstitutionLanguage(institutionId: string): Promise<Locale> {
+  async getInstitutionSettings(institutionId: string): Promise<{ institutionLanguage: Locale; readingMaxChars: number }> {
     const institution = await institutionRepository.findById(institutionId);
-    return institution?.defaultLanguage ?? 'es';
+    return {
+      institutionLanguage: institution?.defaultLanguage ?? 'es',
+      readingMaxChars: institution?.readingMaxChars ?? DEFAULT_READING_MAX_CHARS,
+    };
   }
 
   async updateLanguage(userId: string, language: Locale | null): Promise<Session['user']> {

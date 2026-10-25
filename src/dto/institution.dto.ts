@@ -22,6 +22,7 @@ export const updateInstitutionConfigSchema = z
     alertThreshold: z.number().int().min(0).max(100).optional(),
     alertEmailsEnabled: z.boolean().optional(),
     defaultLanguage: z.enum(['es', 'en']).optional(),
+    readingMaxChars: z.number().int().min(500).max(50000).optional(),
   })
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: 'Debe enviarse al menos un campo de configuración para actualizar',

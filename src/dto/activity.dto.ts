@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const generateQuestionsSchema = z.object({
-  sourceText: z.string().min(10).max(20000),
+  sourceText: z.string().min(10).max(50000),
   focusAxis: z.enum(['LITERAL', 'INFERENCIAL', 'CRITICO']).optional(),
   language: z.enum(['es', 'en']).optional(),
 });

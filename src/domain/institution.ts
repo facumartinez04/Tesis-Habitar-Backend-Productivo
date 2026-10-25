@@ -25,6 +25,7 @@ export interface Institution {
   alertThreshold: number;
   alertEmailsEnabled: boolean;
   defaultLanguage: Locale;
+  readingMaxChars: number;
   createdAt: Date;
 }
 
@@ -51,5 +52,6 @@ export interface UpdateInstitutionConfigInput {
   alertThreshold?: number;
   alertEmailsEnabled?: boolean;
   defaultLanguage?: Locale;
+  readingMaxChars?: number;
 }
 

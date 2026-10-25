@@ -143,6 +143,8 @@ export function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-export function isWordCountValid(wordCount: number, min = 40, max = 600): boolean {
-  return wordCount >= min && wordCount <= max;
+export const MIN_READING_WORDS = 40;
+
+export function isReadingLengthValid(text: string, maxChars: number): boolean {
+  return countWords(text) >= MIN_READING_WORDS && text.trim().length <= maxChars;
 }

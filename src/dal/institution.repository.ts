@@ -20,8 +20,11 @@ interface InstitutionRow {
   alertThreshold?: number | null;
   alertEmailsEnabled?: boolean | null;
   defaultLanguage?: string | null;
+  readingMaxChars?: number | null;
   createdAt: Date;
 }
+
+export const DEFAULT_READING_MAX_CHARS = 5000;
 
 function maskApiKey(key: string | null | undefined): string | null {
   if (!key || key.trim() === '') return null;
@@ -74,6 +77,7 @@ async function toDomain(row: InstitutionRow, runner: { query: typeof query } = {
     alertThreshold: row.alertThreshold ?? 60,
     alertEmailsEnabled: row.alertEmailsEnabled ?? true,
     defaultLanguage: row.defaultLanguage === 'en' ? 'en' : 'es',
+    readingMaxChars: row.readingMaxChars ?? DEFAULT_READING_MAX_CHARS,
     createdAt: row.createdAt,
   };
 }
@@ -196,6 +200,11 @@ export class SqlInstitutionRepository implements InstitutionRepository {
       if (input.alertEmailsEnabled !== undefined) {
         updates.push(`"alertEmailsEnabled" = $${paramIndex++}`);
         values.push(input.alertEmailsEnabled);
+      }
+
+      if (input.readingMaxChars !== undefined) {
+        updates.push(`"readingMaxChars" = $${paramIndex++}`);
+        values.push(input.readingMaxChars);
       }
 
       if (input.defaultLanguage) {

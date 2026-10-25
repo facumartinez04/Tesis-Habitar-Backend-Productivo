@@ -6,6 +6,7 @@ import type { Course, CourseStudentDevice, CourseTeacher, CreateCourseInput } fr
 import type { Role } from '../domain/enums';
 import { institutionRepository } from '../dal/institution.repository';
 import { resolveStudentIdentity } from './student-identity';
+import { linkStudentDevice } from './student-devices';
 
 export interface PublicCourseInfo {
   course: Course;
@@ -141,42 +142,16 @@ export class DefaultCourseService implements CourseService {
 
     const institution = await institutionRepository.findById(course.institutionId);
     const identity = resolveStudentIdentity(institution?.studentIdMode ?? 'NOMBRE', input.studentName);
-    const trimmedName = identity.displayName;
-    const norm = identity.normalized;
-    const existing = await courseRepository.findStudentDevice(input.courseId, norm);
-
-    if (existing) {
-      if (existing.deviceId === cleanDeviceId) {
-
-        await courseRepository.updateDeviceLastActive(existing.id);
-        return {
-          success: true,
-          message: 'Dispositivo verificado.',
-          studentName: existing.studentName,
-          deviceId: existing.deviceId,
-          locked: true,
-        };
-      }
-
-      throw new ConflictError(
-        `Ya existe un dispositivo vinculado para "${existing.studentName}" en esta aula. Por seguridad para evitar suplantaciones, no podés registrarte desde un dispositivo diferente. Pedile a tu docente que desvincule tu dispositivo anterior.`
-      );
-    }
-
-    const created = await courseRepository.bindStudentDevice({
-      courseId: input.courseId,
-      studentName: trimmedName,
-      normalizedStudentName: norm,
-      deviceId: cleanDeviceId,
+    const { device, created } = await linkStudentDevice(input.courseId, identity, cleanDeviceId, {
       userAgent: input.userAgent,
       ipAddress: input.ipAddress,
     });
 
     return {
       success: true,
-      message: 'Dispositivo vinculado con éxito a esta aula.',
-      studentName: created.studentName,
-      deviceId: created.deviceId,
+      message: created ? 'Dispositivo vinculado con éxito a esta aula.' : 'Dispositivo verificado.',
+      studentName: device.studentName,
+      deviceId: device.deviceId,
       locked: true,
     };
   }
@@ -239,7 +214,7 @@ export class DefaultCourseService implements CourseService {
 
     return {
       success: true,
-      message: `Dispositivo de ${record.studentName} desvinculado con éxito. El alumno ya puede vincular un nuevo dispositivo.`,
+      message: `Se cerró la sesión de ${record.studentName} en ese dispositivo. Ya puede ingresar desde otro.`,
     };
   }
 }

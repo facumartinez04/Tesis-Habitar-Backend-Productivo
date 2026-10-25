@@ -12,6 +12,7 @@ import { BadRequestError, ConflictError, NotFoundError } from '../utils/http-err
 import type { Activity } from '../domain/activity';
 import type { Course } from '../domain/course';
 import type { Question } from '../domain/question';
+import { linkStudentDevice, TooManyDevicesError } from './student-devices';
 
 export type DraftAnswers = Record<string, { selectedOption?: string; textAnswer?: string }>;
 
@@ -45,30 +46,21 @@ export async function resolveStudentInActivity(
   const deviceId = rawDeviceId?.trim();
   if (!deviceId) throw new BadRequestError('No se pudo identificar el dispositivo. Recargá la página e intentá de nuevo.');
 
-  const binding = await courseRepository.findStudentDevice(course.id, identity.normalized);
-  if (binding && binding.deviceId !== deviceId) {
-    if (await progressRepository.addIntegrityEvent({
-      activityId: activity.id,
-      kind: 'OTRO_DISPOSITIVO',
-      studentDisplayName: identity.displayName,
-      otherStudent: null,
-      deviceId,
-    })) {
-      realtime.liveChanged(activity.id);
+  try {
+    await linkStudentDevice(course.id, identity, deviceId);
+  } catch (err) {
+    if (err instanceof TooManyDevicesError) {
+      if (await progressRepository.addIntegrityEvent({
+        activityId: activity.id,
+        kind: 'OTRO_DISPOSITIVO',
+        studentDisplayName: identity.displayName,
+        otherStudent: null,
+        deviceId,
+      })) {
+        realtime.liveChanged(activity.id);
+      }
     }
-    throw new ConflictError(
-      `${identity.displayName} ya está vinculado a otro dispositivo en esta aula. Pedile a tu docente que lo desvincule.`,
-    );
-  }
-  if (!binding) {
-    await courseRepository.bindStudentDevice({
-      courseId: course.id,
-      studentName: identity.displayName,
-      normalizedStudentName: identity.normalized,
-      deviceId,
-    });
-  } else {
-    await courseRepository.updateDeviceLastActive(binding.id);
+    throw err;
   }
 
   const others = (await courseRepository.listStudentDevices(course.id)).filter(
