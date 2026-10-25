@@ -5,6 +5,7 @@ import { apiRouter } from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 import { securityHeaders } from './middlewares/security-headers.middleware';
 import { eventLog } from './middlewares/event-log.middleware';
+import { requestLocale } from './middlewares/locale.middleware';
 import { env } from './config/env';
 
 export function createApp() {
@@ -24,6 +25,7 @@ export function createApp() {
   );
   app.use(cookieParser());
   app.use(express.json({ limit: '1mb' }));
+  app.use(requestLocale);
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });

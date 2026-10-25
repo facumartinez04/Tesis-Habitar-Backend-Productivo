@@ -1,3 +1,4 @@
+import type { Locale } from '../i18n/locale';
 import { resultRepository, type RawDiagnosticRow } from '../dal/result.repository';
 import { courseRepository } from '../dal/course.repository';
 import { institutionRepository } from '../dal/institution.repository';
@@ -59,7 +60,7 @@ export interface ResultService {
   comparePeriods(courseId: string, periodA: DateRange, periodB: DateRange): Promise<PeriodComparison>;
   getDiagnostic(courseId: string): Promise<DiagnosticComparison>;
   getRecommendation(courseId: string): Promise<AxisRecommendation>;
-  exportCourseReportCsv(courseId: string, performedBy: string, performedById?: string): Promise<string>;
+  exportCourseReportCsv(courseId: string, performedBy: string, performedById?: string, language?: Locale): Promise<string>;
 }
 
 export class DefaultResultService implements ResultService {
@@ -260,16 +261,21 @@ export class DefaultResultService implements ResultService {
     };
   }
 
-  async exportCourseReportCsv(courseId: string, performedBy: string, performedById?: string): Promise<string> {
+  async exportCourseReportCsv(
+    courseId: string,
+    performedBy: string,
+    performedById?: string,
+    language: Locale = 'es',
+  ): Promise<string> {
     const summary = await this.getCourseSummary(courseId);
 
-    const header = 'Alumno,Literal,Inferencial,Crítico,Estado';
+    const header = language === 'en' ? 'Student,Literal,Inferential,Critical,Status' : 'Alumno,Literal,Inferencial,Crítico,Estado';
     const rows = summary.rows.map((row) =>
       [
         csvEscape(row.studentName),
         row.scores?.literal ?? '',
         row.scores?.inferencial ?? '',
-        row.criticoPending ? 'pendiente' : row.scores?.critico ?? '',
+        row.criticoPending ? (language === 'en' ? 'pending' : 'pendiente') : row.scores?.critico ?? '',
         row.status,
       ].join(','),
     );

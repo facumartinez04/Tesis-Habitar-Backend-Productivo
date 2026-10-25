@@ -77,6 +77,7 @@ export class DefaultAlertService implements AlertService {
         currentValue: peor.value,
         threshold,
         severity: nuevas.some((n) => n.severity === 'CRITICA') ? 'CRITICA' : 'ADVERTENCIA',
+        language: institution.defaultLanguage,
       });
     }
   }

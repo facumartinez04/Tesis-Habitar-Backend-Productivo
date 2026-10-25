@@ -8,6 +8,7 @@ import { openActivity, resolveStudentInActivity } from './activity-session.servi
 import { pastEndTime } from './activity-window';
 import { realtime } from '../realtime/realtime';
 import { BadRequestError, ConflictError, UpstreamError } from '../utils/http-error';
+import type { Locale } from '../i18n/locale';
 
 export const HELP_LIMIT = 20;
 const HISTORY_SENT = 6;
@@ -41,6 +42,7 @@ export class ReadingHelpService {
   async ask(
     code: string,
     input: { studentDisplayName: string; deviceId?: string; question: string },
+    language: Locale = 'es',
   ): Promise<{ message: HelpMessage; remaining: number }> {
     const activity = await openActivity(code);
     if (!activity.readingHelp) throw new ConflictError('Tu docente no habilitó la ayuda con el texto en esta actividad.');
@@ -78,6 +80,7 @@ export class ReadingHelpService {
           activityQuestions: questions.map((q) => q.prompt),
           history: previous.slice(-HISTORY_SENT).map((m) => ({ question: m.question, answer: m.answer })),
           question: safeQuestion,
+          language,
         },
         call.options,
       );

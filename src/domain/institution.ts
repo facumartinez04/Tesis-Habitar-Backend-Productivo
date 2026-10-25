@@ -1,4 +1,5 @@
 import type { ComprehensionAxis, EducationLevel, InstitutionStatus } from './enums';
+import type { Locale } from '../i18n/locale';
 
 export type AiProvider = 'DEEPSEEK' | 'OPENAI';
 export type AiKeySource = 'PLATFORM' | 'CUSTOM';
@@ -23,6 +24,7 @@ export interface Institution {
   studentIdMode: StudentIdMode;
   alertThreshold: number;
   alertEmailsEnabled: boolean;
+  defaultLanguage: Locale;
   createdAt: Date;
 }
 
@@ -48,5 +50,6 @@ export interface UpdateInstitutionConfigInput {
   studentIdMode?: StudentIdMode;
   alertThreshold?: number;
   alertEmailsEnabled?: boolean;
+  defaultLanguage?: Locale;
 }
 

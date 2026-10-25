@@ -12,6 +12,7 @@ export interface TemplateSummary {
   name: string;
   educationLevel: string;
   axis: string;
+  language: string;
   authorName: string;
   questionCount: number;
   wordCount: number;
@@ -35,6 +36,7 @@ interface TemplateRow {
   name: string;
   educationLevel: string;
   axis: string;
+  language: string | null;
   sourceText: string;
   questionsJson: string;
   documentFileName: string | null;
@@ -45,7 +47,7 @@ interface TemplateRow {
   createdAt: Date;
 }
 
-const COLS = `"id", "institutionId", "authorId", "authorName", "name", "educationLevel", "axis", "sourceText", "questionsJson",
+const COLS = `"id", "institutionId", "authorId", "authorName", "name", "educationLevel", "axis", "language", "sourceText", "questionsJson",
   "documentFileName", "documentMimeType", "documentPagesJson", ("documentData" IS NOT NULL) AS "hasDocument", "uses", "createdAt"`;
 
 function summary(r: TemplateRow, userId: string): TemplateSummary {
@@ -54,6 +56,7 @@ function summary(r: TemplateRow, userId: string): TemplateSummary {
     name: r.name,
     educationLevel: r.educationLevel,
     axis: r.axis,
+    language: r.language === 'en' ? 'en' : 'es',
     authorName: r.authorName,
     questionCount: (JSON.parse(r.questionsJson) as unknown[]).length,
     wordCount: r.sourceText.trim().split(/\s+/).filter(Boolean).length,
@@ -90,8 +93,8 @@ export class ActivityTemplateService {
     const row = await queryOne<TemplateRow>(
       `INSERT INTO "ActivityTemplate"
          ("institutionId", "authorId", "authorName", "name", "educationLevel", "axis", "sourceText", "questionsJson",
-          "documentFileName", "documentMimeType", "documentPagesJson", "documentData")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          "documentFileName", "documentMimeType", "documentPagesJson", "documentData", "language")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING ${COLS}`,
       [
         auth.institutionId,
@@ -106,6 +109,7 @@ export class ActivityTemplateService {
         doc?.mimeType ?? null,
         meta?.pages ? JSON.stringify(meta.pages) : null,
         doc?.data ?? null,
+        activity.language,
       ],
     );
     return summary(row!, auth.sub);

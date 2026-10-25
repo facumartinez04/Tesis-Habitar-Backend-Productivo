@@ -1,4 +1,5 @@
 import type { ActivityStatus, AttemptPolicy, ComprehensionAxis } from './enums';
+import type { Locale } from '../i18n/locale';
 
 export interface Activity {
   id: string;
@@ -21,6 +22,7 @@ export interface Activity {
   questionsReleasedAt: Date | null;
   readingHelp: boolean;
   showFeedback: boolean;
+  language: Locale;
   createdAt: Date;
 }
 
@@ -44,6 +46,7 @@ export interface CreateActivityInput {
   readingMode?: ReadingMode;
   readingHelp?: boolean;
   showFeedback?: boolean;
+  language?: Locale;
 
   status?: ActivityStatus;
 }

@@ -1,3 +1,4 @@
+import type { Locale } from '../i18n/locale';
 import { courseRepository } from '../dal/course.repository';
 import { activityRepository } from '../dal/activity.repository';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/http-error';
@@ -17,6 +18,7 @@ export interface PublicCourseInfo {
   } | null;
   upcomingActivity: { code: string; name: string; availableFrom: string; startTime: string } | null;
   studentIdMode: 'LISTA' | 'NOMBRE';
+  language: Locale;
 }
 
 export interface CourseService {
@@ -85,6 +87,7 @@ export class DefaultCourseService implements CourseService {
         ? { code: upcoming.code, name: upcoming.name, availableFrom: upcoming.availableFrom, startTime: upcoming.startTime }
         : null,
       studentIdMode: institution?.studentIdMode ?? 'NOMBRE',
+      language: institution?.defaultLanguage ?? 'es',
     };
   }
 

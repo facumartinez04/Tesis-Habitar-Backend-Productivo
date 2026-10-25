@@ -8,6 +8,7 @@ import { env } from '../config/env';
 import type { OAuthProviderId, Role } from '../domain/enums';
 import type { Session } from '../domain/auth';
 import type { Institution } from '../domain/institution';
+import type { Locale } from '../i18n/locale';
 
 export interface OAuthAuthorizationRequest {
   authorizationUrl: string;
@@ -24,6 +25,8 @@ export interface HandleOAuthCallbackInput {
 
 export interface AuthService {
   getSessionUser(userId: string): Promise<Session['user']>;
+  getInstitutionLanguage(institutionId: string): Promise<Locale>;
+  updateLanguage(userId: string, language: Locale | null): Promise<Session['user']>;
   buildAuthorizationRequest(provider: OAuthProviderId): Promise<OAuthAuthorizationRequest>;
   handleOAuthCallback(input: HandleOAuthCallbackInput): Promise<Session>;
   logout(jti: string, userId: string, expiresAtEpochSeconds: number): Promise<void>;
@@ -46,6 +49,15 @@ export class DefaultAuthService implements AuthService {
     const user = await userRepository.findById(userId);
     if (!user) throw new UnauthorizedError('Usuario no encontrado');
     return user;
+  }
+
+  async getInstitutionLanguage(institutionId: string): Promise<Locale> {
+    const institution = await institutionRepository.findById(institutionId);
+    return institution?.defaultLanguage ?? 'es';
+  }
+
+  async updateLanguage(userId: string, language: Locale | null): Promise<Session['user']> {
+    return userRepository.updateLanguage(userId, language);
   }
 
   async buildAuthorizationRequest(provider: OAuthProviderId): Promise<OAuthAuthorizationRequest> {

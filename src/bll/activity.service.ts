@@ -1,3 +1,4 @@
+import type { Locale } from '../i18n/locale';
 import { activityRepository } from '../dal/activity.repository';
 import { activitySessionService, resolveStudentInActivity } from './activity-session.service';
 import { progressRepository } from '../dal/progress.repository';
@@ -125,6 +126,7 @@ export interface PublicActivityView {
   questionCount: number;
   questionsReleased: boolean;
   studentIdMode: StudentIdMode;
+  institutionLanguage: Locale;
 }
 
 export interface LiveActivityView {
@@ -196,7 +198,12 @@ export interface ReviewQueue {
 }
 
 export interface ActivityService {
-  generateQuestions(sourceText: string, institutionId: string, focusAxis?: ComprehensionAxis): Promise<GenerateQuestionsResult>;
+  generateQuestions(
+    sourceText: string,
+    institutionId: string,
+    focusAxis?: ComprehensionAxis,
+    language?: Locale,
+  ): Promise<GenerateQuestionsResult>;
   createActivity(input: CreateActivityInput): Promise<Activity>;
   getPublicByCode(code: string): Promise<PublicActivityView>;
   submitResponse(activityCode: string, input: SubmitResponsePayload): Promise<SubmitResponseResult>;
@@ -218,6 +225,7 @@ export class DefaultActivityService implements ActivityService {
     sourceText: string,
     institutionId: string,
     focusAxis?: ComprehensionAxis,
+    language: Locale = 'es',
   ): Promise<GenerateQuestionsResult> {
     const wordCount = countWords(sourceText);
     const institution = await institutionRepository.findById(institutionId);
@@ -232,17 +240,17 @@ export class DefaultActivityService implements ActivityService {
         `[activity.service] ${!access ? 'Sin clave de IA' : !hasQuota ? 'Cuota mensual agotada' : 'Tope de gasto mensual alcanzado'} para la institución ${institutionId}: ` +
           'se usan las preguntas por plantilla.',
       );
-      questions = await templateFallback.generate(sourceText, focusAxis);
+      questions = await templateFallback.generate(sourceText, focusAxis, language);
     } else {
       const provider = access.options.provider.toLowerCase();
       const call = usageCollector(access);
       try {
-        questions = await aiQuestionGenerator.generate(sourceText, call.options, focusAxis);
+        questions = await aiQuestionGenerator.generate(sourceText, call.options, focusAxis, language);
         await aiUsageService.record({ institutionId, provider, success: true, wordCount, kind: 'GENERACION', ...call.usage() });
       } catch (err) {
         if (!(err instanceof UpstreamError)) throw err;
         console.error(`[activity.service] ${provider} falló, se usan las preguntas por plantilla:`, err.message);
-        questions = await templateFallback.generate(sourceText, focusAxis);
+        questions = await templateFallback.generate(sourceText, focusAxis, language);
         await aiUsageService.record({ institutionId, provider, success: false, wordCount, kind: 'GENERACION', ...call.usage() });
       }
     }
@@ -405,6 +413,7 @@ export class DefaultActivityService implements ActivityService {
       questionCount: approved.length,
       questionsReleased,
       studentIdMode: institution?.studentIdMode ?? 'NOMBRE',
+      institutionLanguage: institution?.defaultLanguage ?? 'es',
     };
   }
 
@@ -435,6 +444,7 @@ export class DefaultActivityService implements ActivityService {
       readingMode: original.readingMode,
       readingHelp: original.readingHelp,
       showFeedback: original.showFeedback,
+      language: original.language,
       status: 'BORRADOR',
       questions: questions.map((q) => ({
         axis: q.axis,
@@ -580,7 +590,7 @@ export class DefaultActivityService implements ActivityService {
           const call = usageCollector(access);
           try {
             const grade = await aiQuestionGenerator.gradeOpenAnswer(
-              { questionPrompt: question.prompt, expectedAnswer: question.expectedAnswer, sourceText, answer },
+              { questionPrompt: question.prompt, expectedAnswer: question.expectedAnswer, sourceText, answer, language: activity.language },
               call.options,
             );
             await responseRepository.setAiGrade(item.answerId, grade.score, grade.rationale);

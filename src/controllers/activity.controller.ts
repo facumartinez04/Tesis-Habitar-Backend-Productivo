@@ -20,8 +20,8 @@ import type {
 
 export class ActivityController {
   async generateQuestions(req: Request, res: Response): Promise<void> {
-    const { sourceText, focusAxis } = req.body as GenerateQuestionsDto;
-    const result = await activityService.generateQuestions(sourceText, req.auth!.institutionId, focusAxis);
+    const { sourceText, focusAxis, language } = req.body as GenerateQuestionsDto;
+    const result = await activityService.generateQuestions(sourceText, req.auth!.institutionId, focusAxis, language ?? req.locale);
     res.json(result);
   }
 
@@ -97,7 +97,7 @@ export class ActivityController {
   }
 
   async askHelp(req: Request, res: Response): Promise<void> {
-    res.json(await readingHelpService.ask(String(req.params.code), req.body as AskHelpDto));
+    res.json(await readingHelpService.ask(String(req.params.code), req.body as AskHelpDto, req.locale));
   }
 
   async helpConversation(req: Request, res: Response): Promise<void> {
