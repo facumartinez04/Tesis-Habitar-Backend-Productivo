@@ -21,6 +21,7 @@ export const updateInstitutionConfigSchema = z
     studentIdMode: z.enum(['LISTA', 'NOMBRE']).optional(),
     alertThreshold: z.number().int().min(0).max(100).optional(),
     alertEmailsEnabled: z.boolean().optional(),
+    defaultLanguage: z.enum(['es', 'en']).optional(),
   })
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: 'Debe enviarse al menos un campo de configuración para actualizar',

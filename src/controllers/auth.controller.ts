@@ -5,6 +5,7 @@ import { getRedirectUri } from '../services/oidc-providers';
 import { BadRequestError, UnauthorizedError } from '../utils/http-error';
 import type { OAuthProviderId } from '../domain/enums';
 import { logService } from '../bll/log.service';
+import type { UpdateLanguageDto } from '../dto/auth.dto';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -29,6 +30,13 @@ export class AuthController {
 
   async me(req: Request, res: Response): Promise<void> {
     const user = await authService.getSessionUser(req.auth!.sub);
+    const institutionLanguage = await authService.getInstitutionLanguage(user.institutionId);
+    res.json({ user, institutionLanguage });
+  }
+
+  async updateLanguage(req: Request, res: Response): Promise<void> {
+    const { language } = req.body as UpdateLanguageDto;
+    const user = await authService.updateLanguage(req.auth!.sub, language);
     res.json({ user });
   }
 

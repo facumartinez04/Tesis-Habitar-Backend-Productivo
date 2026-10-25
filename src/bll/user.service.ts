@@ -43,6 +43,7 @@ export class DefaultUserService implements UserService {
         role: created.role,
         institutionName,
         provider: created.provider,
+        language: created.language ?? institution?.defaultLanguage,
       })
       .catch((err) => {
         console.error('[userService] Falló el envío de correo de invitación:', err);
@@ -65,6 +66,7 @@ export class DefaultUserService implements UserService {
         name: updated.name,
         newRole: updated.role,
         institutionName,
+        language: updated.language ?? institution?.defaultLanguage,
       })
       .catch((err) => {
         console.error('[userService] Falló el envío de correo de actualización de rol:', err);

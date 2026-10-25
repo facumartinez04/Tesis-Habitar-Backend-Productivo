@@ -19,6 +19,7 @@ interface InstitutionRow {
   studentIdMode?: string | null;
   alertThreshold?: number | null;
   alertEmailsEnabled?: boolean | null;
+  defaultLanguage?: string | null;
   createdAt: Date;
 }
 
@@ -72,6 +73,7 @@ async function toDomain(row: InstitutionRow, runner: { query: typeof query } = {
     studentIdMode: row.studentIdMode === 'NOMBRE' ? 'NOMBRE' : 'LISTA',
     alertThreshold: row.alertThreshold ?? 60,
     alertEmailsEnabled: row.alertEmailsEnabled ?? true,
+    defaultLanguage: row.defaultLanguage === 'en' ? 'en' : 'es',
     createdAt: row.createdAt,
   };
 }
@@ -194,6 +196,11 @@ export class SqlInstitutionRepository implements InstitutionRepository {
       if (input.alertEmailsEnabled !== undefined) {
         updates.push(`"alertEmailsEnabled" = $${paramIndex++}`);
         values.push(input.alertEmailsEnabled);
+      }
+
+      if (input.defaultLanguage) {
+        updates.push(`"defaultLanguage" = $${paramIndex++}`);
+        values.push(input.defaultLanguage);
       }
 
       let rows: InstitutionRow[];

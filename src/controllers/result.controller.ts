@@ -39,7 +39,7 @@ export class ResultController {
 
   async exportCourseReport(req: Request, res: Response): Promise<void> {
     const actor = await authService.getSessionUser(req.auth!.sub);
-    const csv = await resultService.exportCourseReportCsv(String(req.params.courseId), actor.name, actor.id);
+    const csv = await resultService.exportCourseReportCsv(String(req.params.courseId), actor.name, actor.id, req.locale);
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="reporte-desempeno-${req.params.courseId}.csv"`);

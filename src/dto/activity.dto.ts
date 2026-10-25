@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const generateQuestionsSchema = z.object({
   sourceText: z.string().min(10).max(20000),
   focusAxis: z.enum(['LITERAL', 'INFERENCIAL', 'CRITICO']).optional(),
+  language: z.enum(['es', 'en']).optional(),
 });
 
 export type GenerateQuestionsDto = z.infer<typeof generateQuestionsSchema>;
@@ -34,6 +35,7 @@ export const createActivitySchema = z.object({
   readingHelp: z.boolean().optional(),
   showFeedback: z.boolean().optional(),
   templateId: z.string().max(64).optional(),
+  language: z.enum(['es', 'en']).optional(),
 });
 
 export const askHelpSchema = z.object({

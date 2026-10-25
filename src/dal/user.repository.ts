@@ -1,6 +1,7 @@
 import { query, queryOne } from '../config/db';
 import type { CreateInstitutionUserInput, User } from '../domain/user';
 import type { OAuthProviderId, Role } from '../domain/enums';
+import type { Locale } from '../i18n/locale';
 
 function initialsOf(name: string): string {
   return name
@@ -11,7 +12,7 @@ function initialsOf(name: string): string {
     .join('');
 }
 
-const COLUMNS = '"id", "name", "initials", "email", "role", "provider", "institutionId", "active"';
+const COLUMNS = '"id", "name", "initials", "email", "role", "provider", "institutionId", "language", "active"';
 
 export interface UserRepository {
   findById(id: string): Promise<User | null>;
@@ -23,6 +24,7 @@ export interface UserRepository {
   create(input: CreateInstitutionUserInput): Promise<User>;
   updateRole(id: string, role: Role): Promise<User>;
   setActive(id: string, active: boolean): Promise<User>;
+  updateLanguage(id: string, language: Locale | null): Promise<User>;
 }
 
 export class SqlUserRepository implements UserRepository {
@@ -75,6 +77,12 @@ export class SqlUserRepository implements UserRepository {
 
   async setActive(id: string, active: boolean): Promise<User> {
     const row = await queryOne<User>(`UPDATE "User" SET "active" = $1 WHERE "id" = $2 RETURNING ${COLUMNS}`, [active, id]);
+    if (!row) throw new Error(`User ${id} no encontrado`);
+    return row;
+  }
+
+  async updateLanguage(id: string, language: Locale | null): Promise<User> {
+    const row = await queryOne<User>(`UPDATE "User" SET "language" = $1 WHERE "id" = $2 RETURNING ${COLUMNS}`, [language, id]);
     if (!row) throw new Error(`User ${id} no encontrado`);
     return row;
   }

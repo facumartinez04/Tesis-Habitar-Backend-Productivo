@@ -4,6 +4,7 @@ import { UpstreamError } from '../utils/http-error';
 import { env } from '../config/env';
 import type { AiProvider, AiKeySource } from '../domain/institution';
 import type { ComprehensionAxis } from '../domain/enums';
+import type { Locale } from '../i18n/locale';
 
 export interface AiCallUsage {
   model: string;
@@ -24,6 +25,7 @@ export interface GradeOpenAnswerInput {
   expectedAnswer: string;
   sourceText: string;
   answer: string;
+  language?: Locale;
 }
 
 export interface GradeOpenAnswerResult {
@@ -70,6 +72,16 @@ const AXIS_DESCRIPTION: Record<ComprehensionAxis, string> = {
     '"options" ni "correctOption", y en "expectedAnswer" describí brevemente los argumentos esperados.',
 };
 
+const WRITING_LANGUAGE: Record<Locale, string> = {
+  es: 'Trabajás en español rioplatense',
+  en: 'Escribís todo el contenido para los alumnos en inglés (claro y de nivel escolar), aunque estas instrucciones estén en español',
+};
+
+const OUTPUT_LANGUAGE: Record<Locale, string> = {
+  es: 'Escribí las consignas, las opciones y las respuestas esperadas en español rioplatense.',
+  en: 'Write every "prompt", every option and every "expectedAnswer" in English. Keep the "axis" values exactly as listed.',
+};
+
 export function questionMix(focusAxis?: ComprehensionAxis): Record<ComprehensionAxis, number> {
   if (!focusAxis) return { LITERAL: 1, INFERENCIAL: 3, CRITICO: 1 };
   const mix: Record<ComprehensionAxis, number> = { LITERAL: 1, INFERENCIAL: 1, CRITICO: 1 };
@@ -77,7 +89,11 @@ export function questionMix(focusAxis?: ComprehensionAxis): Record<Comprehension
   return mix;
 }
 
-function buildPedagogicalPrompt(sourceText: string, focusAxis?: ComprehensionAxis): { system: string; user: string } {
+function buildPedagogicalPrompt(
+  sourceText: string,
+  focusAxis?: ComprehensionAxis,
+  language: Locale = 'es',
+): { system: string; user: string } {
   const mix = questionMix(focusAxis);
   const total = mix.LITERAL + mix.INFERENCIAL + mix.CRITICO;
   const lines = (Object.keys(mix) as ComprehensionAxis[]).map(
@@ -86,10 +102,12 @@ function buildPedagogicalPrompt(sourceText: string, focusAxis?: ComprehensionAxi
   return {
     system:
       'Sos un asistente pedagógico de la plataforma Habitar que diseña actividades de comprensión lectora para ' +
-      'docentes de nivel primario y secundario. Trabajás en español rioplatense, con consignas claras, directas y rigurosas.',
+      `docentes de nivel primario y secundario. ${WRITING_LANGUAGE[language]}, con consignas claras, directas y rigurosas.`,
     user: [
       `A partir del siguiente texto fuente, generá EXACTAMENTE ${total} preguntas de comprensión lectora:`,
       ...lines,
+      '',
+      OUTPUT_LANGUAGE[language],
       '',
       'Respondé ÚNICAMENTE un objeto JSON válido con esta estructura exacta, sin código markdown ni comentarios:',
       '{"questions": [{"axis": "LITERAL" | "INFERENCIAL" | "CRITICO", "prompt": string, "expectedAnswer": string, "options"?: string[], "correctOption"?: string}]}',
@@ -137,7 +155,7 @@ function buildGradingPrompt(input: GradeOpenAnswerInput): { system: string; user
       '"""',
       '',
       'Respondé ÚNICAMENTE un objeto JSON válido: {"score": 0 | 1 | 2 | 3, "rationale": string}. En "rationale" ' +
-        'explicá en una o dos oraciones, en español rioplatense y dirigido al docente, por qué corresponde ese puntaje.',
+        `explicá en una o dos oraciones, ${input.language === 'en' ? 'en inglés' : 'en español rioplatense'} y dirigido al docente, por qué corresponde ese puntaje.`,
     ].join('\n'),
   };
 }
@@ -147,6 +165,7 @@ export interface ReadingHelpInput {
   activityQuestions: string[];
   history: { question: string; answer: string }[];
   question: string;
+  language?: Locale;
 }
 
 export interface ReadingHelpResult {
@@ -163,8 +182,11 @@ function buildReadingHelpPrompt(input: ReadingHelpInput): { system: string; user
   return {
     system: [
       'Sos el ayudante de lectura de la plataforma Habitar. Acompañás a alumnos de primaria y secundaria mientras leen un',
-      'texto y responden una actividad de comprensión lectora. Hablás en español rioplatense, con palabras simples, en',
-      'segunda persona (vos), con calidez y en no más de 80 palabras.',
+      'texto y responden una actividad de comprensión lectora. ' +
+        (input.language === 'en'
+          ? 'Respondés siempre en inglés, con palabras simples, en segunda persona,'
+          : 'Hablás en español rioplatense, con palabras simples, en segunda persona (vos),'),
+      'con calidez y en no más de 80 palabras.',
       '',
       'Lo que SÍ podés hacer, siempre sobre el texto:',
       '- Explicar qué significa una palabra, una sigla o una expresión, y cómo se usa en esa parte del texto.',
@@ -289,8 +311,9 @@ export class AiQuestionGeneratorService {
     sourceText: string,
     options: GenerateWithAiOptions,
     focusAxis?: ComprehensionAxis,
+    language: Locale = 'es',
   ): Promise<CreateQuestionInput[]> {
-    const parsedJson = await this.chatJson(options, buildPedagogicalPrompt(sourceText, focusAxis), 0.4);
+    const parsedJson = await this.chatJson(options, buildPedagogicalPrompt(sourceText, focusAxis, language), 0.4);
 
     const parsed = aiResponseSchema.safeParse(parsedJson);
     if (!parsed.success) {

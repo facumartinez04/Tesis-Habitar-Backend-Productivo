@@ -1,4 +1,5 @@
 import type { OAuthProviderId, Role } from './enums';
+import type { Locale } from '../i18n/locale';
 
 export interface User {
   id: string;
@@ -8,6 +9,7 @@ export interface User {
   role: Role;
   provider: OAuthProviderId;
   institutionId: string;
+  language: Locale | null;
 
   active: boolean;
 }
