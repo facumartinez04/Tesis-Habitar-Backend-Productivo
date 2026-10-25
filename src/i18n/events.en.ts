@@ -25,6 +25,8 @@ export const enEventMessages: Record<string, string> = {
   'Reasignó el docente de un curso.': "Reassigned a course's teacher.",
   'Renovó una suscripción.': 'Renewed a subscription.',
   'Revocó un token de API para agentes.': 'Revoked an API token for agents.',
+  'Se reutilizó un token de sesión ya renovado: se cerró la sesión en ese dispositivo.':
+    'An already renewed session token was reused: the session on that device was closed.',
 };
 
 const SENTENCE_PREFIX: Record<string, string> = {

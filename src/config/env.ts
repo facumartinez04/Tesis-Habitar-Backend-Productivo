@@ -16,7 +16,11 @@ export const env = {
     .split(',')
     .map((origin) => origin.trim().replace(/\/$/, ''))
     .filter(Boolean),
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '12h',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '30m',
+  refreshTokenDays: Number(process.env.REFRESH_TOKEN_DAYS ?? 30),
+  refreshCookieSameSite: (['strict', 'lax', 'none'].includes(process.env.REFRESH_COOKIE_SAMESITE ?? '')
+    ? process.env.REFRESH_COOKIE_SAMESITE
+    : 'lax') as 'strict' | 'lax' | 'none',
   superAdminEmails: (process.env.SUPER_ADMIN_EMAILS ?? '')
     .split(',')
     .map((email) => email.trim().toLowerCase())
