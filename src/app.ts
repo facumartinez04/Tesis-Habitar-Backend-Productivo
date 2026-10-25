@@ -21,6 +21,7 @@ export function createApp() {
         if (!origin || env.corsOrigins.includes(origin.replace(/\/$/, ''))) callback(null, true);
         else callback(null, false);
       },
+      credentials: true,
     }),
   );
   app.use(cookieParser());

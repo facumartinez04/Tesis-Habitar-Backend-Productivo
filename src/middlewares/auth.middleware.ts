@@ -67,6 +67,15 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
   next();
 }
 
+export async function optionalAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await requireAuth(req, res, () => undefined);
+  } catch {
+    req.auth = undefined;
+  }
+  next();
+}
+
 export function requireRole(...roles: Role[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.auth) throw new UnauthorizedError();

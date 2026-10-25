@@ -147,6 +147,8 @@ export const enMessages: Record<string, string> = {
   'La materia o asignatura es obligatoria': 'The subject is required',
   'El nombre del plan es obligatorio': 'The plan name is required',
   'Error de red inesperado': 'Unexpected network error',
+  'La sesión expiró. Volvé a ingresar.': 'Your session expired. Please sign in again.',
+  'Origen no permitido': 'Origin not allowed',
 
   'Dispositivo verificado.': 'Device verified.',
   'Dispositivo vinculado con éxito a esta aula.': 'Device successfully linked to this classroom.',

@@ -6,6 +6,9 @@ import { BadRequestError, UnauthorizedError } from '../utils/http-error';
 import type { OAuthProviderId } from '../domain/enums';
 import { logService } from '../bll/log.service';
 import type { UpdateLanguageDto } from '../dto/auth.dto';
+import { refreshSessionService } from '../bll/refresh-session.service';
+import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from '../utils/refresh-cookie';
+import { ForbiddenError } from '../utils/http-error';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -41,9 +44,27 @@ export class AuthController {
   }
 
   async logout(req: Request, res: Response): Promise<void> {
-    const { jti, exp, sub } = req.auth!;
-    if (jti && exp) await authService.logout(jti, sub, exp);
+    if (req.auth) {
+      const { jti, exp, sub } = req.auth;
+      if (jti && exp) await authService.logout(jti, sub, exp);
+    }
+    await refreshSessionService.revoke(readRefreshCookie(req));
+    clearRefreshCookie(res);
     res.status(204).send();
+  }
+
+  async refresh(req: Request, res: Response): Promise<void> {
+    const origin = req.header('origin')?.replace(/\/$/, '');
+    if (origin && !env.corsOrigins.includes(origin)) throw new ForbiddenError('Origen no permitido');
+    try {
+      const result = await refreshSessionService.refresh(readRefreshCookie(req), req.header('user-agent') ?? null);
+      if (result.refresh) setRefreshCookie(res, result.refresh);
+      const institutionLanguage = await authService.getInstitutionLanguage(result.user.institutionId);
+      res.json({ token: result.token, user: result.user, institutionLanguage });
+    } catch (err) {
+      clearRefreshCookie(res);
+      throw err;
+    }
   }
 
   async redirectToProvider(req: Request, res: Response): Promise<void> {
@@ -92,6 +113,8 @@ export class AuthController {
         type: 'LOGIN',
         description: `Inició sesión con ${providerParam === 'GOOGLE' ? 'Google' : 'Microsoft'}.`,
       });
+
+      setRefreshCookie(res, await refreshSessionService.issue(session.user.id, req.header('user-agent') ?? null));
 
       const redirectTo = new URL('/auth/callback', env.frontendUrl);
       redirectTo.hash = new URLSearchParams({

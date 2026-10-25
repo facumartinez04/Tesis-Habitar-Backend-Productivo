@@ -2,6 +2,7 @@ import { userRepository } from '../dal/user.repository';
 import { subscriptionRepository } from '../dal/subscription.repository';
 import { institutionRepository } from '../dal/institution.repository';
 import { emailService } from '../services/email.service';
+import { refreshSessionService } from './refresh-session.service';
 import { BadRequestError, ConflictError, NotFoundError } from '../utils/http-error';
 import type { CreateInstitutionUserInput, User } from '../domain/user';
 import type { Role } from '../domain/enums';
@@ -89,7 +90,9 @@ export class DefaultUserService implements UserService {
       }
     }
 
-    return userRepository.setActive(userId, active);
+    const updated = await userRepository.setActive(userId, active);
+    if (!active) await refreshSessionService.revokeAllForUser(userId);
+    return updated;
   }
 
   private async assertBelongsToInstitution(userId: string, institutionId: string): Promise<User | null> {
