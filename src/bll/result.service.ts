@@ -19,7 +19,23 @@ import type {
   PerformanceStatus,
   Score,
   StudentDetailResult,
+  StudentHelpActivity,
 } from '../domain/result';
+import { readingHelpRepository } from '../dal/reading-help.repository';
+import { normalizeStudentName } from './student-identity';
+
+/** Agrupa las preguntas de ayuda por actividad: la más reciente primero, y dentro de cada una en el orden en que las hizo. */
+export function groupHelpByActivity(
+  rows: { activityId: string; activityName: string; question: string; answer: string; declined: boolean; createdAt: Date }[],
+): StudentHelpActivity[] {
+  const byActivity = new Map<string, StudentHelpActivity>();
+  for (const row of rows) {
+    const entry = byActivity.get(row.activityId) ?? { activityId: row.activityId, activityName: row.activityName, questions: [] };
+    entry.questions.unshift({ question: row.question, answer: row.answer, declined: row.declined, askedAt: new Date(row.createdAt).toISOString() });
+    byActivity.set(row.activityId, entry);
+  }
+  return [...byActivity.values()];
+}
 
 export function classify(scores: AxisScores | null): PerformanceStatus {
   if (!scores) return 'SIN_DATOS';
@@ -127,7 +143,10 @@ export class DefaultResultService implements ResultService {
     if (!student) throw new NotFoundError('Alumno no encontrado');
 
     const course = await courseRepository.findById(student.courseId);
-    const history = await resultRepository.getStudentHistory(studentId);
+    const [history, helpRows] = await Promise.all([
+      resultRepository.getStudentHistory(studentId),
+      readingHelpRepository.listForStudentInCourse(student.courseId, normalizeStudentName(student.name)),
+    ]);
 
     const latestScores = history[0]
       ? { literal: history[0].literal, inferencial: history[0].inferencial, critico: history[0].critico }
@@ -154,6 +173,7 @@ export class DefaultResultService implements ResultService {
         date: row.date.toISOString().slice(0, 10),
         scores: { literal: row.literal, inferencial: row.inferencial, critico: row.critico },
       })),
+      helpQuestions: groupHelpByActivity(helpRows),
     };
   }
 

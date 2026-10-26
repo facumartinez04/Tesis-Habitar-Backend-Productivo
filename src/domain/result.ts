@@ -49,6 +49,19 @@ export interface StudentActivityHistoryRow {
   scores: AxisScores;
 }
 
+export interface StudentHelpQuestion {
+  question: string;
+  answer: string;
+  declined: boolean;
+  askedAt: string;
+}
+
+export interface StudentHelpActivity {
+  activityId: string;
+  activityName: string;
+  questions: StudentHelpQuestion[];
+}
+
 export interface StudentDetailResult {
   studentId: string;
   name: string;
@@ -59,6 +72,7 @@ export interface StudentDetailResult {
   status: PerformanceStatus;
   trend: StudentTrendPoint[];
   history: StudentActivityHistoryRow[];
+  helpQuestions: StudentHelpActivity[];
 }
 
 export interface DateRange {

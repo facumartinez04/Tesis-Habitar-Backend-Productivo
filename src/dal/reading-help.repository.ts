@@ -28,6 +28,17 @@ export class SqlReadingHelpRepository {
     );
   }
 
+  async listForStudentInCourse(courseId: string, studentKey: string): Promise<(ReadingHelpRow & { activityName: string })[]> {
+    return query<ReadingHelpRow & { activityName: string }>(
+      `SELECT m.*, a."name" AS "activityName"
+         FROM "ReadingHelpMessage" m
+         JOIN "Activity" a ON a."id" = m."activityId"
+        WHERE a."courseId" = $1 AND m."studentKey" = $2
+        ORDER BY m."createdAt" DESC`,
+      [courseId, studentKey],
+    );
+  }
+
   async listByActivity(activityId: string, limit = 200): Promise<ReadingHelpRow[]> {
     return query<ReadingHelpRow>(
       `SELECT * FROM "ReadingHelpMessage" WHERE "activityId" = $1 ORDER BY "createdAt" DESC LIMIT $2`,
