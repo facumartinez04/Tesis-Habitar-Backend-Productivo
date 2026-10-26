@@ -151,6 +151,11 @@ export const enMessages: Record<string, string> = {
   'La sesión expiró. Volvé a ingresar.': 'Your session expired. Please sign in again.',
   'La pregunta para completar necesita al menos una respuesta aceptada': 'The fill-in-the-blank question needs at least one accepted answer',
   'Marcá al menos una opción correcta': 'Mark at least one correct option',
+  'La IA no está disponible para tu institución. Corregí el texto a mano.': 'AI is not available for your institution. Fix the text by hand.',
+  'Tu institución llegó al tope de gasto de IA de este mes. Corregí el texto a mano.':
+    'Your institution reached its AI spending limit for this month. Fix the text by hand.',
+  'La IA no pudo ordenar el texto de la página. Probá de nuevo o corregilo a mano.':
+    'The AI could not clean up the text of the page. Try again or fix it by hand.',
   'La cuenta de tu institución está pausada. Comunicate con Habitar para reactivarla.': "Your institution's account is paused. Contact Habitar to reactivate it.",
   'La cuenta de esta institución está pausada por el momento. Consultá con tu docente.': "This institution's account is paused for now. Ask your teacher.",
   'Origen no permitido': 'Origin not allowed',

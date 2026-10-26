@@ -22,4 +22,4 @@ export interface RecordAiUsageInput {
   keySource?: 'PLATAFORMA' | 'PROPIA';
 }
 
-export type AiUsageKind = 'GENERACION' | 'CORRECCION' | 'AYUDA';
+export type AiUsageKind = 'GENERACION' | 'CORRECCION' | 'AYUDA' | 'DOCUMENTO';
