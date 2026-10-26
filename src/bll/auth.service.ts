@@ -9,6 +9,7 @@ import type { OAuthProviderId, Role } from '../domain/enums';
 import type { Session } from '../domain/auth';
 import type { Institution } from '../domain/institution';
 import type { Locale } from '../i18n/locale';
+import { getInstitutionPause, type InstitutionPause } from './institution-pause';
 
 export interface OAuthAuthorizationRequest {
   authorizationUrl: string;
@@ -25,7 +26,9 @@ export interface HandleOAuthCallbackInput {
 
 export interface AuthService {
   getSessionUser(userId: string): Promise<Session['user']>;
-  getInstitutionSettings(institutionId: string): Promise<{ institutionLanguage: Locale; readingMaxChars: number }>;
+  getInstitutionSettings(
+    institutionId: string,
+  ): Promise<{ institutionLanguage: Locale; readingMaxChars: number; institutionPaused: InstitutionPause | null }>;
   updateLanguage(userId: string, language: Locale | null): Promise<Session['user']>;
   buildAuthorizationRequest(provider: OAuthProviderId): Promise<OAuthAuthorizationRequest>;
   handleOAuthCallback(input: HandleOAuthCallbackInput): Promise<Session>;
@@ -51,11 +54,17 @@ export class DefaultAuthService implements AuthService {
     return user;
   }
 
-  async getInstitutionSettings(institutionId: string): Promise<{ institutionLanguage: Locale; readingMaxChars: number }> {
-    const institution = await institutionRepository.findById(institutionId);
+  async getInstitutionSettings(
+    institutionId: string,
+  ): Promise<{ institutionLanguage: Locale; readingMaxChars: number; institutionPaused: InstitutionPause | null }> {
+    const [institution, institutionPaused] = await Promise.all([
+      institutionRepository.findById(institutionId),
+      getInstitutionPause(institutionId),
+    ]);
     return {
       institutionLanguage: institution?.defaultLanguage ?? 'es',
       readingMaxChars: institution?.readingMaxChars ?? DEFAULT_READING_MAX_CHARS,
+      institutionPaused,
     };
   }
 

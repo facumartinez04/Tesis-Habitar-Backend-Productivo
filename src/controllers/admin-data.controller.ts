@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { adminDataService } from '../bll/admin-data.service';
 import { readPage, type PageRequest } from '../utils/pagination';
 import { actorFrom } from '../bll/log.service';
+import { setInstitutionPause } from '../bll/institution-pause';
 
 const pageFrom = (req: Request): PageRequest => readPage(req) ?? { page: 1, pageSize: 20, q: '' };
 
@@ -20,6 +21,15 @@ export class AdminDataController {
 
   async deletions(req: Request, res: Response): Promise<void> {
     res.json(await adminDataService.deletions(String(req.params.institutionId), pageFrom(req)));
+  }
+
+  async pauseInstitution(req: Request, res: Response): Promise<void> {
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason : null;
+    res.json({ institutionPaused: await setInstitutionPause(String(req.params.institutionId), true, reason) });
+  }
+
+  async resumeInstitution(req: Request, res: Response): Promise<void> {
+    res.json({ institutionPaused: await setInstitutionPause(String(req.params.institutionId), false, null) });
   }
 
   async deleteActivity(req: Request, res: Response): Promise<void> {

@@ -78,10 +78,18 @@ institutionRouter.get(
   adminAiController.institutionCosts.bind(adminAiController),
 );
 
+institutionRouter.patch(
+  '/:institutionId/ai-budget',
+  requireAuth,
+  requireRole('COORDINADOR', 'ADMIN'),
+  requireSameInstitution(),
+  adminAiController.setBudget.bind(adminAiController),
+);
+
 institutionRouter.get(
   '/:institutionId/ai-usage',
   requireAuth,
-  requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'),
+  requireRole('COORDINADOR', 'ADMIN'),
   requireSameInstitution(), institutionController.getAiUsage.bind(institutionController),
 );
 

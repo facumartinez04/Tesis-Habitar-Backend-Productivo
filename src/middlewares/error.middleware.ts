@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { HttpError } from '../utils/http-error';
 import { logService } from '../bll/log.service';
+import { InstitutionPausedError } from '../bll/institution-pause';
 
 export function notFoundHandler(_req: Request, res: Response): void {
   res.status(404).json({ error: 'Ruta no encontrada' });
@@ -10,7 +11,7 @@ export function notFoundHandler(_req: Request, res: Response): void {
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof HttpError) {
     if (err.status >= 500) void logService.error(err, { source: 'API', req, status: err.status });
-    res.status(err.status).json({ error: err.message });
+    res.status(err.status).json({ error: err.message, ...(err instanceof InstitutionPausedError ? { institutionPaused: err.pause } : {}) });
     return;
   }
 

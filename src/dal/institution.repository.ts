@@ -21,6 +21,8 @@ interface InstitutionRow {
   alertEmailsEnabled?: boolean | null;
   defaultLanguage?: string | null;
   readingMaxChars?: number | null;
+  pausedAt?: Date | null;
+  pauseReason?: string | null;
   createdAt: Date;
 }
 
@@ -78,6 +80,8 @@ async function toDomain(row: InstitutionRow, runner: { query: typeof query } = {
     alertEmailsEnabled: row.alertEmailsEnabled ?? true,
     defaultLanguage: row.defaultLanguage === 'en' ? 'en' : 'es',
     readingMaxChars: row.readingMaxChars ?? DEFAULT_READING_MAX_CHARS,
+    pausedAt: row.pausedAt ?? null,
+    pauseReason: row.pauseReason ?? null,
     createdAt: row.createdAt,
   };
 }

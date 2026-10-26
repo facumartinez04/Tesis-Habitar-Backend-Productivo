@@ -27,6 +27,7 @@ import type { AxisScores } from '../domain/result';
 import type { ComprehensionAxis } from '../domain/enums';
 import type { Institution, StudentIdMode } from '../domain/institution';
 import type { CreateAnswerInput } from '../dal/response.repository';
+import { assertInstitutionActive } from './institution-pause';
 
 type SubmitResponsePayload = Omit<SubmitResponseInput, 'activityId'>;
 
@@ -402,6 +403,8 @@ export class DefaultActivityService implements ActivityService {
   async getPublicByCode(code: string): Promise<PublicActivityView> {
     const found = await activityRepository.findByCode(code);
     if (!found) throw new NotFoundError('Actividad no encontrada');
+    const ownerCourse = await courseRepository.findById(found.courseId);
+    if (ownerCourse) await assertInstitutionActive(ownerCourse.institutionId, 'student');
     const activity = await this.syncStatus(found);
 
     if (activity.status === 'CERRADA' || pastEndTime(activity)) {

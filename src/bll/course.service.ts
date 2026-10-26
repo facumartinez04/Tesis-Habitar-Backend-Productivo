@@ -7,6 +7,7 @@ import type { Role } from '../domain/enums';
 import { institutionRepository } from '../dal/institution.repository';
 import { resolveStudentIdentity } from './student-identity';
 import { linkStudentDevice } from './student-devices';
+import { assertInstitutionActive } from './institution-pause';
 
 export interface PublicCourseInfo {
   course: Course;
@@ -76,6 +77,7 @@ export class DefaultCourseService implements CourseService {
 
   async getPublicCourseByQr(qrCode: string): Promise<PublicCourseInfo> {
     const course = await this.getByQrCode(qrCode);
+    await assertInstitutionActive(course.institutionId, 'student');
     const { activityService } = await import('./activity.service');
     const { open, upcoming } = await activityService.currentForCourse(course.id);
     const institution = await institutionRepository.findById(course.institutionId);
@@ -139,6 +141,7 @@ export class DefaultCourseService implements CourseService {
     if (!course) {
       throw new NotFoundError('Aula no encontrada');
     }
+    await assertInstitutionActive(course.institutionId, 'student');
 
     const institution = await institutionRepository.findById(course.institutionId);
     const identity = resolveStudentIdentity(institution?.studentIdMode ?? 'NOMBRE', input.studentName);
