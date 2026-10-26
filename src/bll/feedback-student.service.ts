@@ -4,6 +4,8 @@ import { courseRepository } from '../dal/course.repository';
 import { institutionRepository } from '../dal/institution.repository';
 import { resolveStudentIdentity } from './student-identity';
 import { ConflictError, ForbiddenError, NotFoundError } from '../utils/http-error';
+import { gradeClosed, isAutoGraded } from './question-grading';
+import type { QuestionType } from '../domain/question';
 
 const RUBRIC = ['No responde o no se relaciona con la pregunta', 'Da su opinión, pero sin fundamentarla', 'Fundamenta con el texto', 'Fundamenta con el texto y lo evalúa'];
 
@@ -13,11 +15,16 @@ export interface StudentFeedback {
   scores: { literal: number | null; inferencial: number | null; critico: number | null; criticoPending: boolean };
   questions: {
     axis: string;
+    type: QuestionType;
     prompt: string;
     options: string[] | null;
     selectedOption: string | null;
+    selectedOptions: string[] | null;
     correctOption: string | null;
+    correctOptions: string[] | null;
+    acceptedAnswers: string[] | null;
     correct: boolean | null;
+    partial: number | null;
     textAnswer: string | null;
     score: number | null;
     scoreLabel: string | null;
@@ -59,15 +66,20 @@ export class StudentFeedbackService {
       ),
       query<{
         axis: string;
+        type: QuestionType | null;
         prompt: string;
         optionsJson: string | null;
         correctOption: string | null;
+        correctOptionsJson: string | null;
+        acceptedAnswersJson: string | null;
         selectedOption: string | null;
+        selectedOptionsJson: string | null;
         textAnswer: string | null;
         teacherScore: number | null;
         reviewedAt: Date | null;
       }>(
-        `SELECT q."axis", q."prompt", q."optionsJson", q."correctOption", a."selectedOption", a."textAnswer", a."teacherScore", a."reviewedAt"
+        `SELECT q."axis", q."type", q."prompt", q."optionsJson", q."correctOption", q."correctOptionsJson", q."acceptedAnswersJson",
+                a."selectedOption", a."selectedOptionsJson", a."textAnswer", a."teacherScore", a."reviewedAt"
            FROM "Question" q
            LEFT JOIN "Answer" a ON a."questionId" = q."id" AND a."responseId" = $2
           WHERE q."activityId" = $1 AND q."approved"
@@ -86,16 +98,32 @@ export class StudentFeedbackService {
         criticoPending: result ? !result.reviewed : false,
       },
       questions: rows.map((r) => {
-        const closed = Boolean(r.correctOption);
+        const type: QuestionType = r.type ?? (r.correctOption ? 'OPCION_UNICA' : 'ABIERTA');
+        const closed = isAutoGraded({ type });
+        const options = r.optionsJson ? (JSON.parse(r.optionsJson) as string[]) : null;
+        const correctOptions = r.correctOptionsJson ? (JSON.parse(r.correctOptionsJson) as string[]) : null;
+        const acceptedAnswers = r.acceptedAnswersJson ? (JSON.parse(r.acceptedAnswersJson) as string[]) : null;
+        const selectedOptions = r.selectedOptionsJson ? (JSON.parse(r.selectedOptionsJson) as string[]) : null;
+        const fraction = closed
+          ? gradeClosed(
+              { type, options, correctOption: r.correctOption, correctOptions, acceptedAnswers },
+              { selectedOption: r.selectedOption, selectedOptions, textAnswer: r.textAnswer },
+            )
+          : null;
         const score = closed ? null : r.teacherScore;
         return {
           axis: r.axis,
+          type,
           prompt: r.prompt,
-          options: r.optionsJson ? (JSON.parse(r.optionsJson) as string[]) : null,
+          options,
           selectedOption: closed ? r.selectedOption : null,
+          selectedOptions: type === 'OPCION_MULTIPLE' ? selectedOptions ?? [] : null,
           correctOption: closed ? r.correctOption : null,
-          correct: closed ? r.selectedOption === r.correctOption : null,
-          textAnswer: closed ? null : r.textAnswer,
+          correctOptions: type === 'OPCION_MULTIPLE' ? correctOptions : null,
+          acceptedAnswers: type === 'COMPLETAR' ? acceptedAnswers : null,
+          correct: fraction === null ? null : fraction === 1,
+          partial: fraction === null || fraction === 1 || fraction === 0 ? null : Math.round(fraction * 100),
+          textAnswer: type === 'ABIERTA' || type === 'COMPLETAR' ? r.textAnswer : null,
           score,
           scoreLabel: score === null || score === undefined ? null : RUBRIC[score] ?? null,
           pendingReview: !closed && Boolean(r.textAnswer) && (r.teacherScore === null || !r.reviewedAt),

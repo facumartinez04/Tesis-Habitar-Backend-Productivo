@@ -28,6 +28,8 @@ import type { ComprehensionAxis } from '../domain/enums';
 import type { Institution, StudentIdMode } from '../domain/institution';
 import type { CreateAnswerInput } from '../dal/response.repository';
 import { assertInstitutionActive } from './institution-pause';
+import { gradeClosed, isAutoGraded, normalizeQuestionInput } from './question-grading';
+import type { QuestionType } from '../domain/question';
 
 type SubmitResponsePayload = Omit<SubmitResponseInput, 'activityId'>;
 
@@ -38,20 +40,22 @@ export function computeScores(
   answers: CreateAnswerInput[],
 ): { scores: AxisScores; criticoReviewed: boolean } {
   const closedScore = (axis: ComprehensionAxis): number | null => {
-    const gradable = questions.filter((q) => q.axis === axis && q.correctOption);
+    const gradable = questions.filter((q) => q.axis === axis && isAutoGraded(q));
     if (gradable.length === 0) return null;
-    const correct = gradable.filter((q) => answers.find((a) => a.questionId === q.id)?.selectedOption === q.correctOption);
-    return Math.round((correct.length / gradable.length) * 100);
+    const total = gradable.reduce((sum, q) => sum + gradeClosed(q, answers.find((a) => a.questionId === q.id)), 0);
+    return Math.round((total / gradable.length) * 100);
   };
 
   const criticoRows = questions
     .filter((q) => q.axis === 'CRITICO')
     .map((q) => {
       const answer = answers.find((a) => a.questionId === q.id);
+      const auto = isAutoGraded(q);
       return {
         correctOption: q.correctOption,
         selectedOption: answer?.selectedOption ?? null,
-        teacherScore: q.correctOption ? null : answer?.autoScore ?? (answer?.textAnswer ? null : 0),
+        fraction: auto ? gradeClosed(q, answer) : null,
+        teacherScore: auto ? null : answer?.autoScore ?? (answer?.textAnswer ? null : 0),
       };
     });
   const critico = criticoFromAnswers(criticoRows);
@@ -119,7 +123,7 @@ export interface SubmitResponseResult {
   submittedAt: string;
 }
 
-export type PublicQuestion = Omit<Question, 'correctOption' | 'expectedAnswer'>;
+export type PublicQuestion = Omit<Question, 'correctOption' | 'correctOptions' | 'acceptedAnswers' | 'expectedAnswer'>;
 
 export interface PublicActivityView {
   activity: Omit<Activity, 'sourcePurgedAt'>;
@@ -180,9 +184,12 @@ export interface LiveActivityView {
   questions: {
     id: string;
     axis: Question['axis'];
+    type: Question['type'];
     prompt: string;
     options: string[] | null;
     correctOption: string | null;
+    correctOptions: string[] | null;
+    acceptedAnswers: string[] | null;
     expectedAnswer: string;
   }[];
   responses: {
@@ -205,6 +212,7 @@ export interface ActivityService {
     institutionId: string,
     focusAxis?: ComprehensionAxis,
     language?: Locale,
+    questionTypes?: QuestionType[],
   ): Promise<GenerateQuestionsResult>;
   createActivity(input: CreateActivityInput): Promise<Activity>;
   getPublicByCode(code: string): Promise<PublicActivityView>;
@@ -222,6 +230,13 @@ export interface ActivityService {
 
 const templateFallback = new TemplateQuestionGenerator();
 
+export const CLOSED_TYPES: QuestionType[] = ['OPCION_UNICA', 'OPCION_MULTIPLE', 'VERDADERO_FALSO', 'COMPLETAR'];
+
+export function allowedTypes(requested?: QuestionType[]): QuestionType[] {
+  const closed = (requested ?? CLOSED_TYPES).filter((t) => CLOSED_TYPES.includes(t));
+  return closed.length ? closed : ['OPCION_UNICA'];
+}
+
 export function assertReadingLength(text: string, maxChars: number): void {
   const chars = text.trim().length;
   if (chars > maxChars) {
@@ -235,7 +250,9 @@ export class DefaultActivityService implements ActivityService {
     institutionId: string,
     focusAxis?: ComprehensionAxis,
     language: Locale = 'es',
+    questionTypes?: QuestionType[],
   ): Promise<GenerateQuestionsResult> {
+    const types = allowedTypes(questionTypes);
     const wordCount = countWords(sourceText);
     const institution = await institutionRepository.findById(institutionId);
     const maxChars = institution?.readingMaxChars ?? DEFAULT_READING_MAX_CHARS;
@@ -251,22 +268,29 @@ export class DefaultActivityService implements ActivityService {
         `[activity.service] ${!access ? 'Sin clave de IA' : !hasQuota ? 'Cuota mensual agotada' : 'Tope de gasto mensual alcanzado'} para la institución ${institutionId}: ` +
           'se usan las preguntas por plantilla.',
       );
-      questions = await templateFallback.generate(sourceText, focusAxis, language);
+      questions = await templateFallback.generate(sourceText, focusAxis, language, types);
     } else {
       const provider = access.options.provider.toLowerCase();
       const call = usageCollector(access);
       try {
-        questions = await aiQuestionGenerator.generate(sourceText, call.options, focusAxis, language);
+        questions = await aiQuestionGenerator.generate(sourceText, call.options, focusAxis, language, types);
         await aiUsageService.record({ institutionId, provider, success: true, wordCount, kind: 'GENERACION', ...call.usage() });
       } catch (err) {
         if (!(err instanceof UpstreamError)) throw err;
         console.error(`[activity.service] ${provider} falló, se usan las preguntas por plantilla:`, err.message);
-        questions = await templateFallback.generate(sourceText, focusAxis, language);
+        questions = await templateFallback.generate(sourceText, focusAxis, language, types);
         await aiUsageService.record({ institutionId, provider, success: false, wordCount, kind: 'GENERACION', ...call.usage() });
       }
     }
 
-    return { wordCount, isValid: isReadingLengthValid(sourceText, maxChars), questions };
+    const safe = questions.flatMap((q) => {
+      try {
+        return [normalizeQuestionInput(q)];
+      } catch {
+        return [];
+      }
+    });
+    return { wordCount, isValid: isReadingLengthValid(sourceText, maxChars), questions: safe };
   }
 
   async createActivity(input: CreateActivityInput): Promise<Activity> {
@@ -286,13 +310,10 @@ export class DefaultActivityService implements ActivityService {
         'El horario de cierre seleccionado ya venció. Por favor configurá un horario futuro para que los alumnos puedan ingresar.',
       );
     }
-    for (const q of input.questions) {
-      if (q.correctOption && !(q.options ?? []).includes(q.correctOption)) {
-        throw new BadRequestError(`La opción correcta de «${q.prompt.slice(0, 40)}» no está entre sus opciones`);
-      }
-    }
+    const questions = input.questions.map((q) => normalizeQuestionInput(q));
     const created = await activityRepository.create({
       ...input,
+      questions,
       status: input.status ?? (hasOpened(input) ? 'PUBLICADA' : 'PROGRAMADA'),
     });
     realtime.activityChanged(created);
@@ -385,9 +406,12 @@ export class DefaultActivityService implements ActivityService {
       questions: approved.map((q) => ({
         id: q.id,
         axis: q.axis,
+        type: q.type,
         prompt: q.prompt,
         options: q.options ?? null,
         correctOption: q.correctOption ?? null,
+        correctOptions: q.correctOptions ?? null,
+        acceptedAnswers: q.acceptedAnswers ?? null,
         expectedAnswer: q.expectedAnswer,
       })),
       responses: responses.map((r) => ({
@@ -425,7 +449,9 @@ export class DefaultActivityService implements ActivityService {
     return {
       activity: publicActivity,
       document,
-      questions: questionsReleased ? approved.map(({ correctOption: _c, expectedAnswer: _e, ...q }) => q) : [],
+      questions: questionsReleased
+        ? approved.map(({ correctOption: _c, correctOptions: _cs, acceptedAnswers: _a, expectedAnswer: _e, ...q }) => q)
+        : [],
       questionCount: approved.length,
       questionsReleased,
       studentIdMode: institution?.studentIdMode ?? 'NOMBRE',
@@ -464,10 +490,13 @@ export class DefaultActivityService implements ActivityService {
       status: 'BORRADOR',
       questions: questions.map((q) => ({
         axis: q.axis,
+        type: q.type,
         prompt: q.prompt,
         expectedAnswer: q.expectedAnswer,
         options: q.options ?? undefined,
         correctOption: q.correctOption ?? undefined,
+        correctOptions: q.correctOptions ?? undefined,
+        acceptedAnswers: q.acceptedAnswers ?? undefined,
         approved: q.approved,
       })),
     });
@@ -550,7 +579,7 @@ export class DefaultActivityService implements ActivityService {
       studentKey: identity.normalized,
       studentDisplayName: identity.displayName,
       deviceId,
-      answeredCount: answers.filter((a) => a.selectedOption || a.textAnswer).length,
+      answeredCount: answers.filter((a) => a.selectedOption || a.textAnswer || a.selectedOptions?.length).length,
     });
 
     realtime.liveChanged(activity.id);
@@ -570,10 +599,18 @@ export class DefaultActivityService implements ActivityService {
       if (seen.has(answer.questionId)) throw new BadRequestError('Hay una pregunta respondida dos veces');
       seen.add(answer.questionId);
 
-      const isOpen = !question.correctOption && !(question.options && question.options.length > 0);
-      if (isOpen) {
+      if (question.type === 'ABIERTA') {
         const text = (answer.textAnswer ?? '').trim().slice(0, MAX_OPEN_ANSWER_LENGTH);
         result.push({ questionId: question.id, selectedOption: null, textAnswer: text || null, autoScore: text ? null : 0 });
+      } else if (question.type === 'COMPLETAR') {
+        const text = (answer.textAnswer ?? '').trim().slice(0, 200);
+        result.push({ questionId: question.id, selectedOption: null, textAnswer: text || null, autoGraded: true });
+      } else if (question.type === 'OPCION_MULTIPLE') {
+        const chosen = [...new Set(answer.selectedOptions ?? [])];
+        if (chosen.some((o) => !(question.options ?? []).includes(o))) {
+          throw new BadRequestError('Una de las opciones elegidas no corresponde a la pregunta');
+        }
+        result.push({ questionId: question.id, selectedOption: null, selectedOptions: chosen, textAnswer: null });
       } else {
         const option = answer.selectedOption ?? null;
         if (option !== null && !(question.options ?? []).includes(option)) {

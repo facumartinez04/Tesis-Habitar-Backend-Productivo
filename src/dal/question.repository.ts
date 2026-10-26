@@ -5,6 +5,9 @@ interface QuestionRow {
   id: string;
   activityId: string;
   axis: Question['axis'];
+  type: Question['type'] | null;
+  correctOptionsJson: string | null;
+  acceptedAnswersJson: string | null;
   prompt: string;
   expectedAnswer: string;
   optionsJson: string | null;
@@ -19,23 +22,33 @@ function toDomain(row: QuestionRow): Question {
     id: row.id,
     activityId: row.activityId,
     axis: row.axis,
+    type: row.type ?? (row.correctOption ? 'OPCION_UNICA' : 'ABIERTA'),
     prompt: row.prompt,
     expectedAnswer: row.expectedAnswer,
     options: row.optionsJson ? JSON.parse(row.optionsJson) : null,
     correctOption: row.correctOption,
+    correctOptions: row.correctOptionsJson ? JSON.parse(row.correctOptionsJson) : null,
+    acceptedAnswers: row.acceptedAnswersJson ? JSON.parse(row.acceptedAnswersJson) : null,
     edited: row.edited,
     approved: row.approved,
     order: row.order,
   };
 }
 
+export interface QuestionUpdate {
+  type: Question['type'];
+  prompt: string;
+  options: string[] | null;
+  correctOption: string | null;
+  correctOptions: string[] | null;
+  acceptedAnswers: string[] | null;
+  expectedAnswer: string;
+}
+
 export interface QuestionRepository {
   findByActivity(activityId: string): Promise<Question[]>;
   findByIds(ids: string[]): Promise<Question[]>;
-  update(
-    id: string,
-    input: { prompt: string; options: string[] | null; correctOption: string | null; expectedAnswer: string },
-  ): Promise<Question>;
+  update(id: string, input: QuestionUpdate): Promise<Question>;
 }
 
 export class SqlQuestionRepository implements QuestionRepository {
@@ -50,14 +63,21 @@ export class SqlQuestionRepository implements QuestionRepository {
     return rows.map(toDomain);
   }
 
-  async update(
-    id: string,
-    input: { prompt: string; options: string[] | null; correctOption: string | null; expectedAnswer: string },
-  ): Promise<Question> {
+  async update(id: string, input: QuestionUpdate): Promise<Question> {
     const row = await queryOne<QuestionRow>(
-      `UPDATE "Question" SET "prompt" = $2, "optionsJson" = $3, "correctOption" = $4, "expectedAnswer" = $5, "edited" = true
+      `UPDATE "Question" SET "prompt" = $2, "optionsJson" = $3, "correctOption" = $4, "expectedAnswer" = $5, "edited" = true,
+              "type" = $6, "correctOptionsJson" = $7, "acceptedAnswersJson" = $8
         WHERE "id" = $1 RETURNING *`,
-      [id, input.prompt, input.options ? JSON.stringify(input.options) : null, input.correctOption, input.expectedAnswer],
+      [
+        id,
+        input.prompt,
+        input.options ? JSON.stringify(input.options) : null,
+        input.correctOption,
+        input.expectedAnswer,
+        input.type,
+        input.correctOptions?.length ? JSON.stringify(input.correctOptions) : null,
+        input.acceptedAnswers?.length ? JSON.stringify(input.acceptedAnswers) : null,
+      ],
     );
     if (!row) throw new Error(`Question ${id} no encontrada`);
     return toDomain(row);

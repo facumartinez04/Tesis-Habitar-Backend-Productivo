@@ -5,6 +5,7 @@ import { env } from '../config/env';
 import type { AiProvider, AiKeySource } from '../domain/institution';
 import type { ComprehensionAxis } from '../domain/enums';
 import type { Locale } from '../i18n/locale';
+import type { QuestionType } from '../domain/question';
 
 export interface AiCallUsage {
   model: string;
@@ -50,11 +51,33 @@ export interface TestAiConnectionResult {
 
 const aiQuestionSchema = z.object({
   axis: z.enum(['LITERAL', 'INFERENCIAL', 'CRITICO']),
+  type: z.enum(['OPCION_UNICA', 'OPCION_MULTIPLE', 'VERDADERO_FALSO', 'COMPLETAR', 'ABIERTA']).optional(),
   prompt: z.string().min(3),
   expectedAnswer: z.string().min(1),
-  options: z.array(z.string().min(1)).min(3).max(4).optional(),
+  options: z.array(z.string().min(1)).min(2).max(6).optional(),
   correctOption: z.string().min(1).optional(),
+  correctOptions: z.array(z.string().min(1)).min(1).max(5).optional(),
+  acceptedAnswers: z.array(z.string().min(1)).min(1).max(6).optional(),
 });
+
+const TYPE_DESCRIPTION: Record<Exclude<QuestionType, 'ABIERTA'>, string> = {
+  OPCION_UNICA: '"OPCION_UNICA": "options" con 3 o 4 alternativas y "correctOption" igual a la única correcta.',
+  OPCION_MULTIPLE:
+    '"OPCION_MULTIPLE": "options" con 4 alternativas y "correctOptions" con las 2 o 3 que son correctas (copiadas exactas). La consigna tiene que avisar que hay más de una correcta.',
+  VERDADERO_FALSO:
+    '"VERDADERO_FALSO": la consigna es una afirmación sobre el texto, "options" es exactamente ["Verdadero", "Falso"] (o ["True", "False"] si el contenido es en inglés) y "correctOption" es una de las dos.',
+  COMPLETAR:
+    '"COMPLETAR": la consigna es una oración del texto o sobre el texto con un espacio en blanco marcado con ___ y "acceptedAnswers" con la palabra o frase corta que va en el blanco (y sinónimos válidos si los hay). Sin "options".',
+};
+
+function typesInstruction(types: QuestionType[]): string[] {
+  const closed = types.filter((t): t is Exclude<QuestionType, 'ABIERTA'> => t !== 'ABIERTA');
+  return [
+    'Tipos de pregunta (campo "type"). Para los ejes LITERAL e INFERENCIAL usá SOLO estos tipos y alternalos para que haya variedad:',
+    ...closed.map((t) => `- ${TYPE_DESCRIPTION[t]}`),
+    'Para el eje CRITICO usá siempre "type": "ABIERTA".',
+  ];
+}
 
 const aiResponseSchema = z.object({
   questions: z.array(aiQuestionSchema).min(3),
@@ -93,6 +116,7 @@ function buildPedagogicalPrompt(
   sourceText: string,
   focusAxis?: ComprehensionAxis,
   language: Locale = 'es',
+  types: QuestionType[] = ['OPCION_UNICA'],
 ): { system: string; user: string } {
   const mix = questionMix(focusAxis);
   const total = mix.LITERAL + mix.INFERENCIAL + mix.CRITICO;
@@ -107,10 +131,12 @@ function buildPedagogicalPrompt(
       `A partir del siguiente texto fuente, generá EXACTAMENTE ${total} preguntas de comprensión lectora:`,
       ...lines,
       '',
+      ...typesInstruction(types),
+      '',
       OUTPUT_LANGUAGE[language],
       '',
       'Respondé ÚNICAMENTE un objeto JSON válido con esta estructura exacta, sin código markdown ni comentarios:',
-      '{"questions": [{"axis": "LITERAL" | "INFERENCIAL" | "CRITICO", "prompt": string, "expectedAnswer": string, "options"?: string[], "correctOption"?: string}]}',
+      '{"questions": [{"axis": "LITERAL" | "INFERENCIAL" | "CRITICO", "type": "OPCION_UNICA" | "OPCION_MULTIPLE" | "VERDADERO_FALSO" | "COMPLETAR" | "ABIERTA", "prompt": string, "expectedAnswer": string, "options"?: string[], "correctOption"?: string, "correctOptions"?: string[], "acceptedAnswers"?: string[]}]}',
       '',
       'Texto fuente:',
       '"""',
@@ -312,8 +338,9 @@ export class AiQuestionGeneratorService {
     options: GenerateWithAiOptions,
     focusAxis?: ComprehensionAxis,
     language: Locale = 'es',
+    types: QuestionType[] = ['OPCION_UNICA'],
   ): Promise<CreateQuestionInput[]> {
-    const parsedJson = await this.chatJson(options, buildPedagogicalPrompt(sourceText, focusAxis, language), 0.4);
+    const parsedJson = await this.chatJson(options, buildPedagogicalPrompt(sourceText, focusAxis, language, types), 0.4);
 
     const parsed = aiResponseSchema.safeParse(parsedJson);
     if (!parsed.success) {
@@ -322,14 +349,20 @@ export class AiQuestionGeneratorService {
       );
     }
 
-    return parsed.data.questions.map((q) => ({
-      axis: q.axis,
-      prompt: q.prompt,
-      expectedAnswer: q.expectedAnswer,
-      options: q.options,
-      correctOption: q.correctOption,
-      approved: q.axis !== 'CRITICO',
-    }));
+    return parsed.data.questions.map((q) => {
+      const type: QuestionType = q.axis === 'CRITICO' && !q.options?.length ? 'ABIERTA' : q.type ?? (q.correctOptions?.length ? 'OPCION_MULTIPLE' : q.acceptedAnswers?.length ? 'COMPLETAR' : q.options?.length ? 'OPCION_UNICA' : 'ABIERTA');
+      return {
+        axis: q.axis,
+        type,
+        prompt: q.prompt,
+        expectedAnswer: q.expectedAnswer,
+        options: q.options,
+        correctOption: q.correctOption,
+        correctOptions: q.correctOptions,
+        acceptedAnswers: q.acceptedAnswers,
+        approved: type !== 'ABIERTA',
+      };
+    });
   }
 
   async gradeOpenAnswer(input: GradeOpenAnswerInput, options: GenerateWithAiOptions): Promise<GradeOpenAnswerResult> {

@@ -127,8 +127,9 @@ export class SqlActivityRepository implements ActivityRepository {
       for (const [index, question] of input.questions.entries()) {
         await client.query(
           `INSERT INTO "Question"
-             ("activityId", "axis", "prompt", "expectedAnswer", "optionsJson", "correctOption", "approved", "order", "edited")
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+             ("activityId", "axis", "prompt", "expectedAnswer", "optionsJson", "correctOption", "approved", "order", "edited",
+              "type", "correctOptionsJson", "acceptedAnswersJson")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             activity.id,
             question.axis,
@@ -139,6 +140,9 @@ export class SqlActivityRepository implements ActivityRepository {
             question.approved,
             index,
             question.edited ?? false,
+            question.type ?? (question.correctOption ? 'OPCION_UNICA' : 'ABIERTA'),
+            question.correctOptions?.length ? JSON.stringify(question.correctOptions) : null,
+            question.acceptedAnswers?.length ? JSON.stringify(question.acceptedAnswers) : null,
           ],
         );
       }

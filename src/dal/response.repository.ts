@@ -1,9 +1,13 @@
 import { query, queryOne, withTransaction } from '../config/db';
 import type { AxisScores } from '../domain/result';
+import { gradeClosed, isAutoGraded } from '../bll/question-grading';
+import type { QuestionType } from '../domain/question';
 
 export interface CreateAnswerInput {
   questionId: string;
   selectedOption: string | null;
+  selectedOptions?: string[] | null;
+  autoGraded?: boolean;
   textAnswer: string | null;
   autoScore?: number | null;
 }
@@ -54,6 +58,7 @@ export interface CriticoAnswerRow {
   correctOption: string | null;
   selectedOption: string | null;
   teacherScore: number | null;
+  fraction?: number | null;
 }
 
 export interface ResponseRepository {
@@ -72,7 +77,9 @@ export function criticoFromAnswers(rows: CriticoAnswerRow[]): { criticoScore: nu
   if (rows.length === 0) return { criticoScore: null, criticoReviewed: true };
   let total = 0;
   for (const row of rows) {
-    if (row.correctOption) {
+    if (row.fraction !== undefined && row.fraction !== null) {
+      total += row.fraction * 100;
+    } else if (row.correctOption) {
       total += row.selectedOption === row.correctOption ? 100 : 0;
     } else if (row.teacherScore === null) {
       return { criticoScore: null, criticoReviewed: false };
@@ -98,8 +105,8 @@ export class SqlResponseRepository implements ResponseRepository {
       for (const answer of input.answers) {
         const autoScored = answer.autoScore !== undefined && answer.autoScore !== null;
         const { rows } = await client.query<{ id: string }>(
-          `INSERT INTO "Answer" ("responseId", "questionId", "selectedOption", "textAnswer", "aiScore", "aiRationale", "teacherScore", "reviewedAt")
-           VALUES ($1, $2, $3, $4, $5, $6, $5, CASE WHEN $5::int IS NULL THEN NULL ELSE CURRENT_TIMESTAMP END)
+          `INSERT INTO "Answer" ("responseId", "questionId", "selectedOption", "textAnswer", "aiScore", "aiRationale", "teacherScore", "reviewedAt", "selectedOptionsJson")
+           VALUES ($1, $2, $3, $4, $5, $6, $5, CASE WHEN $5::int IS NULL THEN NULL ELSE CURRENT_TIMESTAMP END, $7)
            RETURNING "id"`,
           [
             responseId,
@@ -108,9 +115,10 @@ export class SqlResponseRepository implements ResponseRepository {
             answer.textAnswer,
             autoScored ? answer.autoScore : null,
             autoScored ? 'Sin respuesta.' : null,
+            answer.selectedOptions?.length ? JSON.stringify(answer.selectedOptions) : null,
           ],
         );
-        if (answer.textAnswer && !autoScored) {
+        if (answer.textAnswer && !autoScored && !answer.autoGraded) {
           pendingOpenAnswers.push({ answerId: rows[0].id, questionId: answer.questionId, textAnswer: answer.textAnswer });
         }
       }
@@ -155,7 +163,7 @@ export class SqlResponseRepository implements ResponseRepository {
          FROM "Answer" a
          JOIN "Response" r ON r."id" = a."responseId"
          JOIN "Question" q ON q."id" = a."questionId"
-        WHERE r."activityId" = $1 AND q."axis" = 'CRITICO' AND q."correctOption" IS NULL
+        WHERE r."activityId" = $1 AND q."axis" = 'CRITICO' AND q."type" = 'ABIERTA'
         ORDER BY (a."teacherScore" IS NOT NULL), r."submittedAt"`,
       [activityId],
     );
@@ -167,7 +175,7 @@ export class SqlResponseRepository implements ResponseRepository {
          FROM "Answer" a
          JOIN "Response" r ON r."id" = a."responseId"
          JOIN "Question" q ON q."id" = a."questionId"
-        WHERE a."id" = $1 AND q."axis" = 'CRITICO' AND q."correctOption" IS NULL`,
+        WHERE a."id" = $1 AND q."axis" = 'CRITICO' AND q."type" = 'ABIERTA'`,
       [answerId],
     );
   }
@@ -180,16 +188,46 @@ export class SqlResponseRepository implements ResponseRepository {
   }
 
   async recomputeCritico(responseId: string): Promise<{ criticoScore: number | null; criticoReviewed: boolean }> {
-    const rows = await query<CriticoAnswerRow & { answerId: string | null }>(
-      `SELECT q."correctOption", a."id" AS "answerId", a."selectedOption", a."teacherScore"
+    const raw = await query<
+      CriticoAnswerRow & {
+        answerId: string | null;
+        type: QuestionType | null;
+        optionsJson: string | null;
+        correctOptionsJson: string | null;
+        acceptedAnswersJson: string | null;
+        selectedOptionsJson: string | null;
+        textAnswer: string | null;
+      }
+    >(
+      `SELECT q."correctOption", q."type", q."optionsJson", q."correctOptionsJson", q."acceptedAnswersJson",
+              a."id" AS "answerId", a."selectedOption", a."selectedOptionsJson", a."textAnswer", a."teacherScore"
          FROM "Question" q
          JOIN "Response" r ON r."activityId" = q."activityId"
          LEFT JOIN "Answer" a ON a."questionId" = q."id" AND a."responseId" = r."id"
         WHERE r."id" = $1 AND q."axis" = 'CRITICO'`,
       [responseId],
     );
+    const rows: (CriticoAnswerRow & { answerId: string | null })[] = raw.map((row) => {
+      const type = row.type ?? (row.correctOption ? 'OPCION_UNICA' : 'ABIERTA');
+      if (!isAutoGraded({ type })) return row;
+      const fraction = gradeClosed(
+        {
+          type,
+          options: row.optionsJson ? JSON.parse(row.optionsJson) : null,
+          correctOption: row.correctOption,
+          correctOptions: row.correctOptionsJson ? JSON.parse(row.correctOptionsJson) : null,
+          acceptedAnswers: row.acceptedAnswersJson ? JSON.parse(row.acceptedAnswersJson) : null,
+        },
+        {
+          selectedOption: row.selectedOption,
+          selectedOptions: row.selectedOptionsJson ? JSON.parse(row.selectedOptionsJson) : null,
+          textAnswer: row.textAnswer,
+        },
+      );
+      return { ...row, fraction };
+    });
     const normalized = rows.map((row) =>
-      row.answerId === null && !row.correctOption ? { ...row, teacherScore: 0 } : row,
+      row.answerId === null && !row.correctOption && (row.fraction === undefined || row.fraction === null) ? { ...row, teacherScore: 0 } : row,
     );
     const result = criticoFromAnswers(normalized);
     await query(
@@ -204,7 +242,7 @@ export class SqlResponseRepository implements ResponseRepository {
       `SELECT COUNT(*) FROM "Answer" a
          JOIN "Response" r ON r."id" = a."responseId"
          JOIN "Question" q ON q."id" = a."questionId"
-        WHERE r."activityId" = $1 AND q."axis" = 'CRITICO' AND q."correctOption" IS NULL AND a."teacherScore" IS NULL`,
+        WHERE r."activityId" = $1 AND q."axis" = 'CRITICO' AND q."type" = 'ABIERTA' AND a."teacherScore" IS NULL`,
       [activityId],
     );
     return Number(row?.count ?? 0);
@@ -224,14 +262,32 @@ export class SqlResponseRepository implements ResponseRepository {
   }
 
   async listClosedAnswers(activityId: string): Promise<
-    { responseId: string; questionId: string; selectedOption: string | null; textAnswer: string | null; teacherScore: number | null }[]
+    {
+      responseId: string;
+      questionId: string;
+      selectedOption: string | null;
+      selectedOptions: string[] | null;
+      textAnswer: string | null;
+      teacherScore: number | null;
+    }[]
   > {
-    return query(
-      `SELECT a."responseId", a."questionId", a."selectedOption", a."textAnswer", a."teacherScore"
+    const rows = await query<{
+      responseId: string;
+      questionId: string;
+      selectedOption: string | null;
+      selectedOptionsJson: string | null;
+      textAnswer: string | null;
+      teacherScore: number | null;
+    }>(
+      `SELECT a."responseId", a."questionId", a."selectedOption", a."selectedOptionsJson", a."textAnswer", a."teacherScore"
          FROM "Answer" a JOIN "Response" r ON r."id" = a."responseId"
         WHERE r."activityId" = $1`,
       [activityId],
     );
+    return rows.map(({ selectedOptionsJson, ...row }) => ({
+      ...row,
+      selectedOptions: selectedOptionsJson ? (JSON.parse(selectedOptionsJson) as string[]) : null,
+    }));
   }
 
   async renameSelectedOption(questionId: string, before: string, after: string): Promise<void> {
