@@ -9,6 +9,7 @@ import {
   createActivitySchema,
   editQuestionSchema,
   generateQuestionsSchema,
+  scannedPageSchema,
   reviewAnswerSchema,
   saveProgressSchema,
   studentSessionSchema,
@@ -20,8 +21,18 @@ export const activityRouter = Router();
 const publicReadLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 600, name: 'activity-read' });
 const submitLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 300, name: 'activity-submit' });
 const generateLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 60, name: 'activity-generate' });
+const scanLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 300, name: 'activity-scan' });
 const helpLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 800, name: 'activity-help' });
 const progressLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 4000, name: 'activity-progress' });
+
+activityRouter.post(
+  '/clean-scanned-page',
+  requireAuth,
+  requireRole('DOCENTE'),
+  scanLimit,
+  validateBody(scannedPageSchema),
+  activityController.cleanScannedPage.bind(activityController),
+);
 
 activityRouter.post(
   '/generate-questions',

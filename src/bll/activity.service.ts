@@ -30,6 +30,7 @@ import type { CreateAnswerInput } from '../dal/response.repository';
 import { assertInstitutionActive } from './institution-pause';
 import { gradeClosed, isAutoGraded, normalizeQuestionInput } from './question-grading';
 import type { QuestionType } from '../domain/question';
+import type { ScannedPageResult } from '../services/ai-question-generator.service';
 
 type SubmitResponsePayload = Omit<SubmitResponseInput, 'activityId'>;
 
@@ -245,6 +246,30 @@ export function assertReadingLength(text: string, maxChars: number): void {
 }
 
 export class DefaultActivityService implements ActivityService {
+  async cleanScannedPage(rawText: string, institutionId: string, language: Locale = 'es'): Promise<ScannedPageResult> {
+    const institution = await institutionRepository.findById(institutionId);
+    const access = resolveAiAccess(institution);
+    if (!access) throw new ConflictError('La IA no está disponible para tu institución. Corregí el texto a mano.');
+    if (!access.isCustom && !(await aiUsageService.withinBudget(institutionId))) {
+      throw new ConflictError('Tu institución llegó al tope de gasto de IA de este mes. Corregí el texto a mano.');
+    }
+    const provider = access.options.provider.toLowerCase();
+    const call = usageCollector(access);
+    const wordCount = countWords(rawText);
+    try {
+      const result = await aiQuestionGenerator.cleanScannedPage(rawText, call.options, language);
+      await aiUsageService.record({ institutionId, provider, success: true, wordCount, kind: 'DOCUMENTO', ...call.usage() });
+      return result;
+    } catch (err) {
+      await aiUsageService.record({ institutionId, provider, success: false, wordCount: 0, kind: 'DOCUMENTO', ...call.usage() });
+      if (err instanceof UpstreamError) {
+        console.error('[activity.service] La IA no pudo ordenar la página escaneada:', err.message);
+        throw new UpstreamError('La IA no pudo ordenar el texto de la página. Probá de nuevo o corregilo a mano.');
+      }
+      throw err;
+    }
+  }
+
   async generateQuestions(
     sourceText: string,
     institutionId: string,

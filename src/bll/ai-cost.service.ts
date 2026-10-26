@@ -3,7 +3,7 @@ import { BadRequestError, NotFoundError } from '../utils/http-error';
 import type { AiCostKindSummary, AiCostModelSummary, InstitutionAiCostDetail } from '../domain/aiCost';
 import type { AiUsageKind } from '../domain/aiUsage';
 
-const KINDS: AiUsageKind[] = ['GENERACION', 'CORRECCION', 'AYUDA'];
+const KINDS: AiUsageKind[] = ['GENERACION', 'CORRECCION', 'AYUDA', 'DOCUMENTO'];
 const HISTORY_MONTHS = 6;
 
 const round = (n: number, d = 4) => Math.round(n * 10 ** d) / 10 ** d;

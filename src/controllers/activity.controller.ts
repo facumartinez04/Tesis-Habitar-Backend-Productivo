@@ -12,6 +12,7 @@ import type {
   CreateActivityDto,
   EditQuestionDto,
   GenerateQuestionsDto,
+  ScannedPageDto,
   ReviewAnswerDto,
   SaveProgressDto,
   StudentSessionDto,
@@ -23,6 +24,11 @@ export class ActivityController {
     const { sourceText, focusAxis, language, questionTypes } = req.body as GenerateQuestionsDto;
     const result = await activityService.generateQuestions(sourceText, req.auth!.institutionId, focusAxis, language ?? req.locale, questionTypes);
     res.json(result);
+  }
+
+  async cleanScannedPage(req: Request, res: Response): Promise<void> {
+    const { rawText, language } = req.body as ScannedPageDto;
+    res.json(await activityService.cleanScannedPage(rawText, req.auth!.institutionId, language ?? req.locale));
   }
 
   async create(req: Request, res: Response): Promise<void> {

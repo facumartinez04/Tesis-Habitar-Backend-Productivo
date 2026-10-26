@@ -11,6 +11,13 @@ export const generateQuestionsSchema = z.object({
 
 export type GenerateQuestionsDto = z.infer<typeof generateQuestionsSchema>;
 
+export const scannedPageSchema = z.object({
+  rawText: z.string().trim().min(1).max(12000),
+  language: z.enum(['es', 'en']).optional(),
+});
+
+export type ScannedPageDto = z.infer<typeof scannedPageSchema>;
+
 const questionInputSchema = z.object({
   axis: z.enum(['LITERAL', 'INFERENCIAL', 'CRITICO']),
   type: questionTypeSchema.optional(),
