@@ -1,5 +1,6 @@
 import type { ActivityStatus, AttemptPolicy, ComprehensionAxis } from './enums';
 import type { Locale } from '../i18n/locale';
+import type { QuestionType } from './question';
 
 export interface Activity {
   id: string;
@@ -53,10 +54,13 @@ export interface CreateActivityInput {
 
 export interface CreateQuestionInput {
   axis: ComprehensionAxis;
+  type?: QuestionType;
   prompt: string;
   expectedAnswer: string;
   options?: string[];
   correctOption?: string;
+  correctOptions?: string[];
+  acceptedAnswers?: string[];
   approved: boolean;
   edited?: boolean;
 }

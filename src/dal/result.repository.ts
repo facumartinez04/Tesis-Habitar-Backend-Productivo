@@ -192,7 +192,7 @@ export class SqlResultRepository implements ResultRepository {
          JOIN "Response" r ON r."id" = an."responseId"
          JOIN "Activity" a ON a."id" = r."activityId"
          JOIN "Question" q ON q."id" = an."questionId"
-        WHERE a."courseId" = $1 AND q."axis" = 'CRITICO' AND q."correctOption" IS NULL AND an."teacherScore" IS NULL`,
+        WHERE a."courseId" = $1 AND q."axis" = 'CRITICO' AND q."type" = 'ABIERTA' AND an."teacherScore" IS NULL`,
       [courseId],
     );
     return Number(row?.count ?? 0);

@@ -1,6 +1,7 @@
 export interface AnswerInput {
   questionId: string;
   selectedOption?: string;
+  selectedOptions?: string[];
   textAnswer?: string;
 }
 

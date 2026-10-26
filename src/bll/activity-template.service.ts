@@ -85,6 +85,9 @@ export class ActivityTemplateService {
         expectedAnswer: q.expectedAnswer,
         options: q.options ?? undefined,
         correctOption: q.correctOption ?? undefined,
+        type: q.type,
+        correctOptions: q.correctOptions ?? undefined,
+        acceptedAnswers: q.acceptedAnswers ?? undefined,
         approved: true,
       }));
     const author = await userRepository.findById(auth.sub);

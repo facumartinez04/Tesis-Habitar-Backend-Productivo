@@ -149,6 +149,8 @@ export const enMessages: Record<string, string> = {
   'El nombre del plan es obligatorio': 'The plan name is required',
   'Error de red inesperado': 'Unexpected network error',
   'La sesión expiró. Volvé a ingresar.': 'Your session expired. Please sign in again.',
+  'La pregunta para completar necesita al menos una respuesta aceptada': 'The fill-in-the-blank question needs at least one accepted answer',
+  'Marcá al menos una opción correcta': 'Mark at least one correct option',
   'La cuenta de tu institución está pausada. Comunicate con Habitar para reactivarla.': "Your institution's account is paused. Contact Habitar to reactivate it.",
   'La cuenta de esta institución está pausada por el momento. Consultá con tu docente.': "This institution's account is paused for now. Ask your teacher.",
   'Origen no permitido': 'Origin not allowed',

@@ -14,8 +14,10 @@ import type { Course } from '../domain/course';
 import type { Question } from '../domain/question';
 import { linkStudentDevice, TooManyDevicesError } from './student-devices';
 import { assertInstitutionActive } from './institution-pause';
+import { normalizeQuestionInput } from './question-grading';
+import type { QuestionType } from '../domain/question';
 
-export type DraftAnswers = Record<string, { selectedOption?: string; textAnswer?: string }>;
+export type DraftAnswers = Record<string, { selectedOption?: string; selectedOptions?: string[]; textAnswer?: string }>;
 
 export interface StudentSessionState {
   status: 'NUEVO' | 'EN_CURSO' | 'ENVIADO';
@@ -90,10 +92,13 @@ export function sanitizeDraft(questions: Question[], draft: unknown): DraftAnswe
   for (const [questionId, value] of Object.entries(draft as Record<string, unknown>)) {
     const question = byId.get(questionId);
     if (!question || !value || typeof value !== 'object') continue;
-    const v = value as { selectedOption?: unknown; textAnswer?: unknown };
-    if (typeof v.selectedOption === 'string' && (question.options ?? []).includes(v.selectedOption)) {
+    const v = value as { selectedOption?: unknown; selectedOptions?: unknown; textAnswer?: unknown };
+    if (question.type === 'OPCION_MULTIPLE' && Array.isArray(v.selectedOptions)) {
+      const chosen = v.selectedOptions.filter((o): o is string => typeof o === 'string' && (question.options ?? []).includes(o));
+      if (chosen.length) result[questionId] = { selectedOptions: [...new Set(chosen)] };
+    } else if (typeof v.selectedOption === 'string' && (question.options ?? []).includes(v.selectedOption)) {
       result[questionId] = { selectedOption: v.selectedOption };
-    } else if (typeof v.textAnswer === 'string' && v.textAnswer.trim() && !question.correctOption) {
+    } else if (typeof v.textAnswer === 'string' && v.textAnswer.trim() && (question.type === 'ABIERTA' || question.type === 'COMPLETAR')) {
       result[questionId] = { textAnswer: v.textAnswer.slice(0, 2000) };
     }
   }
@@ -168,21 +173,38 @@ export class ActivitySessionService {
   async editQuestion(
     activityId: string,
     questionId: string,
-    input: { prompt?: string; options?: string[]; correctOption?: string; expectedAnswer?: string },
+    input: {
+      prompt?: string;
+      options?: string[];
+      correctOption?: string;
+      correctOptions?: string[];
+      acceptedAnswers?: string[];
+      expectedAnswer?: string;
+    },
   ): Promise<Question> {
     const questions = await questionRepository.findByActivity(activityId);
     const question = questions.find((q) => q.id === questionId);
     if (!question) throw new NotFoundError('Pregunta no encontrada en esta actividad');
-    const isClosed = Boolean(question.correctOption);
-    const options = isClosed ? (input.options ?? question.options ?? []).map((o) => o.trim()).filter(Boolean) : null;
-    const correctOption = isClosed ? (input.correctOption ?? question.correctOption)!.trim() : null;
-    if (isClosed) {
-      if (!options || options.length < 2) throw new BadRequestError('La pregunta necesita al menos dos opciones');
-      if (new Set(options).size !== options.length) throw new BadRequestError('Hay opciones repetidas');
-      if (!correctOption || !options.includes(correctOption)) throw new BadRequestError('La opción correcta tiene que estar entre las opciones');
+    const type: QuestionType = question.type;
+    const rawOptions = (input.options ?? question.options ?? []).map((o) => o.trim()).filter(Boolean);
+    if (type !== 'ABIERTA' && type !== 'COMPLETAR' && new Set(rawOptions).size !== rawOptions.length) {
+      throw new BadRequestError('Hay opciones repetidas');
     }
     const prompt = (input.prompt ?? question.prompt).trim();
     if (prompt.length < 3) throw new BadRequestError('La consigna es demasiado corta');
+    const normalized = normalizeQuestionInput({
+      axis: question.axis,
+      type,
+      prompt,
+      expectedAnswer: (input.expectedAnswer ?? question.expectedAnswer).trim() || question.expectedAnswer,
+      options: rawOptions,
+      correctOption: input.correctOption ?? question.correctOption ?? undefined,
+      correctOptions: input.correctOptions ?? question.correctOptions ?? undefined,
+      acceptedAnswers: input.acceptedAnswers ?? question.acceptedAnswers ?? undefined,
+      approved: question.approved,
+    });
+    const options = normalized.options ?? null;
+    const isClosed = type === 'OPCION_UNICA' || type === 'VERDADERO_FALSO';
     if (isClosed && options && question.options) {
       for (let i = 0; i < question.options.length; i++) {
         const before = question.options[i];
@@ -193,10 +215,13 @@ export class ActivitySessionService {
       }
     }
     const updated = await questionRepository.update(questionId, {
-      prompt,
+      type,
+      prompt: normalized.prompt,
       options,
-      correctOption,
-      expectedAnswer: (input.expectedAnswer ?? question.expectedAnswer).trim() || question.expectedAnswer,
+      correctOption: normalized.correctOption ?? null,
+      correctOptions: normalized.correctOptions ?? null,
+      acceptedAnswers: normalized.acceptedAnswers ?? null,
+      expectedAnswer: normalized.expectedAnswer,
     });
     await this.rescore(activityId);
     const activity = await activityRepository.findById(activityId);
@@ -208,10 +233,13 @@ export class ActivitySessionService {
     const { computeScores } = await import('./activity.service');
     const questions = (await questionRepository.findByActivity(activityId)).filter((q) => q.approved);
     const answers = await responseRepository.listClosedAnswers(activityId);
-    const byResponse = new Map<string, { questionId: string; selectedOption: string | null; textAnswer: string | null; autoScore?: number | null }[]>();
+    const byResponse = new Map<
+      string,
+      { questionId: string; selectedOption: string | null; selectedOptions: string[] | null; textAnswer: string | null; autoScore?: number | null }[]
+    >();
     for (const a of answers) {
       const list = byResponse.get(a.responseId) ?? [];
-      list.push({ questionId: a.questionId, selectedOption: a.selectedOption, textAnswer: a.textAnswer, autoScore: a.teacherScore });
+      list.push({ questionId: a.questionId, selectedOption: a.selectedOption, selectedOptions: a.selectedOptions, textAnswer: a.textAnswer, autoScore: a.teacherScore });
       byResponse.set(a.responseId, list);
     }
     for (const [responseId, list] of byResponse) {

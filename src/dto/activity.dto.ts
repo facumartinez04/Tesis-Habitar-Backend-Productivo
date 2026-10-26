@@ -1,15 +1,21 @@
 import { z } from 'zod';
 
+const questionTypeSchema = z.enum(['OPCION_UNICA', 'OPCION_MULTIPLE', 'VERDADERO_FALSO', 'COMPLETAR', 'ABIERTA']);
+
 export const generateQuestionsSchema = z.object({
   sourceText: z.string().min(10).max(50000),
   focusAxis: z.enum(['LITERAL', 'INFERENCIAL', 'CRITICO']).optional(),
   language: z.enum(['es', 'en']).optional(),
+  questionTypes: z.array(questionTypeSchema).min(1).max(5).optional(),
 });
 
 export type GenerateQuestionsDto = z.infer<typeof generateQuestionsSchema>;
 
 const questionInputSchema = z.object({
   axis: z.enum(['LITERAL', 'INFERENCIAL', 'CRITICO']),
+  type: questionTypeSchema.optional(),
+  correctOptions: z.array(z.string()).max(8).optional(),
+  acceptedAnswers: z.array(z.string().min(1).max(200)).max(10).optional(),
   prompt: z.string().min(3),
   expectedAnswer: z.string().min(1),
   options: z.array(z.string()).optional(),
@@ -55,7 +61,14 @@ export const saveProgressSchema = z.object({
   deviceId: z.string().min(8).max(64),
   phase: z.enum(['LEYENDO', 'RESPONDIENDO']),
   currentIndex: z.number().int().min(0).max(50),
-  answers: z.record(z.string(), z.object({ selectedOption: z.string().max(500).optional(), textAnswer: z.string().max(4000).optional() })),
+  answers: z.record(
+    z.string(),
+    z.object({
+      selectedOption: z.string().max(500).optional(),
+      selectedOptions: z.array(z.string().max(500)).max(8).optional(),
+      textAnswer: z.string().max(4000).optional(),
+    }),
+  ),
   retry: z.boolean().optional(),
 });
 
@@ -66,6 +79,8 @@ export const editQuestionSchema = z.object({
   prompt: z.string().min(3).max(1000).optional(),
   options: z.array(z.string().min(1).max(500)).min(2).max(6).optional(),
   correctOption: z.string().min(1).max(500).optional(),
+  correctOptions: z.array(z.string().min(1).max(500)).max(8).optional(),
+  acceptedAnswers: z.array(z.string().min(1).max(200)).max(10).optional(),
   expectedAnswer: z.string().min(1).max(2000).optional(),
 });
 
@@ -79,6 +94,7 @@ export const submitResponseSchema = z.object({
       z.object({
         questionId: z.string().min(1),
         selectedOption: z.string().min(1).optional(),
+        selectedOptions: z.array(z.string().min(1)).max(8).optional(),
         textAnswer: z.string().max(4000).optional(),
       }),
     )
