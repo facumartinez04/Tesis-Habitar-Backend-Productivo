@@ -12,6 +12,8 @@ adminDataRouter.get('/institutions/:institutionId/courses', c.courses.bind(c));
 adminDataRouter.get('/institutions/:institutionId/students', c.students.bind(c));
 adminDataRouter.get('/institutions/:institutionId/deletions', c.deletions.bind(c));
 
+adminDataRouter.post('/institutions/:institutionId/pause', c.pauseInstitution.bind(c));
+adminDataRouter.delete('/institutions/:institutionId/pause', c.resumeInstitution.bind(c));
 adminDataRouter.delete('/activities/:id', c.deleteActivity.bind(c));
 adminDataRouter.delete('/courses/:id', c.deleteCourse.bind(c));
 adminDataRouter.delete('/students/:id', c.deleteStudent.bind(c));

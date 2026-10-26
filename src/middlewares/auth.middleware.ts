@@ -6,6 +6,7 @@ import { ForbiddenError, UnauthorizedError } from '../utils/http-error';
 import type { JwtPayload } from '../domain/auth';
 import type { Role } from '../domain/enums';
 import { logService } from '../bll/log.service';
+import { assertInstitutionActive } from '../bll/institution-pause';
 
 declare global {
   namespace Express {
@@ -36,6 +37,10 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
   const user = await userRepository.findById(payload.sub);
   if (!user || !user.active) {
     throw new UnauthorizedError('La cuenta fue desactivada');
+  }
+
+  if (user.role !== 'ADMIN' && !req.originalUrl.startsWith('/api/auth/')) {
+    await assertInstitutionActive(user.institutionId, 'staff');
   }
 
   let effectiveRole = user.role;

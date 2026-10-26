@@ -13,6 +13,7 @@ import type { Activity } from '../domain/activity';
 import type { Course } from '../domain/course';
 import type { Question } from '../domain/question';
 import { linkStudentDevice, TooManyDevicesError } from './student-devices';
+import { assertInstitutionActive } from './institution-pause';
 
 export type DraftAnswers = Record<string, { selectedOption?: string; textAnswer?: string }>;
 
@@ -28,6 +29,8 @@ export async function openActivity(code: string): Promise<Activity> {
   const { activityService } = await import('./activity.service');
   const found = await activityRepository.findByCode(code);
   if (!found) throw new NotFoundError('Actividad no encontrada');
+  const ownerCourse = await courseRepository.findById(found.courseId);
+  if (ownerCourse) await assertInstitutionActive(ownerCourse.institutionId, 'student');
   const activity = await activityService.syncStatus(found);
   if (activity.status === 'CERRADA') throw new ConflictError('[Error-REA_001] La actividad ya no está disponible');
   if (activity.status !== 'PUBLICADA') throw new ConflictError('La actividad todavía no está disponible');

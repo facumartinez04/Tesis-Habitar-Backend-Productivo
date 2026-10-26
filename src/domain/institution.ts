@@ -26,6 +26,8 @@ export interface Institution {
   alertEmailsEnabled: boolean;
   defaultLanguage: Locale;
   readingMaxChars: number;
+  pausedAt: Date | null;
+  pauseReason: string | null;
   createdAt: Date;
 }
 

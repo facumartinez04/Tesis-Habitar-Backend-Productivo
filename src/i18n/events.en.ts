@@ -25,6 +25,8 @@ export const enEventMessages: Record<string, string> = {
   'Reasignó el docente de un curso.': "Reassigned a course's teacher.",
   'Renovó una suscripción.': 'Renewed a subscription.',
   'Revocó un token de API para agentes.': 'Revoked an API token for agents.',
+  'Pausó la cuenta de la institución.': "Paused the institution's account.",
+  'Reactivó la cuenta de la institución.': "Reactivated the institution's account.",
   'Se reutilizó un token de sesión ya renovado: se cerró la sesión en ese dispositivo.':
     'An already renewed session token was reused: the session on that device was closed.',
 };
@@ -59,6 +61,7 @@ export const enEventPatterns: Array<[RegExp, (...groups: string[]) => string]> =
   [/^Cambió el estado de una cuota a (.*)\.$/, (s) => `Changed the status of a fee to ${s}.`],
   [/^Inició sesión con (\S+)\.$/, (p) => `Signed in with ${p}.`],
   [/^Inicio de sesión rechazado con (\S+) \((.*)\)\.$/, (p, code) => `Sign-in rejected with ${p} (${code}).`],
+  [/^Pausó la cuenta de la institución: (.*)\.$/s, (r) => `Paused the institution's account: ${r}.`],
   [/^Intento sin permiso: (.*)\.$/, (what) => `Attempt without permission: ${what}.`],
   [/^El administrador de plataforma operó como (.*) en la institución\.$/, (r) => `The platform administrator acted as ${role(r)} in the institution.`],
 ];
