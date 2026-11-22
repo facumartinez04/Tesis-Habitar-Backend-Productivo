@@ -6,6 +6,7 @@ import { userController } from '../controllers/user.controller';
 import { metricsController } from '../controllers/metrics.controller';
 import { adminAiController } from '../controllers/admin-ai.controller';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware';
+import { rateLimit } from '../middlewares/rate-limit.middleware';
 import {
   requireSameInstitution,
   requireUserAccess,
@@ -20,6 +21,23 @@ import {
 import { createInstitutionUserSchema, setUserActiveSchema, updateUserRoleSchema } from '../dto/user.dto';
 
 export const institutionRouter = Router();
+
+// Límites por usuario para las acciones que envían correo (invitación y aviso de cambio de rol).
+const porUsuario = (req: { auth?: { sub?: string }; ip?: string }) => req.auth?.sub ?? req.ip ?? 'anonimo';
+const inviteLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  name: 'invite-user',
+  key: porUsuario,
+  message: 'Enviaste demasiadas invitaciones en la última hora. Esperá un rato y volvé a intentar.',
+});
+const roleChangeLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  name: 'role-change',
+  key: porUsuario,
+  message: 'Hiciste demasiados cambios de rol en la última hora. Esperá un rato y volvé a intentar.',
+});
 
 institutionRouter.get('/', requireAuth, requireRole('ADMIN'), institutionController.list.bind(institutionController));
 institutionRouter.get('/by-id/:institutionId', requireAuth, requireSameInstitution(), institutionController.getById.bind(institutionController));
@@ -103,6 +121,7 @@ institutionRouter.post(
   '/:institutionId/users',
   requireAuth,
   requireRole('COORDINADOR', 'ADMIN'),
+  inviteLimit,
   validateBody(createInstitutionUserSchema),
   requireSameInstitution(), userController.invite.bind(userController),
 );
@@ -110,6 +129,7 @@ institutionRouter.patch(
   '/:institutionId/users/:userId/role',
   requireAuth,
   requireRole('COORDINADOR', 'ADMIN'),
+  roleChangeLimit,
   validateBody(updateUserRoleSchema),
   requireSameInstitution(), requireUserAccess(), userController.updateRole.bind(userController),
 );

@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import { env } from '../config/env';
 import type { Role, OAuthProviderId } from '../domain/enums';
 import type { Locale } from '../i18n/locale';
+import { emailLimiter, type EmailKind } from '../utils/email-limiter';
 
 export interface SendInvitationEmailInput {
   to: string;
@@ -36,6 +37,7 @@ export interface EmailSendResult {
   simulated?: boolean;
   messageId?: string;
   error?: string;
+  throttled?: boolean;
 }
 
 const roleLabels: Record<Locale, Record<Role, string>> = {
@@ -195,6 +197,12 @@ type Copy = (typeof COPY)['es'];
 export class EmailService {
   private resendClient: Resend | null = null;
 
+  private throttled(kind: EmailKind, to: string): EmailSendResult | null {
+    if (emailLimiter.allow(kind, to)) return null;
+    console.warn(`[EmailService] Límite de correos alcanzado (${kind}) para ${to}: no se envía.`);
+    return { success: false, throttled: true, error: 'Se alcanzó el límite de correos para este destinatario' };
+  }
+
   private getClient(): Resend | null {
     if (!this.resendClient && env.resend.apiKey) {
       this.resendClient = new Resend(env.resend.apiKey);
@@ -203,6 +211,8 @@ export class EmailService {
   }
 
   async sendInvitationEmail(input: SendInvitationEmailInput): Promise<EmailSendResult> {
+    const limited = this.throttled('INVITACION', input.to);
+    if (limited) return limited;
     const { to, name, role, institutionName, provider } = input;
     const language = input.language ?? 'es';
     const copy = COPY[language];
@@ -253,6 +263,8 @@ export class EmailService {
   }
 
   async sendRoleUpdatedEmail(input: SendRoleUpdatedEmailInput): Promise<EmailSendResult> {
+    const limited = this.throttled('CAMBIO_ROL', input.to);
+    if (limited) return limited;
     const { to, name, newRole, institutionName } = input;
     const language = input.language ?? 'es';
     const copy = COPY[language];
@@ -292,6 +304,8 @@ export class EmailService {
   }
 
   async sendPerformanceAlertEmail(input: SendPerformanceAlertEmailInput): Promise<EmailSendResult> {
+    const limited = this.throttled('ALERTA', input.to);
+    if (limited) return limited;
     const language = input.language ?? 'es';
     const copy = COPY[language];
     const client = this.getClient();

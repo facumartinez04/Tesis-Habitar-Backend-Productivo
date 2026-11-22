@@ -12,9 +12,10 @@ interface Options {
   max: number;
   name: string;
   key?: (req: Request) => string;
+  message?: string;
 }
 
-export function rateLimit({ windowMs, max, name, key }: Options) {
+export function rateLimit({ windowMs, max, name, key, message }: Options) {
   const hits = new Map<string, { count: number; resetAt: number }>();
 
   setInterval(() => {
@@ -36,7 +37,7 @@ export function rateLimit({ windowMs, max, name, key }: Options) {
     entry.count += 1;
     if (entry.count > max) {
       res.setHeader('Retry-After', String(Math.ceil((entry.resetAt - now) / 1000)));
-      throw new TooManyRequestsError();
+      throw new TooManyRequestsError(message);
     }
     next();
   };
