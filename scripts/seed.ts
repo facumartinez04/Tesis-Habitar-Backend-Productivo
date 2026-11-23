@@ -71,12 +71,15 @@ async function main() {
     const teacherRuiz = await createUser('Ruiz, T.', 'RT', 't.ruiz@colegiobelgranonorte.edu.ar', 'DOCENTE', 'MICROSOFT', belgranoNorte.id);
     const teacherMolina = await createUser('Molina, S.', 'MS', 's.molina@colegiobelgranonorte.edu.ar', 'DOCENTE', 'MICROSOFT', belgranoNorte.id);
 
-    const createCourse = (name: string, teacherId: string) =>
-      one<{ id: string }>(
-        `INSERT INTO "Course" ("name", "subject", "institutionId", "teacherId")
-         VALUES ($1, 'Lengua y Literatura', $2, $3) RETURNING "id"`,
-        [name, belgranoNorte.id, teacherId],
+    // Cada aula necesita su QR fijo (obligatorio desde la migración 007): AULA-4B, AULA-5A…
+    const createCourse = (name: string, teacherId: string) => {
+      const [grade, division] = [name.slice(0, name.indexOf('°') + 1), name.slice(name.indexOf('°') + 1)];
+      return one<{ id: string }>(
+        `INSERT INTO "Course" ("name", "subject", "institutionId", "teacherId", "qrCode", "room", "grade", "division", "shift")
+         VALUES ($1, 'Lengua y Literatura', $2, $3, $4, $5, $6, $7, 'MAÑANA') RETURNING "id"`,
+        [name, belgranoNorte.id, teacherId, `AULA-${grade.replace('°', '')}${division}`, `Aula ${name}`, grade, division],
       );
+    };
 
     const course4b = await createCourse('4°B', teacherLopez.id);
     await createCourse('4°A', teacherLopez.id);
