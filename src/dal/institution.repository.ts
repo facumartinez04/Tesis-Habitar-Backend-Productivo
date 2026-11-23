@@ -23,6 +23,7 @@ interface InstitutionRow {
   readingMaxChars?: number | null;
   pausedAt?: Date | null;
   pauseReason?: string | null;
+  microsoftTenantId?: string | null;
   createdAt: Date;
 }
 
@@ -82,6 +83,7 @@ async function toDomain(row: InstitutionRow, runner: { query: typeof query } = {
     readingMaxChars: row.readingMaxChars ?? DEFAULT_READING_MAX_CHARS,
     pausedAt: row.pausedAt ?? null,
     pauseReason: row.pauseReason ?? null,
+    microsoftTenantId: row.microsoftTenantId ?? null,
     createdAt: row.createdAt,
   };
 }
@@ -95,6 +97,7 @@ export interface InstitutionRepository {
   create(input: CreateInstitutionInput): Promise<Institution>;
   updateConfig(id: string, input: UpdateInstitutionConfigInput): Promise<Institution>;
   updateStatus(id: string, status: Institution['status']): Promise<Institution>;
+  updateMicrosoftTenant(id: string, tenantId: string | null): Promise<Institution>;
   getAiMonthlyQuota(id: string): Promise<number>;
 }
 
@@ -231,6 +234,12 @@ export class SqlInstitutionRepository implements InstitutionRepository {
 
   async updateStatus(id: string, status: Institution['status']): Promise<Institution> {
     const row = await queryOne<InstitutionRow>('UPDATE "Institution" SET "status" = $1 WHERE "id" = $2 RETURNING *', [status, id]);
+    if (!row) throw new Error(`Institution ${id} no encontrada`);
+    return toDomain(row);
+  }
+
+  async updateMicrosoftTenant(id: string, tenantId: string | null): Promise<Institution> {
+    const row = await queryOne<InstitutionRow>('UPDATE "Institution" SET "microsoftTenantId" = $1 WHERE "id" = $2 RETURNING *', [tenantId, id]);
     if (!row) throw new Error(`Institution ${id} no encontrada`);
     return toDomain(row);
   }

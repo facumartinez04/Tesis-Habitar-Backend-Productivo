@@ -10,6 +10,7 @@ import type { Session } from '../domain/auth';
 import type { Institution } from '../domain/institution';
 import type { Locale } from '../i18n/locale';
 import { getInstitutionPause, type InstitutionPause } from './institution-pause';
+import { assertMicrosoftTenant, microsoftIdentityFromClaims } from './microsoft-identity';
 
 export interface OAuthAuthorizationRequest {
   authorizationUrl: string;
@@ -108,21 +109,45 @@ export class DefaultAuthService implements AuthService {
       throw new UnauthorizedError('No se pudo validar la respuesta del proveedor de login');
     }
 
-    const claims = tokens.claims();
-    const email = claims?.email as string | undefined;
-    if (!email) throw new UnauthorizedError('La cuenta no expone un email verificado');
+    const claims = tokens.claims() as Record<string, unknown> | undefined;
+    let email: string;
+    let microsoftTenant: string | null = null;
+    if (input.provider === 'MICROSOFT') {
+      try {
+        ({ email, tenantId: microsoftTenant } = microsoftIdentityFromClaims(claims));
+      } catch (err) {
+        throw Object.assign(err as Error, {
+          loginEmail: typeof claims?.preferred_username === 'string' ? claims.preferred_username : null,
+          loginTenantId: typeof claims?.tid === 'string' ? claims.tid : null,
+        });
+      }
+    } else {
+      const claimed = claims?.email as string | undefined;
+      if (!claimed) throw new UnauthorizedError('La cuenta no expone un email verificado');
+      email = claimed;
+    }
 
     const existing = await userRepository.findByEmail(email);
-    const tagged = (err: Error, institutionId: string | null) => Object.assign(err, { loginEmail: email, loginUserId: existing?.id ?? null, loginInstitutionId: institutionId });
-    if (existing && !existing.active) {
-      throw tagged(new ForbiddenError('Tu cuenta fue desactivada. Contactá a tu coordinador/a.'), existing.institutionId);
-    }
+    const tagged = (err: Error, institutionId: string | null) =>
+      Object.assign(err, { loginEmail: email, loginUserId: existing?.id ?? null, loginInstitutionId: institutionId, loginTenantId: microsoftTenant });
     const isSuperAdmin = !existing && env.superAdminEmails.includes(email.toLowerCase());
     const institution = existing
       ? await institutionRepository.findById(existing.institutionId)
       : isSuperAdmin
         ? await this.getOrCreateSuperAdminInstitution(email)
         : await institutionRepository.findByDomain(emailDomain(email));
+    // Con Microsoft, antes que nada la cuenta tiene que venir de la organización de la institución:
+    // así no se revela si un correo ajeno existe o está desactivado.
+    if (microsoftTenant && institution) {
+      try {
+        assertMicrosoftTenant(institution, microsoftTenant);
+      } catch (err) {
+        throw tagged(err as Error, institution.id);
+      }
+    }
+    if (existing && !existing.active) {
+      throw tagged(new ForbiddenError('Tu cuenta fue desactivada. Contactá a tu coordinador/a.'), existing.institutionId);
+    }
     if (!institution || institution.status !== 'ACTIVO') {
       throw tagged(new ForbiddenError('Tu institución no está habilitada en Habitar. Contactá a tu coordinador/a.'), institution?.id ?? null);
     }

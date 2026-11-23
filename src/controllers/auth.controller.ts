@@ -128,16 +128,20 @@ export class AuthController {
         if (err.message.includes('habilitada')) errorCode = 'institution_not_allowed';
         else if (err.message.includes('desactivada')) errorCode = 'account_disabled';
         else if (err.message.includes('institución registrada')) errorCode = 'invalid_tenant';
+        else if (err.message.includes('cuenta personal')) errorCode = 'personal_account';
+        else if (err.message.includes('invitadas')) errorCode = 'guest_account';
         else if (err.message.includes('expiró')) errorCode = 'session_expired';
         else if (err.message.includes('proveedor')) errorCode = 'unauthorized';
       }
-      const tag = (err ?? {}) as { loginEmail?: string; loginUserId?: string | null; loginInstitutionId?: string | null };
+      const tag = (err ?? {}) as { loginEmail?: string | null; loginUserId?: string | null; loginInstitutionId?: string | null; loginTenantId?: string | null };
+      // El tenant de Microsoft queda en la bitácora para que el administrador pueda copiarlo al configurar la institución.
+      const tenantNote = tag.loginTenantId ? `; organización de Microsoft ${tag.loginTenantId}` : '';
       void logService.event({
         actor: { userId: tag.loginUserId ?? null, role: null, institutionId: tag.loginInstitutionId ?? null, impersonated: false, userEmail: tag.loginEmail ?? null },
         institutionId: tag.loginInstitutionId ?? null,
         category: 'ACCESO',
         type: 'LOGIN_FALLIDO',
-        description: `Inicio de sesión rechazado con ${providerParam === 'GOOGLE' ? 'Google' : 'Microsoft'} (${errorCode}).`,
+        description: `Inicio de sesión rechazado con ${providerParam === 'GOOGLE' ? 'Google' : 'Microsoft'} (${errorCode}${tenantNote}).`,
       });
       const redirectTo = new URL('/login', env.frontendUrl);
       redirectTo.searchParams.set('error', errorCode);

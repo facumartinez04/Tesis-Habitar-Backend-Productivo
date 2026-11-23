@@ -28,6 +28,8 @@ export interface Institution {
   readingMaxChars: number;
   pausedAt: Date | null;
   pauseReason: string | null;
+  /** Organización (tenant) de Microsoft Entra de la institución; sin ella no se puede ingresar con Microsoft 365. */
+  microsoftTenantId: string | null;
   createdAt: Date;
 }
 

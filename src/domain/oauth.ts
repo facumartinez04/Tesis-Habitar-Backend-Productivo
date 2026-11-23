@@ -7,4 +7,5 @@ export interface OAuthAccessStatus {
   institutionStatus: InstitutionStatus;
   googleConfigured: boolean;
   microsoftConfigured: boolean;
+  microsoftTenantId: string | null;
 }

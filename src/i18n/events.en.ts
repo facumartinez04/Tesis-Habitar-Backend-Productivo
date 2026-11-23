@@ -10,6 +10,8 @@ const role = (value: string): string => ROLE_EN[value] ?? value;
 export const enEventMessages: Record<string, string> = {
   'Cerró sesión.': 'Signed out.',
   'Deshabilitó el acceso OAuth de la institución.': "Disabled the institution's OAuth access.",
+  'Se quitó la organización de Microsoft de la institución: no se puede ingresar con Microsoft 365.':
+    "Removed the institution's Microsoft organization: Microsoft 365 sign-in is not possible.",
   'Desvinculó el dispositivo de un alumno.': "Unlinked a student's device.",
   'Editó una pregunta de una actividad en curso.': 'Edited a question of an ongoing activity.',
   'Eliminó un plan.': 'Deleted a plan.',
@@ -60,7 +62,8 @@ export const enEventPatterns: Array<[RegExp, (...groups: string[]) => string]> =
   [/^Ejecutó la purga por retención: (\d+) alumnos eliminados\.$/, (n) => `Ran the retention purge: ${n} students deleted.`],
   [/^Cambió el estado de una cuota a (.*)\.$/, (s) => `Changed the status of a fee to ${s}.`],
   [/^Inició sesión con (\S+)\.$/, (p) => `Signed in with ${p}.`],
-  [/^Inicio de sesión rechazado con (\S+) \((.*)\)\.$/, (p, code) => `Sign-in rejected with ${p} (${code}).`],
+  [/^Se vinculó la institución con la organización de Microsoft (\S+)\.$/, (t) => `Linked the institution to the Microsoft organization ${t}.`],
+  [/^Inicio de sesión rechazado con (\S+) \((.*)\)\.$/, (p, code) => `Sign-in rejected with ${p} (${code.replace('; organización de Microsoft', '; Microsoft organization')}).`],
   [/^Pausó la cuenta de la institución: (.*)\.$/s, (r) => `Paused the institution's account: ${r}.`],
   [/^Intento sin permiso: (.*)\.$/, (what) => `Attempt without permission: ${what}.`],
   [/^El administrador de plataforma operó como (.*) en la institución\.$/, (r) => `The platform administrator acted as ${role(r)} in the institution.`],
