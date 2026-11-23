@@ -296,6 +296,9 @@ async function main() {
       ]);
     }
 
+    // Los usuarios de ejemplo figuran como que ya ingresaron (no como invitaciones pendientes).
+    await client.query('UPDATE "User" SET "lastLoginAt" = now() WHERE "lastLoginAt" IS NULL');
+
     await client.query('COMMIT');
     console.log('Seed completado');
   } catch (err) {

@@ -12,7 +12,7 @@ function initialsOf(name: string): string {
     .join('');
 }
 
-const COLUMNS = '"id", "name", "initials", "email", "role", "provider", "institutionId", "language", "active"';
+const COLUMNS = '"id", "name", "initials", "email", "role", "provider", "institutionId", "language", "active", "lastLoginAt"';
 
 export interface UserRepository {
   findById(id: string): Promise<User | null>;
@@ -25,6 +25,7 @@ export interface UserRepository {
   updateRole(id: string, role: Role): Promise<User>;
   setActive(id: string, active: boolean): Promise<User>;
   updateLanguage(id: string, language: Locale | null): Promise<User>;
+  touchLogin(id: string): Promise<User>;
 }
 
 export class SqlUserRepository implements UserRepository {
@@ -83,6 +84,12 @@ export class SqlUserRepository implements UserRepository {
 
   async updateLanguage(id: string, language: Locale | null): Promise<User> {
     const row = await queryOne<User>(`UPDATE "User" SET "language" = $1 WHERE "id" = $2 RETURNING ${COLUMNS}`, [language, id]);
+    if (!row) throw new Error(`User ${id} no encontrado`);
+    return row;
+  }
+
+  async touchLogin(id: string): Promise<User> {
+    const row = await queryOne<User>(`UPDATE "User" SET "lastLoginAt" = now() WHERE "id" = $1 RETURNING ${COLUMNS}`, [id]);
     if (!row) throw new Error(`User ${id} no encontrado`);
     return row;
   }

@@ -165,6 +165,7 @@ export class DefaultAuthService implements AuthService {
       });
     }
 
+    user = await userRepository.touchLogin(user.id);
     const token = signToken({ sub: user.id, role: user.role, institutionId: user.institutionId, provider: user.provider });
     return { token, user };
   }

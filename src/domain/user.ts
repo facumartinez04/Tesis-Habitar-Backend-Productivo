@@ -12,6 +12,8 @@ export interface User {
   language: Locale | null;
 
   active: boolean;
+  /** Último ingreso; null si fue invitado y todavía no ingresó nunca. */
+  lastLoginAt: Date | null;
 }
 
 export interface CreateInstitutionUserInput {
