@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
-import { authService, dashboardPathForRole } from '../bll/auth.service';
+import { authService, dashboardPathForRole, type LoginIdentity } from '../bll/auth.service';
+import { PENDING_LOGIN_DAYS, signPendingLogin, verifyPendingLogin } from '../bll/pending-login';
+import type { Session } from '../domain/auth';
 import { env } from '../config/env';
 import { getRedirectUri } from '../services/oidc-providers';
 import { BadRequestError, UnauthorizedError } from '../utils/http-error';
@@ -7,7 +9,14 @@ import type { OAuthProviderId } from '../domain/enums';
 import { logService } from '../bll/log.service';
 import type { UpdateLanguageDto } from '../dto/auth.dto';
 import { refreshSessionService } from '../bll/refresh-session.service';
-import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from '../utils/refresh-cookie';
+import {
+  clearPendingLoginCookie,
+  clearRefreshCookie,
+  readPendingLoginCookie,
+  readRefreshCookie,
+  setPendingLoginCookie,
+  setRefreshCookie,
+} from '../utils/refresh-cookie';
 import { ForbiddenError } from '../utils/http-error';
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -18,6 +27,37 @@ function oauthCookieName(provider: string): string {
 
 function assertProvider(value: string): asserts value is OAuthProviderId {
   if (value !== 'GOOGLE' && value !== 'MICROSOFT') throw new BadRequestError(`Proveedor no soportado: ${value}`);
+}
+
+function providerLabel(provider: OAuthProviderId): string {
+  return provider === 'GOOGLE' ? 'Google' : 'Microsoft';
+}
+
+function loginErrorCode(err: unknown): string {
+  if (!(err instanceof Error)) return 'auth_failed';
+  if (err.message.includes('habilitada')) return 'institution_not_allowed';
+  if (err.message.includes('desactivada')) return 'account_disabled';
+  if (err.message.includes('institución registrada')) return 'invalid_tenant';
+  if (err.message.includes('invitadas')) return 'guest_account';
+  if (err.message.includes('expiró')) return 'session_expired';
+  if (err.message.includes('proveedor')) return 'unauthorized';
+  return 'auth_failed';
+}
+
+/** Solo se recuerda la identidad cuando el proveedor la verificó y lo único que falta es el alta en Habitar. */
+const PENDING_CODES = new Set(['institution_not_allowed', 'account_disabled']);
+
+function logRejectedLogin(provider: OAuthProviderId, err: unknown, errorCode: string, extra = ''): void {
+  const tag = (err ?? {}) as { loginEmail?: string | null; loginUserId?: string | null; loginInstitutionId?: string | null; loginTenantId?: string | null };
+  // El tenant de Microsoft queda en la bitácora para que el administrador pueda copiarlo al configurar la institución.
+  const tenantNote = tag.loginTenantId ? `; organización de Microsoft ${tag.loginTenantId}` : '';
+  void logService.event({
+    actor: { userId: tag.loginUserId ?? null, role: null, institutionId: tag.loginInstitutionId ?? null, impersonated: false, userEmail: tag.loginEmail ?? null },
+    institutionId: tag.loginInstitutionId ?? null,
+    category: 'ACCESO',
+    type: 'LOGIN_FALLIDO',
+    description: `Inicio de sesión rechazado con ${providerLabel(provider)}${extra} (${errorCode}${tenantNote}).`,
+  });
 }
 
 export class AuthController {
@@ -98,23 +138,11 @@ export class AuthController {
     const query = queryIndex >= 0 ? req.originalUrl.slice(queryIndex) : '';
     const callbackUrl = new URL(getRedirectUri(providerParam) + query);
 
+    let identity: LoginIdentity | null = null;
     try {
-      const session = await authService.handleOAuthCallback({
-        provider: providerParam,
-        callbackUrl,
-        expectedState: state,
-        codeVerifier,
-      });
-
-      void logService.event({
-        actor: { userId: session.user.id, role: session.user.role, institutionId: session.user.institutionId, impersonated: false, userName: session.user.name, userEmail: session.user.email },
-        institutionId: session.user.institutionId,
-        category: 'ACCESO',
-        type: 'LOGIN',
-        description: `Inició sesión con ${providerParam === 'GOOGLE' ? 'Google' : 'Microsoft'}.`,
-      });
-
-      setRefreshCookie(res, await refreshSessionService.issue(session.user.id, req.header('user-agent') ?? null));
+      identity = await authService.identityFromCallback({ provider: providerParam, callbackUrl, expectedState: state, codeVerifier });
+      const session = await authService.sessionForIdentity(identity);
+      await this.startSession(req, res, session, `Inició sesión con ${providerLabel(providerParam)}.`);
 
       const redirectTo = new URL('/auth/callback', env.frontendUrl);
       redirectTo.hash = new URLSearchParams({
@@ -123,29 +151,68 @@ export class AuthController {
       }).toString();
       res.redirect(redirectTo.toString());
     } catch (err) {
-      let errorCode = 'auth_failed';
-      if (err instanceof Error) {
-        if (err.message.includes('habilitada')) errorCode = 'institution_not_allowed';
-        else if (err.message.includes('desactivada')) errorCode = 'account_disabled';
-        else if (err.message.includes('institución registrada')) errorCode = 'invalid_tenant';
-        else if (err.message.includes('invitadas')) errorCode = 'guest_account';
-        else if (err.message.includes('expiró')) errorCode = 'session_expired';
-        else if (err.message.includes('proveedor')) errorCode = 'unauthorized';
+      const errorCode = loginErrorCode(err);
+      logRejectedLogin(providerParam, err, errorCode);
+      if (identity && PENDING_CODES.has(errorCode)) {
+        setPendingLoginCookie(res, signPendingLogin(identity), PENDING_LOGIN_DAYS);
+      } else {
+        clearPendingLoginCookie(res);
       }
-      const tag = (err ?? {}) as { loginEmail?: string | null; loginUserId?: string | null; loginInstitutionId?: string | null; loginTenantId?: string | null };
-      // El tenant de Microsoft queda en la bitácora para que el administrador pueda copiarlo al configurar la institución.
-      const tenantNote = tag.loginTenantId ? `; organización de Microsoft ${tag.loginTenantId}` : '';
-      void logService.event({
-        actor: { userId: tag.loginUserId ?? null, role: null, institutionId: tag.loginInstitutionId ?? null, impersonated: false, userEmail: tag.loginEmail ?? null },
-        institutionId: tag.loginInstitutionId ?? null,
-        category: 'ACCESO',
-        type: 'LOGIN_FALLIDO',
-        description: `Inicio de sesión rechazado con ${providerParam === 'GOOGLE' ? 'Google' : 'Microsoft'} (${errorCode}${tenantNote}).`,
-      });
       const redirectTo = new URL('/login', env.frontendUrl);
       redirectTo.searchParams.set('error', errorCode);
       res.redirect(redirectTo.toString());
     }
+  }
+
+  /** Ingreso pendiente: quién se identificó y todavía no puede entrar (204 si no hay ninguno). */
+  getPendingLogin(req: Request, res: Response): void {
+    const raw = readPendingLoginCookie(req);
+    const identity = verifyPendingLogin(raw);
+    if (!identity) {
+      if (raw) clearPendingLoginCookie(res);
+      res.status(204).send();
+      return;
+    }
+    res.json({ email: identity.email, name: identity.name, provider: identity.provider });
+  }
+
+  /** «Volver a validar»: reintenta el ingreso con la identidad guardada, sin pasar otra vez por el proveedor. */
+  async retryPendingLogin(req: Request, res: Response): Promise<void> {
+    const origin = req.header('origin')?.replace(/\/$/, '');
+    if (origin && !env.corsOrigins.includes(origin)) throw new ForbiddenError('Origen no permitido');
+    const identity = verifyPendingLogin(readPendingLoginCookie(req));
+    if (!identity) {
+      clearPendingLoginCookie(res);
+      throw new UnauthorizedError('La sesión de login expiró, intentá de nuevo');
+    }
+    try {
+      const session = await authService.sessionForIdentity(identity);
+      await this.startSession(req, res, session, `Inició sesión con ${providerLabel(identity.provider)} (revalidación).`);
+      res.json({ token: session.token, dashboardPath: dashboardPathForRole(session.user.role) });
+    } catch (err) {
+      const code = loginErrorCode(err);
+      logRejectedLogin(identity.provider, err, code, ' (revalidación)');
+      if (!PENDING_CODES.has(code)) clearPendingLoginCookie(res);
+      res.status(403).json({ error: err instanceof Error ? err.message : 'No se pudo iniciar sesión', code });
+    }
+  }
+
+  /** «Usar otra cuenta»: olvida el ingreso pendiente. */
+  clearPendingLogin(_req: Request, res: Response): void {
+    clearPendingLoginCookie(res);
+    res.status(204).send();
+  }
+
+  private async startSession(req: Request, res: Response, session: Session, description: string): Promise<void> {
+    void logService.event({
+      actor: { userId: session.user.id, role: session.user.role, institutionId: session.user.institutionId, impersonated: false, userName: session.user.name, userEmail: session.user.email },
+      institutionId: session.user.institutionId,
+      category: 'ACCESO',
+      type: 'LOGIN',
+      description,
+    });
+    setRefreshCookie(res, await refreshSessionService.issue(session.user.id, req.header('user-agent') ?? null));
+    clearPendingLoginCookie(res);
   }
 }
 

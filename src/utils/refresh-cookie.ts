@@ -26,3 +26,19 @@ export function setRefreshCookie(res: Response, issued: IssuedRefreshToken): voi
 export function clearRefreshCookie(res: Response): void {
   res.clearCookie(REFRESH_COOKIE, baseOptions());
 }
+
+/** Cookie del ingreso pendiente (identidad verificada que todavía no puede entrar): mismas opciones que la de sesión. */
+export const PENDING_LOGIN_COOKIE = 'habitar_ingreso_pendiente';
+
+export function readPendingLoginCookie(req: Request): string | undefined {
+  const value = req.cookies?.[PENDING_LOGIN_COOKIE];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+export function setPendingLoginCookie(res: Response, token: string, days: number): void {
+  res.cookie(PENDING_LOGIN_COOKIE, token, { ...baseOptions(), expires: new Date(Date.now() + days * 24 * 60 * 60 * 1000) });
+}
+
+export function clearPendingLoginCookie(res: Response): void {
+  res.clearCookie(PENDING_LOGIN_COOKIE, baseOptions());
+}

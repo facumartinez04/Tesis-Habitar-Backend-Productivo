@@ -25,6 +25,14 @@ export interface HandleOAuthCallbackInput {
   codeVerifier: string;
 }
 
+/** Identidad ya verificada por Google o Microsoft, antes de decidir si puede entrar a Habitar. */
+export interface LoginIdentity {
+  provider: OAuthProviderId;
+  email: string;
+  name: string | null;
+  microsoft: MicrosoftIdentity | null;
+}
+
 export interface AuthService {
   getSessionUser(userId: string): Promise<Session['user']>;
   getInstitutionSettings(
@@ -33,6 +41,8 @@ export interface AuthService {
   updateLanguage(userId: string, language: Locale | null): Promise<Session['user']>;
   buildAuthorizationRequest(provider: OAuthProviderId): Promise<OAuthAuthorizationRequest>;
   handleOAuthCallback(input: HandleOAuthCallbackInput): Promise<Session>;
+  identityFromCallback(input: HandleOAuthCallbackInput): Promise<LoginIdentity>;
+  sessionForIdentity(identity: LoginIdentity): Promise<Session>;
   logout(jti: string, userId: string, expiresAtEpochSeconds: number): Promise<void>;
 }
 
@@ -92,6 +102,11 @@ export class DefaultAuthService implements AuthService {
   }
 
   async handleOAuthCallback(input: HandleOAuthCallbackInput): Promise<Session> {
+    return this.sessionForIdentity(await this.identityFromCallback(input));
+  }
+
+  /** Canjea el código del proveedor y devuelve la identidad verificada (correo, nombre y, con Microsoft, su organización). */
+  async identityFromCallback(input: HandleOAuthCallbackInput): Promise<LoginIdentity> {
     const client = await loadClient();
     const config = await getProviderConfig(input.provider);
 
@@ -127,7 +142,13 @@ export class DefaultAuthService implements AuthService {
       if (!claimed) throw new UnauthorizedError('La cuenta no expone un email verificado');
       email = claimed;
     }
+    const name = typeof claims?.name === 'string' && claims.name.trim() ? claims.name.trim() : null;
+    return { provider: input.provider, email, name, microsoft };
+  }
 
+  /** Decide si la identidad puede entrar a Habitar y, si puede, crea o actualiza el usuario y emite la sesión. */
+  async sessionForIdentity(identity: LoginIdentity): Promise<Session> {
+    const { email, microsoft } = identity;
     const existing = await userRepository.findByEmail(email);
     const tagged = (err: Error, institutionId: string | null) =>
       Object.assign(err, { loginEmail: email, loginUserId: existing?.id ?? null, loginInstitutionId: institutionId, loginTenantId: microsoft?.tenantId ?? null });
@@ -155,12 +176,11 @@ export class DefaultAuthService implements AuthService {
 
     let user = existing;
     if (!user) {
-      const name = (claims?.name as string | undefined) ?? email;
       user = await userRepository.create({
-        name,
+        name: identity.name ?? email,
         email,
         role: initialRoleFor(email, institution, isSuperAdmin),
-        provider: input.provider,
+        provider: identity.provider,
         institutionId: institution.id,
       });
     }
