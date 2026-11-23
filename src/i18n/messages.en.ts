@@ -66,7 +66,6 @@ export const enMessages: Record<string, string> = {
   'La cuenta fue desactivada': 'The account was deactivated',
   'La cuenta no expone un email verificado': 'The account does not expose a verified email',
   'La cuenta de Microsoft no informa su organización': 'The Microsoft account does not report its organization',
-  'Usá tu cuenta institucional de Microsoft 365, no una cuenta personal.': 'Use your school Microsoft 365 account, not a personal account.',
   'Las cuentas invitadas de Microsoft no pueden ingresar a Habitar.': 'Microsoft guest accounts cannot sign in to Habitar.',
   'Tu cuenta de Microsoft no pertenece a la organización de la institución registrada en Habitar.': 'Your Microsoft account does not belong to the organization of the institution registered in Habitar.',
   'El ID de organización de Microsoft no es válido': 'The Microsoft organization ID is not valid',

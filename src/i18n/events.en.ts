@@ -10,8 +10,7 @@ const role = (value: string): string => ROLE_EN[value] ?? value;
 export const enEventMessages: Record<string, string> = {
   'Cerró sesión.': 'Signed out.',
   'Deshabilitó el acceso OAuth de la institución.': "Disabled the institution's OAuth access.",
-  'Se quitó la organización de Microsoft de la institución: no se puede ingresar con Microsoft 365.':
-    "Removed the institution's Microsoft organization: Microsoft 365 sign-in is not possible.",
+  'Se quitó la organización de Microsoft vinculada a la institución.': "Removed the Microsoft organization linked to the institution.",
   'Desvinculó el dispositivo de un alumno.': "Unlinked a student's device.",
   'Editó una pregunta de una actividad en curso.': 'Edited a question of an ongoing activity.',
   'Eliminó un plan.': 'Deleted a plan.',

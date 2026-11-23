@@ -128,7 +128,6 @@ export class AuthController {
         if (err.message.includes('habilitada')) errorCode = 'institution_not_allowed';
         else if (err.message.includes('desactivada')) errorCode = 'account_disabled';
         else if (err.message.includes('institución registrada')) errorCode = 'invalid_tenant';
-        else if (err.message.includes('cuenta personal')) errorCode = 'personal_account';
         else if (err.message.includes('invitadas')) errorCode = 'guest_account';
         else if (err.message.includes('expiró')) errorCode = 'session_expired';
         else if (err.message.includes('proveedor')) errorCode = 'unauthorized';

@@ -30,7 +30,7 @@ export function getMicrosoftConfig(): Promise<ClientModule.Configuration> {
     throw new Error('MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET no están configurados');
   }
   if (!microsoftConfig) {
-    const tenant = env.oauth.microsoft.tenantId || 'organizations';
+    const tenant = env.oauth.microsoft.tenantId || 'common';
     microsoftConfig = loadClient().then((client) =>
       client.discovery(
         new URL(`https://login.microsoftonline.com/${tenant}/v2.0`),

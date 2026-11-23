@@ -10,7 +10,7 @@ import type { Session } from '../domain/auth';
 import type { Institution } from '../domain/institution';
 import type { Locale } from '../i18n/locale';
 import { getInstitutionPause, type InstitutionPause } from './institution-pause';
-import { assertMicrosoftTenant, microsoftIdentityFromClaims } from './microsoft-identity';
+import { assertMicrosoftEmailTrusted, microsoftIdentityFromClaims, type MicrosoftIdentity } from './microsoft-identity';
 
 export interface OAuthAuthorizationRequest {
   authorizationUrl: string;
@@ -111,10 +111,11 @@ export class DefaultAuthService implements AuthService {
 
     const claims = tokens.claims() as Record<string, unknown> | undefined;
     let email: string;
-    let microsoftTenant: string | null = null;
+    let microsoft: MicrosoftIdentity | null = null;
     if (input.provider === 'MICROSOFT') {
       try {
-        ({ email, tenantId: microsoftTenant } = microsoftIdentityFromClaims(claims));
+        microsoft = microsoftIdentityFromClaims(claims);
+        email = microsoft.email;
       } catch (err) {
         throw Object.assign(err as Error, {
           loginEmail: typeof claims?.preferred_username === 'string' ? claims.preferred_username : null,
@@ -129,18 +130,18 @@ export class DefaultAuthService implements AuthService {
 
     const existing = await userRepository.findByEmail(email);
     const tagged = (err: Error, institutionId: string | null) =>
-      Object.assign(err, { loginEmail: email, loginUserId: existing?.id ?? null, loginInstitutionId: institutionId, loginTenantId: microsoftTenant });
+      Object.assign(err, { loginEmail: email, loginUserId: existing?.id ?? null, loginInstitutionId: institutionId, loginTenantId: microsoft?.tenantId ?? null });
     const isSuperAdmin = !existing && env.superAdminEmails.includes(email.toLowerCase());
     const institution = existing
       ? await institutionRepository.findById(existing.institutionId)
       : isSuperAdmin
         ? await this.getOrCreateSuperAdminInstitution(email)
         : await institutionRepository.findByDomain(emailDomain(email));
-    // Con Microsoft, antes que nada la cuenta tiene que venir de la organización de la institución:
-    // así no se revela si un correo ajeno existe o está desactivado.
-    if (microsoftTenant && institution) {
+    // Con Microsoft, antes que nada se verifica que el correo sea confiable (cuenta personal, dominio verificado
+    // por la organización u organización vinculada): así no se revela si un correo ajeno existe o está desactivado.
+    if (microsoft && institution) {
       try {
-        assertMicrosoftTenant(institution, microsoftTenant);
+        assertMicrosoftEmailTrusted(microsoft, institution);
       } catch (err) {
         throw tagged(err as Error, institution.id);
       }

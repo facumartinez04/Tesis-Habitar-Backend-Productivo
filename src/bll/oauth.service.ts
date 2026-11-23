@@ -59,7 +59,7 @@ export class DefaultOAuthService implements OAuthService {
       type: 'TENANT_MICROSOFT',
       description: value
         ? `Se vinculó la institución con la organización de Microsoft ${value}.`
-        : 'Se quitó la organización de Microsoft de la institución: no se puede ingresar con Microsoft 365.',
+        : 'Se quitó la organización de Microsoft vinculada a la institución.',
     });
     return toStatus(updated);
   }
