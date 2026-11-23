@@ -38,6 +38,13 @@ export const env = {
     model: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
     /** Modelo que lee documentos subidos a la API de archivos (los ejemplos de DeepSeek usan deepseek-flash). */
     fileModel: process.env.DEEPSEEK_FILE_MODEL ?? 'deepseek-flash',
+    /**
+     * Cómo analiza DeepSeek el PDF al subirlo. «text_recognition» solo extrae el texto (rápido y barato);
+     * «rich_layout_recognition» además recorta las figuras y se las pasa al modelo como imágenes (más lento).
+     */
+    filePurpose: (process.env.DEEPSEEK_FILE_PURPOSE === 'rich_layout_recognition' ? 'rich_layout_recognition' : 'text_recognition') as
+      | 'text_recognition'
+      | 'rich_layout_recognition',
   },
   openai: {
     apiKey: process.env.OPENAI_API_KEY ?? '',

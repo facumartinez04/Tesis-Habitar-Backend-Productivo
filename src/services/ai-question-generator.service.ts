@@ -461,7 +461,9 @@ export class AiQuestionGeneratorService {
     const { apiUrl } = this.resolveDefaults(provider, options.apiUrl);
     const model = env.deepseek.fileModel;
 
-    const fileId = await uploadDeepseekPdf({ apiKey, chatApiUrl: apiUrl, data: pdf });
+    const t0 = Date.now();
+    const fileId = await uploadDeepseekPdf({ apiKey, chatApiUrl: apiUrl, data: pdf, purpose: env.deepseek.filePurpose });
+    const uploadMs = Date.now() - t0;
     try {
       const prompt = buildDocumentReadingPrompt(language);
       let res: Response;
@@ -475,6 +477,9 @@ export class AiQuestionGeneratorService {
               { role: 'system', content: prompt.system },
               { role: 'user', content: [{ type: 'file', file_id: fileId }, { type: 'text', text: prompt.user }] },
             ],
+            // Copiar texto no necesita razonar: con el razonamiento activado (el valor por defecto de DeepSeek)
+            // el modelo escribe una cadena de pensamiento larga antes de responder y la lectura tarda mucho más.
+            thinking: { type: 'disabled' },
             temperature: 0,
             max_tokens: 8000,
           }),
@@ -496,9 +501,14 @@ export class AiQuestionGeneratorService {
       const content = payload.choices?.[0]?.message?.content?.trim();
       if (!content) throw new UpstreamError(`${provider} no devolvió contenido en su respuesta`);
       const empty = content.includes(NO_READING_TEXT);
+      console.info(
+        `[document-read] subida y análisis ${uploadMs} ms, lectura ${Date.now() - t0 - uploadMs} ms, ` +
+          `${payload.usage?.prompt_tokens ?? 0} tokens de entrada y ${payload.usage?.completion_tokens ?? 0} de salida (${env.deepseek.filePurpose}).`,
+      );
       return { text: empty ? '' : content, legible: !empty };
     } finally {
-      await deleteDeepseekFile({ apiKey, chatApiUrl: apiUrl, fileId });
+      // No se espera: el borrado no tiene por qué demorar la respuesta (si falla, el archivo vence solo a la hora).
+      void deleteDeepseekFile({ apiKey, chatApiUrl: apiUrl, fileId });
     }
   }
 

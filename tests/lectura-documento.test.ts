@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import { PDFDocument } from 'pdf-lib';
 import { aiQuestionGenerator } from '../src/services/ai-question-generator.service';
 import { filesUrlFor } from '../src/services/deepseek-files.service';
-import { isPdf, MAX_AI_PAGES, parsePageList, selectPdfPages } from '../src/utils/pdf-pages';
+import { isPdf, MAX_AI_PAGES, mapWithLimit, parsePageList, selectPdfPages, splitPdfPages } from '../src/utils/pdf-pages';
 
 async function pdfDe(paginas: number): Promise<Buffer> {
   const doc = await PDFDocument.create();
@@ -57,17 +57,21 @@ test('lectura con IA: sube el PDF, lo referencia por file_id, devuelve el texto 
     const res = await aiQuestionGenerator.readDocument(await pdfDe(2), { provider: 'DEEPSEEK', apiKey: 'clave-de-prueba', apiUrl: falso.url, onUsage: (u) => usos.push(u) });
     assert.equal(res.legible, true);
     assert.match(res.text, /ALGORITMOS GENÉTICOS/);
-    // El campo purpose viaja antes que el archivo (si no, DeepSeek responde 400) y se pide la lectura con figuras.
+    // El campo purpose viaja antes que el archivo (si no, DeepSeek responde 400) y por defecto solo se extrae el texto (más rápido).
     const subida = falso.visto.subidas[0];
     assert.ok(subida.indexOf('name="purpose"') >= 0 && subida.indexOf('name="purpose"') < subida.indexOf('name="file"'));
-    assert.match(subida, /rich_layout_recognition/);
+    assert.match(subida, /text_recognition/);
+    assert.doesNotMatch(subida, /rich_layout_recognition/);
     assert.match(subida, /expires_after\[seconds\]/);
-    // El chat usa deepseek-flash y referencia el archivo con la forma documentada.
+    // El chat usa deepseek-flash SIN razonamiento (con razonamiento tarda mucho más) y referencia el archivo como se documenta.
     const chat = falso.visto.chats[0];
     assert.equal(chat.model, 'deepseek-flash');
+    assert.deepEqual(chat.thinking, { type: 'disabled' });
     const contenido = chat.messages[1].content;
     assert.deepEqual(contenido[0], { type: 'file', file_id: 'file-api-prueba' });
     assert.equal(contenido[1].type, 'text');
+    // El borrado no se espera: se deja un instante para que llegue.
+    await new Promise((r) => setTimeout(r, 100));
     assert.deepEqual(falso.visto.borrados, ['file-api-prueba']);
     assert.ok(falso.visto.auth.every((a) => a === 'Bearer clave-de-prueba'));
     assert.deepEqual(usos[0], { model: 'deepseek-flash', promptTokens: 900, completionTokens: 40 });
@@ -80,6 +84,7 @@ test('lectura con IA: si el chat falla, igual se borra el archivo subido', async
   const falso = await deepseekFalso({ chat: () => ({ status: 500, json: { error: { message: 'caído' } } }) });
   try {
     await assert.rejects(aiQuestionGenerator.readDocument(await pdfDe(1), { provider: 'DEEPSEEK', apiKey: 'k', apiUrl: falso.url }), /respondió con error 500/);
+    await new Promise((r) => setTimeout(r, 100));
     assert.deepEqual(falso.visto.borrados, ['file-api-prueba']);
   } finally {
     await falso.cerrar();
@@ -123,6 +128,29 @@ test('recorte de páginas: hay un tope de páginas por lectura', async () => {
   const grande = await pdfDe(MAX_AI_PAGES + 1);
   await assert.rejects(selectPdfPages(grande, null), /hasta 60 páginas/);
   assert.equal((await selectPdfPages(grande, [1, 2, 3])).used, 3);
+});
+
+test('tandas: las páginas elegidas se reparten de a tres, en orden', async () => {
+  const pdf = await pdfDe(10);
+  const { chunks, used } = await splitPdfPages(pdf, [1, 2, 3, 4, 5, 6, 7], 3);
+  assert.equal(used, 7);
+  assert.deepEqual(await Promise.all(chunks.map(async (c) => (await PDFDocument.load(c)).getPageCount())), [3, 3, 1]);
+  assert.equal((await splitPdfPages(pdf, null, 3)).chunks.length, 4);
+});
+
+test('tandas en paralelo: respeta el límite y devuelve los resultados en orden', async () => {
+  let simultaneas = 0;
+  let maxima = 0;
+  const res = await mapWithLimit([5, 1, 4, 2, 3, 6, 7], 3, async (n) => {
+    simultaneas += 1;
+    maxima = Math.max(maxima, simultaneas);
+    await new Promise((r) => setTimeout(r, n * 5));
+    simultaneas -= 1;
+    return n * 10;
+  });
+  assert.deepEqual(res, [50, 10, 40, 20, 30, 60, 70]);
+  assert.equal(maxima, 3);
+  assert.deepEqual(await mapWithLimit([], 3, async () => 1), []);
 });
 
 test('lista de páginas de la cabecera', () => {

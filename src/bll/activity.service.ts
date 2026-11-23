@@ -31,7 +31,10 @@ import { assertInstitutionActive } from './institution-pause';
 import { gradeClosed, isAutoGraded, normalizeQuestionInput } from './question-grading';
 import type { QuestionType } from '../domain/question';
 import type { ScannedPageResult } from '../services/ai-question-generator.service';
-import { isPdf, parsePageList, selectPdfPages } from '../utils/pdf-pages';
+import { AI_CHUNK_PAGES, isPdf, mapWithLimit, parsePageList, splitPdfPages } from '../utils/pdf-pages';
+
+/** Tandas que se leen en simultáneo por pedido (DeepSeek admite 15 análisis de documentos a la vez en toda la cuenta). */
+const AI_PARALLEL_CHUNKS = 3;
 import { MAX_DOCUMENT_BYTES } from './activity-document.service';
 
 type SubmitResponsePayload = Omit<SubmitResponseInput, 'activityId'>;
@@ -293,15 +296,30 @@ export class DefaultActivityService implements ActivityService {
     if (!access.isCustom && !(await aiUsageService.withinBudget(institutionId))) {
       throw new ConflictError('Tu institución llegó al tope de gasto de IA de este mes.');
     }
-    const selection = await selectPdfPages(data, parsePageList(pagesHeader));
+    const selection = await splitPdfPages(data, parsePageList(pagesHeader), AI_CHUNK_PAGES);
     const provider = access.options.provider.toLowerCase();
-    const call = usageCollector(access);
+    // Las tandas se leen en paralelo y el uso (tokens) se suma de todas.
+    const total = { model: undefined as string | undefined, promptTokens: 0, completionTokens: 0 };
+    const options = {
+      ...access.options,
+      onUsage: (u: AiCallUsage) => {
+        total.model = u.model;
+        total.promptTokens += u.promptTokens;
+        total.completionTokens += u.completionTokens;
+      },
+    };
+    const usage = () => ({ ...total, keySource: access.isCustom ? ('PROPIA' as const) : ('PLATAFORMA' as const) });
     try {
-      const result = await aiQuestionGenerator.readDocument(selection.data, call.options, language);
-      await aiUsageService.record({ institutionId, provider, success: true, wordCount: countWords(result.text), kind: 'DOCUMENTO', ...call.usage() });
+      const parts = await mapWithLimit(selection.chunks, AI_PARALLEL_CHUNKS, (chunk) => aiQuestionGenerator.readDocument(chunk, options, language));
+      const text = parts
+        .filter((p) => p.legible && p.text)
+        .map((p) => p.text)
+        .join('\n\n');
+      const result = { text, legible: text.length > 0 };
+      await aiUsageService.record({ institutionId, provider, success: true, wordCount: countWords(result.text), kind: 'DOCUMENTO', ...usage() });
       return { ...result, pages: selection.used };
     } catch (err) {
-      await aiUsageService.record({ institutionId, provider, success: false, wordCount: 0, kind: 'DOCUMENTO', ...call.usage() });
+      await aiUsageService.record({ institutionId, provider, success: false, wordCount: 0, kind: 'DOCUMENTO', ...usage() });
       if (err instanceof UpstreamError) {
         console.error('[activity.service] La IA no pudo leer el documento:', err.message);
         throw new UpstreamError('La IA no pudo leer el documento. Se va a leer con OCR en tu navegador.');

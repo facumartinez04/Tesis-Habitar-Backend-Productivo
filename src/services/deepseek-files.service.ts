@@ -14,13 +14,19 @@ const UPLOAD_TIMEOUT_MS = 180_000;
 const DELETE_TIMEOUT_MS = 20_000;
 
 /**
- * Sube un PDF con «rich_layout_recognition»: el modelo recibe el texto y también las figuras (diapositivas, esquemas).
+ * Sube un PDF para que DeepSeek lo analice (`text_recognition`: solo el texto; `rich_layout_recognition`: también las figuras).
  * El archivo vence solo a la hora como red de seguridad, por si no se llega a borrar.
  * `purpose` va antes que `file`: si no, DeepSeek responde 400.
  */
-export async function uploadDeepseekPdf(input: { apiKey: string; chatApiUrl: string; data: Buffer; fileName?: string }): Promise<string> {
+export async function uploadDeepseekPdf(input: {
+  apiKey: string;
+  chatApiUrl: string;
+  data: Buffer;
+  fileName?: string;
+  purpose: 'text_recognition' | 'rich_layout_recognition';
+}): Promise<string> {
   const form = new FormData();
-  form.append('purpose', 'rich_layout_recognition');
+  form.append('purpose', input.purpose);
   form.append('expires_after[anchor]', 'created_at');
   form.append('expires_after[seconds]', '3600');
   form.append('file', new Blob([new Uint8Array(input.data)], { type: 'application/pdf' }), input.fileName ?? 'lectura.pdf');
