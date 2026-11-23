@@ -132,6 +132,6 @@ requiere Postgres propio en Coolify.
    con esa string, junto con `JWT_SECRET` (cualquier string random) y el resto de `.env.example`.
 3. El comando `start` (`npm run db:migrate && node dist/server.js`) aplica las migraciones
    automáticamente contra Neon en cada arranque — no hace falta correrlas a mano.
-4. (Opcional) `npm run db:seed` para cargar los datos de ejemplo que usa el frontend.
+4. (Opcional, solo en desarrollo) `npm run db:seed` para cargar los datos de ejemplo. Borra las tablas antes de cargarlos, así que se niega a correr contra una base que no sea `localhost` o con `NODE_ENV=production`.
 
 # Tesis-Habitar-Backend

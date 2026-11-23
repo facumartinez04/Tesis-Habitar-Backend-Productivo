@@ -4,7 +4,32 @@ import { pool } from '../src/config/db';
 const biodiversidadText =
   'La biodiversidad es el conjunto de formas de vida que habitan nuestro planeta. Cada ecosistema alberga especies que dependen entre sí para sobrevivir. Cuando una especie desaparece, las consecuencias se propagan en cadena hacia el resto del sistema. Proteger la biodiversidad no es solo una cuestión ambiental, sino también cultural y económica.';
 
+/**
+ * El seed BORRA las tablas antes de cargar los datos de ejemplo: solo puede correr contra una base local.
+ * Contra cualquier otra (o con NODE_ENV=production) se niega, salvo que se confirme a propósito con
+ * HABITAR_PERMITIR_SEED=si.
+ */
+function assertBaseLocal(): void {
+  if (process.env.HABITAR_PERMITIR_SEED === 'si') return;
+  let host = '';
+  try {
+    host = new URL(process.env.DATABASE_URL ?? '').hostname.replace(/^\[|\]$/g, '');
+  } catch {
+    /* sin DATABASE_URL válida: se trata como no local */
+  }
+  const local = ['localhost', '127.0.0.1', '::1'].includes(host);
+  if (process.env.NODE_ENV === 'production' || !local) {
+    console.error(
+      `El seed borra las tablas y carga datos de ejemplo: solo corre contra una base local (localhost). ` +
+        `Base detectada: "${host || 'desconocida'}"${process.env.NODE_ENV === 'production' ? ' con NODE_ENV=production' : ''}. ` +
+        `Si de verdad querés correrlo acá, definí HABITAR_PERMITIR_SEED=si.`,
+    );
+    process.exit(1);
+  }
+}
+
 async function main() {
+  assertBaseLocal();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
