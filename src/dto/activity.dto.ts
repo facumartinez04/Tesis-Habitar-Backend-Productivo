@@ -7,6 +7,7 @@ export const generateQuestionsSchema = z.object({
   focusAxis: z.enum(['LITERAL', 'INFERENCIAL', 'CRITICO']).optional(),
   language: z.enum(['es', 'en']).optional(),
   questionTypes: z.array(questionTypeSchema).min(1).max(5).optional(),
+  fromDocument: z.boolean().optional(),
 });
 
 export type GenerateQuestionsDto = z.infer<typeof generateQuestionsSchema>;
@@ -49,6 +50,7 @@ export const createActivitySchema = z.object({
   showFeedback: z.boolean().optional(),
   templateId: z.string().max(64).optional(),
   language: z.enum(['es', 'en']).optional(),
+  fromDocument: z.boolean().optional(),
 });
 
 export const askHelpSchema = z.object({

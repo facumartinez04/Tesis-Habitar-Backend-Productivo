@@ -22,8 +22,8 @@ import type {
 
 export class ActivityController {
   async generateQuestions(req: Request, res: Response): Promise<void> {
-    const { sourceText, focusAxis, language, questionTypes } = req.body as GenerateQuestionsDto;
-    const result = await activityService.generateQuestions(sourceText, req.auth!.institutionId, focusAxis, language ?? req.locale, questionTypes);
+    const { sourceText, focusAxis, language, questionTypes, fromDocument } = req.body as GenerateQuestionsDto;
+    const result = await activityService.generateQuestions(sourceText, req.auth!.institutionId, focusAxis, language ?? req.locale, questionTypes, fromDocument);
     res.json(result);
   }
 

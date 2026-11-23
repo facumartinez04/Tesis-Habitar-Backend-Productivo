@@ -219,6 +219,7 @@ export interface ActivityService {
     focusAxis?: ComprehensionAxis,
     language?: Locale,
     questionTypes?: QuestionType[],
+    fromDocument?: boolean,
   ): Promise<GenerateQuestionsResult>;
   createActivity(input: CreateActivityInput): Promise<Activity>;
   getPublicByCode(code: string): Promise<PublicActivityView>;
@@ -241,6 +242,19 @@ export const CLOSED_TYPES: QuestionType[] = ['OPCION_UNICA', 'OPCION_MULTIPLE', 
 export function allowedTypes(requested?: QuestionType[]): QuestionType[] {
   const closed = (requested ?? CLOSED_TYPES).filter((t) => CLOSED_TYPES.includes(t));
   return closed.length ? closed : ['OPCION_UNICA'];
+}
+
+/**
+ * Tope de caracteres del texto leído de un documento. El largo que fija la institución vale para el texto pegado a mano;
+ * un documento se limita por su peso (15 MB) y por las páginas que se eligen, y este es sólo el techo técnico para que
+ * la IA no reciba un texto desmedido. Coincide con el máximo que se puede configurar en una institución.
+ */
+export const DOCUMENT_READING_MAX_CHARS = 50000;
+
+/** Largo permitido: el de la institución para el texto pegado; el techo técnico si el texto sale de un documento. */
+export function readingLimit(institutionMaxChars: number | null | undefined, fromDocument?: boolean): number {
+  const own = institutionMaxChars ?? DEFAULT_READING_MAX_CHARS;
+  return fromDocument ? Math.max(own, DOCUMENT_READING_MAX_CHARS) : own;
 }
 
 export function assertReadingLength(text: string, maxChars: number): void {
@@ -334,11 +348,12 @@ export class DefaultActivityService implements ActivityService {
     focusAxis?: ComprehensionAxis,
     language: Locale = 'es',
     questionTypes?: QuestionType[],
+    fromDocument?: boolean,
   ): Promise<GenerateQuestionsResult> {
     const types = allowedTypes(questionTypes);
     const wordCount = countWords(sourceText);
     const institution = await institutionRepository.findById(institutionId);
-    const maxChars = institution?.readingMaxChars ?? DEFAULT_READING_MAX_CHARS;
+    const maxChars = readingLimit(institution?.readingMaxChars, fromDocument);
     assertReadingLength(sourceText, maxChars);
     const access = resolveAiAccess(institution);
     const hasQuota = !access || access.isCustom ? true : await aiUsageService.hasQuotaAvailable(institutionId);
@@ -379,7 +394,7 @@ export class DefaultActivityService implements ActivityService {
   async createActivity(input: CreateActivityInput): Promise<Activity> {
     const targetCourse = await courseRepository.findById(input.courseId);
     const targetInstitution = targetCourse ? await institutionRepository.findById(targetCourse.institutionId) : null;
-    assertReadingLength(input.sourceText, targetInstitution?.readingMaxChars ?? DEFAULT_READING_MAX_CHARS);
+    assertReadingLength(input.sourceText, readingLimit(targetInstitution?.readingMaxChars, input.fromDocument));
     if (input.questions.length === 0) throw new BadRequestError('La actividad necesita al menos una pregunta');
     if (!input.questions.some((q) => q.approved)) {
       throw new BadRequestError('[Error-QR_001] Debe aprobar al menos una pregunta antes de generar el código');
