@@ -22,7 +22,8 @@ const publicReadLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 600, name: 'a
 const submitLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 300, name: 'activity-submit' });
 const generateLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 60, name: 'activity-generate' });
 const scanLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 300, name: 'activity-scan' });
-const helpLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 800, name: 'activity-help' });
+const readDocumentLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 40, name: 'activity-read-document' });
+const helpLimit =rateLimit({ windowMs: 10 * 60 * 1000, max: 800, name: 'activity-help' });
 const progressLimit = rateLimit({ windowMs: 10 * 60 * 1000, max: 4000, name: 'activity-progress' });
 
 activityRouter.post(
@@ -32,6 +33,15 @@ activityRouter.post(
   scanLimit,
   validateBody(scannedPageSchema),
   activityController.cleanScannedPage.bind(activityController),
+);
+
+activityRouter.post(
+  '/read-document',
+  requireAuth,
+  requireRole('DOCENTE'),
+  readDocumentLimit,
+  express.raw({ type: () => true, limit: '15mb' }),
+  activityController.readDocument.bind(activityController),
 );
 
 activityRouter.post(

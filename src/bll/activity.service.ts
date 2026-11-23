@@ -31,6 +31,8 @@ import { assertInstitutionActive } from './institution-pause';
 import { gradeClosed, isAutoGraded, normalizeQuestionInput } from './question-grading';
 import type { QuestionType } from '../domain/question';
 import type { ScannedPageResult } from '../services/ai-question-generator.service';
+import { isPdf, parsePageList, selectPdfPages } from '../utils/pdf-pages';
+import { MAX_DOCUMENT_BYTES } from './activity-document.service';
 
 type SubmitResponsePayload = Omit<SubmitResponseInput, 'activityId'>;
 
@@ -265,6 +267,44 @@ export class DefaultActivityService implements ActivityService {
       if (err instanceof UpstreamError) {
         console.error('[activity.service] La IA no pudo ordenar la página escaneada:', err.message);
         throw new UpstreamError('La IA no pudo ordenar el texto de la página. Probá de nuevo o corregilo a mano.');
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Lee un PDF con la IA (DeepSeek) en lugar del OCR del navegador. Solo se sube lo que el docente eligió: se recorta el
+   * PDF a esas páginas, se lee y el archivo se borra de DeepSeek enseguida. Si la IA no está disponible, responde 409 y
+   * el navegador lee las páginas con OCR.
+   */
+  async readDocument(
+    data: unknown,
+    pagesHeader: string | undefined,
+    institutionId: string,
+    language: Locale = 'es',
+  ): Promise<ScannedPageResult & { pages: number }> {
+    if (!Buffer.isBuffer(data) || data.length === 0) throw new BadRequestError('No llegó el archivo');
+    if (data.length > MAX_DOCUMENT_BYTES) throw new BadRequestError('El archivo supera los 15 MB');
+    if (!isPdf(data)) throw new BadRequestError('Solo se pueden leer con IA archivos PDF');
+    const institution = await institutionRepository.findById(institutionId);
+    const access = resolveAiAccess(institution);
+    if (!access) throw new ConflictError('La IA no está disponible para tu institución.');
+    if (access.options.provider !== 'DEEPSEEK') throw new ConflictError('La lectura de documentos con IA solo está disponible con DeepSeek.');
+    if (!access.isCustom && !(await aiUsageService.withinBudget(institutionId))) {
+      throw new ConflictError('Tu institución llegó al tope de gasto de IA de este mes.');
+    }
+    const selection = await selectPdfPages(data, parsePageList(pagesHeader));
+    const provider = access.options.provider.toLowerCase();
+    const call = usageCollector(access);
+    try {
+      const result = await aiQuestionGenerator.readDocument(selection.data, call.options, language);
+      await aiUsageService.record({ institutionId, provider, success: true, wordCount: countWords(result.text), kind: 'DOCUMENTO', ...call.usage() });
+      return { ...result, pages: selection.used };
+    } catch (err) {
+      await aiUsageService.record({ institutionId, provider, success: false, wordCount: 0, kind: 'DOCUMENTO', ...call.usage() });
+      if (err instanceof UpstreamError) {
+        console.error('[activity.service] La IA no pudo leer el documento:', err.message);
+        throw new UpstreamError('La IA no pudo leer el documento. Se va a leer con OCR en tu navegador.');
       }
       throw err;
     }

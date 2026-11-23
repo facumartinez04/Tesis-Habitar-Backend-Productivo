@@ -31,6 +31,11 @@ export class ActivityController {
     res.json(await activityService.cleanScannedPage(rawText, req.auth!.institutionId, language ?? req.locale));
   }
 
+  /** Lee con IA las páginas elegidas de un PDF (cuerpo = el PDF, cabecera x-pages = páginas elegidas). */
+  async readDocument(req: Request, res: Response): Promise<void> {
+    res.json(await activityService.readDocument(req.body, req.header('x-pages') ?? undefined, req.auth!.institutionId, req.locale));
+  }
+
   async create(req: Request, res: Response): Promise<void> {
     const input = req.body as CreateActivityDto;
     await assertCourseAccess(req, input.courseId);

@@ -36,6 +36,8 @@ export const env = {
     apiKey: process.env.DEEPSEEK_API_KEY ?? '',
     apiUrl: process.env.DEEPSEEK_API_URL ?? 'https://api.deepseek.com/chat/completions',
     model: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
+    /** Modelo que lee documentos subidos a la API de archivos (los ejemplos de DeepSeek usan deepseek-flash). */
+    fileModel: process.env.DEEPSEEK_FILE_MODEL ?? 'deepseek-flash',
   },
   openai: {
     apiKey: process.env.OPENAI_API_KEY ?? '',
