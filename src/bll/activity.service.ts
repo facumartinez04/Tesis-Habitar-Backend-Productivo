@@ -3,7 +3,7 @@ import { activityRepository } from '../dal/activity.repository';
 import { activitySessionService, resolveStudentInActivity } from './activity-session.service';
 import { progressRepository } from '../dal/progress.repository';
 import { readingHelpRepository } from '../dal/reading-help.repository';
-import { activityDocumentRepository, type ActivityDocumentMeta } from '../dal/activity-document.repository';
+import type { ActivityDocumentMeta } from '../dal/activity-document.repository';
 import { pageOf, type Page, type PageRequest } from '../utils/pagination';
 import { questionRepository } from '../dal/question.repository';
 import { criticoFromAnswers, responseRepository, type ReviewQueueItem } from '../dal/response.repository';
@@ -35,7 +35,7 @@ import { AI_CHUNK_PAGES, isPdf, mapWithLimit, parsePageList, splitPdfPages } fro
 
 /** Tandas que se leen en simultáneo por pedido (DeepSeek admite 15 análisis de documentos a la vez en toda la cuenta). */
 const AI_PARALLEL_CHUNKS = 3;
-import { MAX_DOCUMENT_BYTES } from './activity-document.service';
+import { activityDocumentService, MAX_DOCUMENT_BYTES } from './activity-document.service';
 
 type SubmitResponsePayload = Omit<SubmitResponseInput, 'activityId'>;
 
@@ -408,6 +408,7 @@ export class DefaultActivityService implements ActivityService {
     let updated = activity;
     if (activity.status !== 'CERRADA' && hasClosed(activity)) {
       updated = await activityRepository.closeAndPurgeText(activity.id);
+      activityDocumentService.forget(activity.id);
     } else if (activity.status === 'PROGRAMADA' && hasOpened(activity)) {
       updated = await activityRepository.updateStatus(activity.id, 'PUBLICADA');
     }
@@ -522,7 +523,7 @@ export class DefaultActivityService implements ActivityService {
     const [questions, course, document] = await Promise.all([
       questionRepository.findByActivity(activity.id),
       courseRepository.findById(activity.courseId),
-      activityDocumentRepository.meta(activity.id),
+      activityDocumentService.metaFor(activity.id),
     ]);
     const institution = course ? await institutionRepository.findById(course.institutionId) : null;
 
@@ -583,7 +584,7 @@ export class DefaultActivityService implements ActivityService {
         approved: q.approved,
       })),
     });
-    await activityDocumentRepository.copy(activityId, copy.id);
+    await activityDocumentService.copyTo(activityId, copy.id);
     return copy;
   }
 
@@ -600,6 +601,7 @@ export class DefaultActivityService implements ActivityService {
     const activity = await activityRepository.findById(activityId);
     if (!activity) throw new NotFoundError('Actividad no encontrada');
     const updated = await activityRepository.closeAndPurgeText(activityId);
+    activityDocumentService.forget(activityId);
     realtime.activityChanged(updated);
     return updated;
   }

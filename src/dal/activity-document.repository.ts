@@ -2,7 +2,8 @@ import { query, queryOne } from '../config/db';
 
 export const PDF_MIME = 'application/pdf';
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-export type DocumentMime = typeof PDF_MIME | typeof DOCX_MIME;
+export const PPTX_MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+export type DocumentMime = typeof PDF_MIME | typeof DOCX_MIME | typeof PPTX_MIME;
 
 export interface ActivityDocumentMeta {
   fileName: string;
