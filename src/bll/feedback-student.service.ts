@@ -32,6 +32,85 @@ export interface StudentFeedback {
   }[];
 }
 
+/** Extras que solo ve la docente: la nota sugerida por la IA y por qué. */
+export interface TeacherQuestionExtras {
+  aiScore: number | null;
+  aiRationale: string | null;
+  teacherScore: number | null;
+  reviewed: boolean;
+}
+
+/**
+ * Qué respondió un alumno en cada pregunta y si está bien. Lo usa el alumno (sin extras) y la docente (con la nota
+ * sugerida por la IA y su explicación).
+ */
+export async function loadQuestionResults(activityId: string, responseId: string): Promise<StudentFeedback['questions']>;
+export async function loadQuestionResults(
+  activityId: string,
+  responseId: string,
+  teacher: true,
+): Promise<(StudentFeedback['questions'][number] & TeacherQuestionExtras)[]>;
+export async function loadQuestionResults(activityId: string, responseId: string, teacher = false) {
+  const rows = await query<{
+    axis: string;
+    type: QuestionType | null;
+    prompt: string;
+    optionsJson: string | null;
+    correctOption: string | null;
+    correctOptionsJson: string | null;
+    acceptedAnswersJson: string | null;
+    selectedOption: string | null;
+    selectedOptionsJson: string | null;
+    textAnswer: string | null;
+    aiScore: number | null;
+    aiRationale: string | null;
+    teacherScore: number | null;
+    reviewedAt: Date | null;
+  }>(
+    `SELECT q."axis", q."type", q."prompt", q."optionsJson", q."correctOption", q."correctOptionsJson", q."acceptedAnswersJson",
+            a."selectedOption", a."selectedOptionsJson", a."textAnswer", a."aiScore", a."aiRationale", a."teacherScore", a."reviewedAt"
+       FROM "Question" q
+       LEFT JOIN "Answer" a ON a."questionId" = q."id" AND a."responseId" = $2
+      WHERE q."activityId" = $1 AND q."approved"
+      ORDER BY q."order", q."id"`,
+    [activityId, responseId],
+  );
+  return rows.map((r) => {
+    const type: QuestionType = r.type ?? (r.correctOption ? 'OPCION_UNICA' : 'ABIERTA');
+    const closed = isAutoGraded({ type });
+    const options = r.optionsJson ? (JSON.parse(r.optionsJson) as string[]) : null;
+    const correctOptions = r.correctOptionsJson ? (JSON.parse(r.correctOptionsJson) as string[]) : null;
+    const acceptedAnswers = r.acceptedAnswersJson ? (JSON.parse(r.acceptedAnswersJson) as string[]) : null;
+    const selectedOptions = r.selectedOptionsJson ? (JSON.parse(r.selectedOptionsJson) as string[]) : null;
+    const fraction = closed
+      ? gradeClosed(
+          { type, options, correctOption: r.correctOption, correctOptions, acceptedAnswers },
+          { selectedOption: r.selectedOption, selectedOptions, textAnswer: r.textAnswer },
+        )
+      : null;
+    const score = closed ? null : r.teacherScore;
+    const base = {
+      axis: r.axis,
+      type,
+      prompt: r.prompt,
+      options,
+      selectedOption: closed ? r.selectedOption : null,
+      selectedOptions: type === 'OPCION_MULTIPLE' ? selectedOptions ?? [] : null,
+      correctOption: closed ? r.correctOption : null,
+      correctOptions: type === 'OPCION_MULTIPLE' ? correctOptions : null,
+      acceptedAnswers: type === 'COMPLETAR' ? acceptedAnswers : null,
+      correct: fraction === null ? null : fraction === 1,
+      partial: fraction === null || fraction === 1 || fraction === 0 ? null : Math.round(fraction * 100),
+      textAnswer: type === 'ABIERTA' || type === 'COMPLETAR' ? r.textAnswer : null,
+      score,
+      scoreLabel: score === null || score === undefined ? null : RUBRIC[score] ?? null,
+      pendingReview: !closed && Boolean(r.textAnswer) && (r.teacherScore === null || !r.reviewedAt),
+    };
+    if (!teacher) return base;
+    return { ...base, aiScore: closed ? null : r.aiScore, aiRationale: closed ? null : r.aiRationale, teacherScore: closed ? null : r.teacherScore, reviewed: Boolean(r.reviewedAt) };
+  });
+}
+
 export class StudentFeedbackService {
   async get(code: string, rawName: string, deviceId: string): Promise<StudentFeedback> {
     const activity = await activityRepository.findByCode(code);
@@ -58,34 +137,13 @@ export class StudentFeedbackService {
     );
     if (!response) throw new NotFoundError('No encontramos tus respuestas en esta actividad.');
 
-    const [result, rows] = await Promise.all([
+    const [result, questions] = await Promise.all([
       queryOne<{ literal: number | null; inferencial: number | null; critico: number | null; reviewed: boolean }>(
         `SELECT "literalScore" AS "literal", "inferencialScore" AS "inferencial", "criticoScore" AS "critico", "criticoReviewed" AS "reviewed"
            FROM "StudentResult" WHERE "responseId" = $1`,
         [response.id],
       ),
-      query<{
-        axis: string;
-        type: QuestionType | null;
-        prompt: string;
-        optionsJson: string | null;
-        correctOption: string | null;
-        correctOptionsJson: string | null;
-        acceptedAnswersJson: string | null;
-        selectedOption: string | null;
-        selectedOptionsJson: string | null;
-        textAnswer: string | null;
-        teacherScore: number | null;
-        reviewedAt: Date | null;
-      }>(
-        `SELECT q."axis", q."type", q."prompt", q."optionsJson", q."correctOption", q."correctOptionsJson", q."acceptedAnswersJson",
-                a."selectedOption", a."selectedOptionsJson", a."textAnswer", a."teacherScore", a."reviewedAt"
-           FROM "Question" q
-           LEFT JOIN "Answer" a ON a."questionId" = q."id" AND a."responseId" = $2
-          WHERE q."activityId" = $1 AND q."approved"
-          ORDER BY q."order", q."id"`,
-        [activity.id, response.id],
-      ),
+      loadQuestionResults(activity.id, response.id),
     ]);
 
     return {
@@ -97,38 +155,7 @@ export class StudentFeedbackService {
         critico: result?.reviewed ? (result?.critico ?? null) : null,
         criticoPending: result ? !result.reviewed : false,
       },
-      questions: rows.map((r) => {
-        const type: QuestionType = r.type ?? (r.correctOption ? 'OPCION_UNICA' : 'ABIERTA');
-        const closed = isAutoGraded({ type });
-        const options = r.optionsJson ? (JSON.parse(r.optionsJson) as string[]) : null;
-        const correctOptions = r.correctOptionsJson ? (JSON.parse(r.correctOptionsJson) as string[]) : null;
-        const acceptedAnswers = r.acceptedAnswersJson ? (JSON.parse(r.acceptedAnswersJson) as string[]) : null;
-        const selectedOptions = r.selectedOptionsJson ? (JSON.parse(r.selectedOptionsJson) as string[]) : null;
-        const fraction = closed
-          ? gradeClosed(
-              { type, options, correctOption: r.correctOption, correctOptions, acceptedAnswers },
-              { selectedOption: r.selectedOption, selectedOptions, textAnswer: r.textAnswer },
-            )
-          : null;
-        const score = closed ? null : r.teacherScore;
-        return {
-          axis: r.axis,
-          type,
-          prompt: r.prompt,
-          options,
-          selectedOption: closed ? r.selectedOption : null,
-          selectedOptions: type === 'OPCION_MULTIPLE' ? selectedOptions ?? [] : null,
-          correctOption: closed ? r.correctOption : null,
-          correctOptions: type === 'OPCION_MULTIPLE' ? correctOptions : null,
-          acceptedAnswers: type === 'COMPLETAR' ? acceptedAnswers : null,
-          correct: fraction === null ? null : fraction === 1,
-          partial: fraction === null || fraction === 1 || fraction === 0 ? null : Math.round(fraction * 100),
-          textAnswer: type === 'ABIERTA' || type === 'COMPLETAR' ? r.textAnswer : null,
-          score,
-          scoreLabel: score === null || score === undefined ? null : RUBRIC[score] ?? null,
-          pendingReview: !closed && Boolean(r.textAnswer) && (r.teacherScore === null || !r.reviewedAt),
-        };
-      }),
+      questions,
     };
   }
 }

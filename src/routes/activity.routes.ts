@@ -78,6 +78,14 @@ activityRouter.get(
 );
 
 activityRouter.get(
+  '/:id/responses/:responseId',
+  requireAuth,
+  requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'),
+  requireActivityAccess('id'),
+  activityController.responseDetail.bind(activityController),
+);
+
+activityRouter.get(
   '/:id/reviews',
   requireAuth,
   requireRole('DOCENTE', 'COORDINADOR', 'ADMIN'),

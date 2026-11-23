@@ -5,6 +5,7 @@ import { activityService } from '../bll/activity.service';
 import { activitySessionService } from '../bll/activity-session.service';
 import { readingHelpService } from '../bll/reading-help.service';
 import { activityDocumentService } from '../bll/activity-document.service';
+import { responseDetailService } from '../bll/response-detail.service';
 import { studentFeedbackService } from '../bll/feedback-student.service';
 import { activityTemplateService } from '../bll/activity-template.service';
 import type {
@@ -34,6 +35,11 @@ export class ActivityController {
   /** Lee con IA las páginas elegidas de un PDF (cuerpo = el PDF, cabecera x-pages = páginas elegidas). */
   async readDocument(req: Request, res: Response): Promise<void> {
     res.json(await activityService.readDocument(req.body, req.header('x-pages') ?? undefined, req.auth!.institutionId, req.locale));
+  }
+
+  /** Qué respondió un alumno en cada pregunta y si está bien (para la docente). */
+  async responseDetail(req: Request, res: Response): Promise<void> {
+    res.json(await responseDetailService.get(String(req.params.id), String(req.params.responseId)));
   }
 
   async create(req: Request, res: Response): Promise<void> {
