@@ -7,9 +7,15 @@ import { BadRequestError, ConflictError, NotFoundError } from '../utils/http-err
 import type { CreateInstitutionUserInput, User } from '../domain/user';
 import type { Role } from '../domain/enums';
 
+/** Qué pasó con el correo de invitación: 'sent' salió, 'simulated' no hay servicio de correo configurado, 'throttled' superó el límite, 'failed' falló. */
+export type InvitationEmailStatus = 'sent' | 'simulated' | 'throttled' | 'failed';
+export type InvitedUser = User & { invitationEmail: InvitationEmailStatus };
+
+const EMAIL_TIMEOUT_MS = 10_000;
+
 export interface UserService {
   listByInstitution(institutionId: string): Promise<User[]>;
-  inviteUser(input: CreateInstitutionUserInput): Promise<User>;
+  inviteUser(input: CreateInstitutionUserInput): Promise<InvitedUser>;
   updateRole(userId: string, institutionId: string, role: Role): Promise<User>;
   setActive(userId: string, institutionId: string, active: boolean): Promise<User>;
 }
@@ -19,7 +25,7 @@ export class DefaultUserService implements UserService {
     return userRepository.findByInstitution(institutionId);
   }
 
-  async inviteUser(input: CreateInstitutionUserInput): Promise<User> {
+  async inviteUser(input: CreateInstitutionUserInput): Promise<InvitedUser> {
     const existing = await userRepository.findByEmail(input.email);
     if (existing) throw new ConflictError('Ya existe un usuario con ese email');
 
@@ -37,20 +43,28 @@ export class DefaultUserService implements UserService {
     const institution = await institutionRepository.findById(input.institutionId);
     const institutionName = institution?.name ?? 'tu institución educativa';
 
-    emailService
-      .sendInvitationEmail({
-        to: created.email,
-        name: created.name,
-        role: created.role,
-        institutionName,
-        provider: created.provider,
-        language: created.language ?? institution?.defaultLanguage,
-      })
-      .catch((err) => {
-        console.error('[userService] Falló el envío de correo de invitación:', err);
-      });
+    // El usuario ya quedó creado: si el correo falla, la invitación sigue valiendo y se le avisa a quien invita.
+    let invitationEmail: InvitationEmailStatus = 'failed';
+    try {
+      const result = await Promise.race([
+        emailService.sendInvitationEmail({
+          to: created.email,
+          name: created.name,
+          role: created.role,
+          institutionName,
+          provider: created.provider,
+          language: created.language ?? institution?.defaultLanguage,
+        }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), EMAIL_TIMEOUT_MS)),
+      ]);
+      if (!result) console.error('[userService] El envío de correo de invitación tardó demasiado.');
+      else if (result.throttled) invitationEmail = 'throttled';
+      else if (result.success) invitationEmail = result.simulated ? 'simulated' : 'sent';
+    } catch (err) {
+      console.error('[userService] Falló el envío de correo de invitación:', err);
+    }
 
-    return created;
+    return { ...created, invitationEmail };
   }
 
   async updateRole(userId: string, institutionId: string, role: Role): Promise<User> {
