@@ -16,7 +16,9 @@ const COLUMNS = '"id", "name", "initials", "email", "role", "provider", "institu
 
 export interface UserRepository {
   findById(id: string): Promise<User | null>;
-  findByEmail(email: string): Promise<User | null>;
+  /** Todas las cuentas de una persona (una por institución), de la más antigua a la más nueva. */
+  findAllByEmail(email: string): Promise<User[]>;
+  findByEmailInInstitution(email: string, institutionId: string): Promise<User | null>;
   findFirstByProviderAndRole(provider: OAuthProviderId, role: Role): Promise<User | null>;
   findFirstByRole(role: Role): Promise<User | null>;
   findByInstitution(institutionId: string): Promise<User[]>;
@@ -33,8 +35,12 @@ export class SqlUserRepository implements UserRepository {
     return queryOne<User>(`SELECT ${COLUMNS} FROM "User" WHERE "id" = $1`, [id]);
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    return queryOne<User>(`SELECT ${COLUMNS} FROM "User" WHERE lower("email") = lower($1)`, [email]);
+  async findAllByEmail(email: string): Promise<User[]> {
+    return query<User>(`SELECT ${COLUMNS} FROM "User" WHERE lower("email") = lower($1) ORDER BY "createdAt" ASC`, [email]);
+  }
+
+  async findByEmailInInstitution(email: string, institutionId: string): Promise<User | null> {
+    return queryOne<User>(`SELECT ${COLUMNS} FROM "User" WHERE lower("email") = lower($1) AND "institutionId" = $2`, [email, institutionId]);
   }
 
   async findFirstByProviderAndRole(provider: OAuthProviderId, role: Role): Promise<User | null> {

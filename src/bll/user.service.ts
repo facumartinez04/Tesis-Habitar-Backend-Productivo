@@ -26,8 +26,10 @@ export class DefaultUserService implements UserService {
   }
 
   async inviteUser(input: CreateInstitutionUserInput): Promise<InvitedUser> {
-    const existing = await userRepository.findByEmail(input.email);
-    if (existing) throw new ConflictError('Ya existe un usuario con ese email');
+    // El mismo correo puede estar en otras instituciones: acá solo importa que no esté ya en ESTA (y así no se revela
+    // si existe en otra).
+    const existing = await userRepository.findByEmailInInstitution(input.email, input.institutionId);
+    if (existing) throw new ConflictError('Ya existe un usuario con ese email en esta institución');
 
     const [activeCount, maxUsers] = await Promise.all([
       userRepository.countActiveByInstitution(input.institutionId),

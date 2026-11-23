@@ -61,6 +61,7 @@ export const enEventPatterns: Array<[RegExp, (...groups: string[]) => string]> =
   [/^Ejecutó la purga por retención: (\d+) alumnos eliminados\.$/, (n) => `Ran the retention purge: ${n} students deleted.`],
   [/^Cambió el estado de una cuota a (.*)\.$/, (s) => `Changed the status of a fee to ${s}.`],
   [/^Inició sesión con (\S+) \(revalidación\)\.$/, (p) => `Signed in with ${p} (revalidation).`],
+  [/^Inició sesión con (\S+) \(institución elegida\)\.$/, (p) => `Signed in with ${p} (chosen institution).`],
   [/^Inicio de sesión rechazado con (\S+) \(revalidación\) \((.*)\)\.$/, (p, code) => `Sign-in rejected with ${p} (revalidation) (${code.replace('; organización de Microsoft', '; Microsoft organization')}).`],
   [/^Inició sesión con (\S+)\.$/, (p) => `Signed in with ${p}.`],
   [/^Se vinculó la institución con la organización de Microsoft (\S+)\.$/, (t) => `Linked the institution to the Microsoft organization ${t}.`],

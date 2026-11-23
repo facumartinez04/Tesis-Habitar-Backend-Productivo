@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { authService, dashboardPathForRole, type LoginIdentity } from '../bll/auth.service';
+import { authService, ChooseInstitutionError, dashboardPathForRole, type LoginIdentity } from '../bll/auth.service';
 import { PENDING_LOGIN_DAYS, signPendingLogin, verifyPendingLogin } from '../bll/pending-login';
 import type { Session } from '../domain/auth';
 import { env } from '../config/env';
@@ -151,6 +151,14 @@ export class AuthController {
       }).toString();
       res.redirect(redirectTo.toString());
     } catch (err) {
+      // Cuenta en más de una institución: no es un rechazo, la persona elige a cuál entra desde el login.
+      if (identity && err instanceof ChooseInstitutionError) {
+        setPendingLoginCookie(res, signPendingLogin(identity), PENDING_LOGIN_DAYS);
+        const redirectTo = new URL('/login', env.frontendUrl);
+        redirectTo.searchParams.set('error', 'choose_institution');
+        res.redirect(redirectTo.toString());
+        return;
+      }
       const errorCode = loginErrorCode(err);
       logRejectedLogin(providerParam, err, errorCode);
       if (identity && PENDING_CODES.has(errorCode)) {
@@ -165,7 +173,7 @@ export class AuthController {
   }
 
   /** Ingreso pendiente: quién se identificó y todavía no puede entrar (204 si no hay ninguno). */
-  getPendingLogin(req: Request, res: Response): void {
+  async getPendingLogin(req: Request, res: Response): Promise<void> {
     const raw = readPendingLoginCookie(req);
     const identity = verifyPendingLogin(raw);
     if (!identity) {
@@ -173,7 +181,9 @@ export class AuthController {
       res.status(204).send();
       return;
     }
-    res.json({ email: identity.email, name: identity.name, provider: identity.provider });
+    // Si la persona tiene cuenta en más de una institución, se le ofrece elegir (solo las suyas y usables).
+    const choices = await authService.institutionChoices(identity);
+    res.json({ email: identity.email, name: identity.name, provider: identity.provider, choices });
   }
 
   /** «Volver a validar»: reintenta el ingreso con la identidad guardada, sin pasar otra vez por el proveedor. */
@@ -185,11 +195,17 @@ export class AuthController {
       clearPendingLoginCookie(res);
       throw new UnauthorizedError('La sesión de login expiró, intentá de nuevo');
     }
+    const rawChoice = (req.body as { institutionId?: unknown } | undefined)?.institutionId;
+    const institutionId = typeof rawChoice === 'string' && rawChoice.length > 0 && rawChoice.length <= 64 ? rawChoice : undefined;
     try {
-      const session = await authService.sessionForIdentity(identity);
-      await this.startSession(req, res, session, `Inició sesión con ${providerLabel(identity.provider)} (revalidación).`);
+      const session = await authService.sessionForIdentity(identity, institutionId);
+      await this.startSession(req, res, session, `Inició sesión con ${providerLabel(identity.provider)} (${institutionId ? 'institución elegida' : 'revalidación'}).`);
       res.json({ token: session.token, dashboardPath: dashboardPathForRole(session.user.role) });
     } catch (err) {
+      if (err instanceof ChooseInstitutionError) {
+        res.status(409).json({ error: err.message, code: 'choose_institution', choices: err.choices });
+        return;
+      }
       const code = loginErrorCode(err);
       logRejectedLogin(identity.provider, err, code, ' (revalidación)');
       if (!PENDING_CODES.has(code)) clearPendingLoginCookie(res);

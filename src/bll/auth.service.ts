@@ -11,6 +11,22 @@ import type { Institution } from '../domain/institution';
 import type { Locale } from '../i18n/locale';
 import { getInstitutionPause, type InstitutionPause } from './institution-pause';
 import { assertMicrosoftEmailTrusted, microsoftIdentityFromClaims, type MicrosoftIdentity } from './microsoft-identity';
+import { selectMembership } from './membership';
+import type { User } from '../domain/user';
+
+/** Una institución entre las que la persona puede elegir al ingresar. */
+export interface InstitutionChoice {
+  id: string;
+  name: string;
+}
+
+/** La persona tiene cuenta en más de una institución y tiene que elegir a cuál entra. */
+export class ChooseInstitutionError extends Error {
+  constructor(public readonly choices: InstitutionChoice[]) {
+    super('Elegí la institución a la que querés entrar');
+    this.name = 'ChooseInstitutionError';
+  }
+}
 
 export interface OAuthAuthorizationRequest {
   authorizationUrl: string;
@@ -42,7 +58,8 @@ export interface AuthService {
   buildAuthorizationRequest(provider: OAuthProviderId): Promise<OAuthAuthorizationRequest>;
   handleOAuthCallback(input: HandleOAuthCallbackInput): Promise<Session>;
   identityFromCallback(input: HandleOAuthCallbackInput): Promise<LoginIdentity>;
-  sessionForIdentity(identity: LoginIdentity): Promise<Session>;
+  sessionForIdentity(identity: LoginIdentity, chosenInstitutionId?: string): Promise<Session>;
+  institutionChoices(identity: LoginIdentity): Promise<InstitutionChoice[]>;
   logout(jti: string, userId: string, expiresAtEpochSeconds: number): Promise<void>;
 }
 
@@ -146,33 +163,75 @@ export class DefaultAuthService implements AuthService {
     return { provider: input.provider, email, name, microsoft };
   }
 
-  /** Decide si la identidad puede entrar a Habitar y, si puede, crea o actualiza el usuario y emite la sesión. */
-  async sessionForIdentity(identity: LoginIdentity): Promise<Session> {
-    const { email, microsoft } = identity;
-    const existing = await userRepository.findByEmail(email);
+  /**
+   * Por qué una cuenta (la de una persona en una institución) no puede entrar; null si puede.
+   * Con Microsoft, antes que nada se verifica que el correo sea confiable (cuenta personal, dominio verificado por la
+   * organización u organización vinculada): así no se revela si un correo ajeno existe o está desactivado.
+   */
+  private membershipProblem(user: User | null, institution: Institution | null, identity: LoginIdentity): Error | null {
     const tagged = (err: Error, institutionId: string | null) =>
-      Object.assign(err, { loginEmail: email, loginUserId: existing?.id ?? null, loginInstitutionId: institutionId, loginTenantId: microsoft?.tenantId ?? null });
-    const isSuperAdmin = !existing && env.superAdminEmails.includes(email.toLowerCase());
-    const institution = existing
-      ? await institutionRepository.findById(existing.institutionId)
-      : isSuperAdmin
-        ? await this.getOrCreateSuperAdminInstitution(email)
-        : await institutionRepository.findByDomain(emailDomain(email));
-    // Con Microsoft, antes que nada se verifica que el correo sea confiable (cuenta personal, dominio verificado
-    // por la organización u organización vinculada): así no se revela si un correo ajeno existe o está desactivado.
-    if (microsoft && institution) {
+      Object.assign(err, { loginEmail: identity.email, loginUserId: user?.id ?? null, loginInstitutionId: institutionId, loginTenantId: identity.microsoft?.tenantId ?? null });
+    if (identity.microsoft && institution) {
       try {
-        assertMicrosoftEmailTrusted(microsoft, institution);
+        assertMicrosoftEmailTrusted(identity.microsoft, institution);
       } catch (err) {
-        throw tagged(err as Error, institution.id);
+        return tagged(err as Error, institution.id);
       }
     }
-    if (existing && !existing.active) {
-      throw tagged(new ForbiddenError('Tu cuenta fue desactivada. Contactá a tu coordinador/a.'), existing.institutionId);
-    }
+    if (user && !user.active) return tagged(new ForbiddenError('Tu cuenta fue desactivada. Contactá a tu coordinador/a.'), user.institutionId);
     if (!institution || institution.status !== 'ACTIVO') {
-      throw tagged(new ForbiddenError('Tu institución no está habilitada en Habitar. Contactá a tu coordinador/a.'), institution?.id ?? null);
+      return tagged(new ForbiddenError('Tu institución no está habilitada en Habitar. Contactá a tu coordinador/a.'), institution?.id ?? null);
     }
+    return null;
+  }
+
+  /** Las cuentas de la persona (una por institución) con su institución. */
+  private async membershipsOf(email: string): Promise<{ user: User; institution: Institution | null }[]> {
+    const users = await userRepository.findAllByEmail(email);
+    return Promise.all(users.map(async (user) => ({ user, institution: await institutionRepository.findById(user.institutionId) })));
+  }
+
+  /** Instituciones entre las que la persona tiene que elegir al ingresar (vacío si entra directo). */
+  async institutionChoices(identity: LoginIdentity): Promise<InstitutionChoice[]> {
+    const memberships = await this.membershipsOf(identity.email);
+    const choice = selectMembership(memberships, (m) => m.user.institutionId, (m) => !this.membershipProblem(m.user, m.institution, identity));
+    return choice.kind === 'choose' ? choice.options.map((m) => ({ id: m.user.institutionId, name: m.institution?.name ?? '' })) : [];
+  }
+
+  /**
+   * Decide si la identidad puede entrar a Habitar y, si puede, crea o actualiza el usuario y emite la sesión.
+   * Si la persona tiene cuenta en más de una institución y no indica a cuál entra, responde ChooseInstitutionError.
+   */
+  async sessionForIdentity(identity: LoginIdentity, chosenInstitutionId?: string): Promise<Session> {
+    const { email } = identity;
+    const memberships = await this.membershipsOf(email);
+    let existing: User | null = null;
+    let institution: Institution | null;
+    let isSuperAdmin = false;
+
+    if (memberships.length === 0) {
+      isSuperAdmin = env.superAdminEmails.includes(email.toLowerCase());
+      institution = isSuperAdmin ? await this.getOrCreateSuperAdminInstitution(email) : await institutionRepository.findByDomain(emailDomain(email));
+    } else {
+      const choice = selectMembership(memberships, (m) => m.user.institutionId, (m) => !this.membershipProblem(m.user, m.institution, identity), chosenInstitutionId);
+      if (choice.kind === 'choose') {
+        throw new ChooseInstitutionError(choice.options.map((m) => ({ id: m.user.institutionId, name: m.institution?.name ?? '' })));
+      }
+      if (choice.kind === 'unknown') {
+        throw Object.assign(new ForbiddenError('Tu institución no está habilitada en Habitar. Contactá a tu coordinador/a.'), {
+          loginEmail: email,
+          loginUserId: null,
+          loginInstitutionId: null,
+          loginTenantId: identity.microsoft?.tenantId ?? null,
+        });
+      }
+      existing = choice.membership.user;
+      institution = choice.membership.institution;
+    }
+
+    const problem = this.membershipProblem(existing, institution, identity);
+    if (problem) throw problem;
+    if (!institution) throw new ForbiddenError('Tu institución no está habilitada en Habitar. Contactá a tu coordinador/a.');
 
     let user = existing;
     if (!user) {

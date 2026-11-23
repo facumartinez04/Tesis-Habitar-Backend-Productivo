@@ -132,7 +132,9 @@ export const enMessages: Record<string, string> = {
   'Ya completaste esta actividad.': 'You already completed this activity.',
   'Ya enviaste esta actividad. Sólo se permite un intento.': 'You already submitted this activity. Only one attempt is allowed.',
   'Ya enviaste la actividad: la ayuda ya no está disponible.': 'You already submitted the activity: help is no longer available.',
-  'Ya existe un usuario con ese email': 'A user with that email already exists',
+  'Ya existe un usuario con ese email en esta institución': 'A user with that email already exists in this institution',
+  'Respuesta no encontrada': 'Response not found',
+  'Elegí la institución a la que querés entrar': 'Choose the institution you want to enter',
   '[Error-PAR_002] El cierre debe ser posterior a la apertura': '[Error-PAR_002] The closing time must be after the opening time',
   '[Error-QR_001] Debe aprobar al menos una pregunta antes de generar el código':
     '[Error-QR_001] You must approve at least one question before generating the code',
