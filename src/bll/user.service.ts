@@ -7,7 +7,6 @@ import { BadRequestError, ConflictError, NotFoundError } from '../utils/http-err
 import type { CreateInstitutionUserInput, User } from '../domain/user';
 import type { Role } from '../domain/enums';
 
-/** Qué pasó con el correo de invitación: 'sent' salió, 'simulated' no hay servicio de correo configurado, 'throttled' superó el límite, 'failed' falló. */
 export type InvitationEmailStatus = 'sent' | 'simulated' | 'throttled' | 'failed';
 export type InvitedUser = User & { invitationEmail: InvitationEmailStatus };
 
@@ -26,8 +25,6 @@ export class DefaultUserService implements UserService {
   }
 
   async inviteUser(input: CreateInstitutionUserInput): Promise<InvitedUser> {
-    // El mismo correo puede estar en otras instituciones: acá solo importa que no esté ya en ESTA (y así no se revela
-    // si existe en otra).
     const existing = await userRepository.findByEmailInInstitution(input.email, input.institutionId);
     if (existing) throw new ConflictError('Ya existe un usuario con ese email en esta institución');
 
@@ -45,7 +42,6 @@ export class DefaultUserService implements UserService {
     const institution = await institutionRepository.findById(input.institutionId);
     const institutionName = institution?.name ?? 'tu institución educativa';
 
-    // El usuario ya quedó creado: si el correo falla, la invitación sigue valiendo y se le avisa a quien invita.
     let invitationEmail: InvitationEmailStatus = 'failed';
     try {
       const result = await Promise.race([

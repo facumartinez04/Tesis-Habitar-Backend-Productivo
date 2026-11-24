@@ -45,10 +45,6 @@ function toMeta(doc: MemoryDocument): ActivityDocumentMeta {
 }
 
 export class ActivityDocumentService {
-  /**
-   * Guarda el documento EN MEMORIA (no en la base) hasta un rato después del cierre de la actividad.
-   * Es contenido de la institución: se muestra a los alumnos y se borra solo al vencer.
-   */
   async upload(
     activityId: string,
     input: { data: unknown; fileName?: string; pages?: string },
@@ -63,17 +59,14 @@ export class ActivityDocumentService {
     const doc: MemoryDocument = {
       fileName: cleanFileName(input.fileName, mimeType),
       mimeType,
-      // Páginas (PDF) o diapositivas (PowerPoint) que se muestran a los alumnos.
       pages: mimeType === PDF_MIME || mimeType === PPTX_MIME ? parsePages(input.pages) : null,
       data: input.data,
     };
     documentMemory.put(activityId, doc, documentExpiry(activityWindow(activity).closesAt));
-    // Si la actividad tenía un documento guardado en la base (versiones anteriores), se borra.
     await activityDocumentRepository.remove(activityId);
     return toMeta(doc);
   }
 
-  /** Datos del documento de una actividad (memoria; si no, el que haya quedado en la base de versiones anteriores). */
   async metaFor(activityId: string): Promise<ActivityDocumentMeta | null> {
     const inMemory = documentMemory.get(activityId);
     if (inMemory) return toMeta(inMemory);
@@ -92,7 +85,6 @@ export class ActivityDocumentService {
     return content;
   }
 
-  /** Copia el documento a otra actividad (al duplicarla). */
   async copyTo(fromId: string, toId: string): Promise<void> {
     const target = await activityRepository.findById(toId);
     if (!target) return;
@@ -102,14 +94,12 @@ export class ActivityDocumentService {
     documentMemory.put(toId, { fileName: content.fileName, mimeType: content.mimeType, pages: meta?.pages ?? null, data: content.data }, documentExpiry(activityWindow(target).closesAt));
   }
 
-  /** Pone un documento ya leído (por ejemplo, el de una actividad del banco) para una actividad. */
   async attach(activityId: string, doc: MemoryDocument): Promise<void> {
     const activity = await activityRepository.findById(activityId);
     if (!activity) throw new NotFoundError('Actividad no encontrada');
     documentMemory.put(activityId, doc, documentExpiry(activityWindow(activity).closesAt));
   }
 
-  /** Al cerrar la actividad el documento se borra de inmediato. */
   forget(activityId: string): void {
     documentMemory.remove(activityId);
   }

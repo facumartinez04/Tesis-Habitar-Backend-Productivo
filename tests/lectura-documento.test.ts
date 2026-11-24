@@ -20,7 +20,6 @@ const leer = (req: IncomingMessage) =>
     req.on('end', () => resolve(Buffer.concat(partes)));
   });
 
-/** DeepSeek simulado: registra lo que recibe. */
 async function deepseekFalso(opciones: { chat: (cuerpo: any) => { status: number; json: unknown } }) {
   const visto = { subidas: [] as string[], borrados: [] as string[], chats: [] as any[], auth: [] as string[] };
   const server = createServer(async (req, res) => {
@@ -57,20 +56,17 @@ test('lectura con IA: sube el PDF, lo referencia por file_id, devuelve el texto 
     const res = await aiQuestionGenerator.readDocument(await pdfDe(2), { provider: 'DEEPSEEK', apiKey: 'clave-de-prueba', apiUrl: falso.url, onUsage: (u) => usos.push(u) });
     assert.equal(res.legible, true);
     assert.match(res.text, /ALGORITMOS GENÉTICOS/);
-    // El campo purpose viaja antes que el archivo (si no, DeepSeek responde 400) y por defecto solo se extrae el texto (más rápido).
     const subida = falso.visto.subidas[0];
     assert.ok(subida.indexOf('name="purpose"') >= 0 && subida.indexOf('name="purpose"') < subida.indexOf('name="file"'));
     assert.match(subida, /text_recognition/);
     assert.doesNotMatch(subida, /rich_layout_recognition/);
     assert.match(subida, /expires_after\[seconds\]/);
-    // El chat usa deepseek-flash SIN razonamiento (con razonamiento tarda mucho más) y referencia el archivo como se documenta.
     const chat = falso.visto.chats[0];
     assert.equal(chat.model, 'deepseek-flash');
     assert.deepEqual(chat.thinking, { type: 'disabled' });
     const contenido = chat.messages[1].content;
     assert.deepEqual(contenido[0], { type: 'file', file_id: 'file-api-prueba' });
     assert.equal(contenido[1].type, 'text');
-    // El borrado no se espera: se deja un instante para que llegue.
     await new Promise((r) => setTimeout(r, 100));
     assert.deepEqual(falso.visto.borrados, ['file-api-prueba']);
     assert.ok(falso.visto.auth.every((a) => a === 'Bearer clave-de-prueba'));
@@ -118,7 +114,6 @@ test('recorte de páginas: solo viaja lo que el docente eligió', async () => {
   assert.equal(una.used, 2);
   assert.equal((await PDFDocument.load(una.data)).getPageCount(), 2);
   assert.equal((await selectPdfPages(pdf, null)).used, 5);
-  // Las páginas que no existen se ignoran; si no queda ninguna, error.
   assert.equal((await selectPdfPages(pdf, [4, 99])).used, 1);
   await assert.rejects(selectPdfPages(pdf, [99]), /no existen/);
   await assert.rejects(selectPdfPages(Buffer.from('%PDF-roto'), null), /No se pudo abrir el PDF/);

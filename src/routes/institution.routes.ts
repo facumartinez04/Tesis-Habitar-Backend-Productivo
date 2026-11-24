@@ -22,7 +22,6 @@ import { createInstitutionUserSchema, setUserActiveSchema, updateUserRoleSchema 
 
 export const institutionRouter = Router();
 
-// Límites por usuario para las acciones que envían correo (invitación y aviso de cambio de rol).
 const porUsuario = (req: { auth?: { sub?: string }; ip?: string }) => req.auth?.sub ?? req.ip ?? 'anonimo';
 const inviteLimit = rateLimit({
   windowMs: 60 * 60 * 1000,

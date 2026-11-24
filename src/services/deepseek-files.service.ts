@@ -1,11 +1,5 @@
 import { UpstreamError } from '../utils/http-error';
 
-/**
- * API de archivos de DeepSeek (https://api-docs.deepseek.com/guides/files_api).
- * Un documento se sube, DeepSeek lo analiza y devuelve un file_id que se referencia en el chat.
- */
-
-/** Dirección de /files a partir de la del chat (…/chat/completions). */
 export function filesUrlFor(chatApiUrl: string): string {
   return `${new URL(chatApiUrl).origin}/files`;
 }
@@ -13,11 +7,6 @@ export function filesUrlFor(chatApiUrl: string): string {
 const UPLOAD_TIMEOUT_MS = 180_000;
 const DELETE_TIMEOUT_MS = 20_000;
 
-/**
- * Sube un PDF para que DeepSeek lo analice (`text_recognition`: solo el texto; `rich_layout_recognition`: también las figuras).
- * El archivo vence solo a la hora como red de seguridad, por si no se llega a borrar.
- * `purpose` va antes que `file`: si no, DeepSeek responde 400.
- */
 export async function uploadDeepseekPdf(input: {
   apiKey: string;
   chatApiUrl: string;
@@ -51,7 +40,6 @@ export async function uploadDeepseekPdf(input: {
   return payload.id;
 }
 
-/** Borra el archivo de DeepSeek. Si falla no corta nada: el archivo vence solo a la hora de subirse. */
 export async function deleteDeepseekFile(input: { apiKey: string; chatApiUrl: string; fileId: string }): Promise<void> {
   try {
     const res = await fetch(`${filesUrlFor(input.chatApiUrl)}/${encodeURIComponent(input.fileId)}`, {

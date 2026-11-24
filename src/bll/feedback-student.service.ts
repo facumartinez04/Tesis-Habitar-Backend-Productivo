@@ -32,7 +32,6 @@ export interface StudentFeedback {
   }[];
 }
 
-/** Extras que solo ve la docente: la nota sugerida por la IA y por qué. */
 export interface TeacherQuestionExtras {
   aiScore: number | null;
   aiRationale: string | null;
@@ -40,10 +39,6 @@ export interface TeacherQuestionExtras {
   reviewed: boolean;
 }
 
-/**
- * Qué respondió un alumno en cada pregunta y si está bien. Lo usa el alumno (sin extras) y la docente (con la nota
- * sugerida por la IA y su explicación).
- */
 export async function loadQuestionResults(activityId: string, responseId: string): Promise<StudentFeedback['questions']>;
 export async function loadQuestionResults(
   activityId: string,

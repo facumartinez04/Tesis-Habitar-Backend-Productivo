@@ -27,7 +27,6 @@ export function clearRefreshCookie(res: Response): void {
   res.clearCookie(REFRESH_COOKIE, baseOptions());
 }
 
-/** Cookie del ingreso pendiente (identidad verificada que todavía no puede entrar): mismas opciones que la de sesión. */
 export const PENDING_LOGIN_COOKIE = 'habitar_ingreso_pendiente';
 
 export function readPendingLoginCookie(req: Request): string | undefined {

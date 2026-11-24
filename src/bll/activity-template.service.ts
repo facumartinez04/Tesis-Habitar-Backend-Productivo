@@ -91,7 +91,6 @@ export class ActivityTemplateService {
         approved: true,
       }));
     const author = await userRepository.findById(auth.sub);
-    // El documento es contenido de la institución (BYOC) y no se guarda en la base: el banco conserva el texto y las preguntas.
     const row = await queryOne<TemplateRow>(
       `INSERT INTO "ActivityTemplate"
          ("institutionId", "authorId", "authorName", "name", "educationLevel", "axis", "sourceText", "questionsJson",
@@ -143,7 +142,6 @@ export class ActivityTemplateService {
   async copyDocument(templateId: string, activityId: string, institutionId: string): Promise<boolean> {
     await this.own(templateId, institutionId);
     if (await activityDocumentService.metaFor(activityId)) return false;
-    // Solo las actividades del banco guardadas antes de este cambio pueden tener documento: pasa a memoria, no a la base.
     const row = await queryOne<{ documentFileName: string; documentMimeType: string; documentPagesJson: string | null; documentData: Buffer }>(
       `SELECT "documentFileName", "documentMimeType", "documentPagesJson", "documentData"
          FROM "ActivityTemplate" WHERE "id" = $1 AND "documentData" IS NOT NULL`,

@@ -12,7 +12,6 @@ const row = (activityId: string, question: string, minute: number) => ({
 });
 
 test('historial de ayuda: agrupa por actividad, la más reciente primero y las preguntas en orden', () => {
-  // El repositorio las devuelve de la más nueva a la más vieja.
   const grouped = groupHelpByActivity([row('b', 'tercera', 30), row('a', 'segunda', 20), row('b', 'primera de b', 10), row('a', 'primera', 5)]);
   assert.deepEqual(
     grouped.map((g) => g.activityId),

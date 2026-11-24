@@ -48,7 +48,6 @@ test('hay un tope de memoria: si no entra, se rechaza y no se pierde lo que ya e
   assert.throws(() => mem.put('b', doc(500), 10), /muchos documentos en uso/);
   assert.ok(mem.get('a'));
   assert.equal(mem.get('b'), null);
-  // al vencer el primero, hay lugar de nuevo
   const mem2 = new DocumentMemory(1000, () => 20);
   mem2.put('a', doc(600), 10);
   mem2.put('b', doc(500), 100);

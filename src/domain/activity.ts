@@ -48,7 +48,6 @@ export interface CreateActivityInput {
   readingHelp?: boolean;
   showFeedback?: boolean;
   language?: Locale;
-  /** El texto salió de un documento: se limita por el peso del archivo y no por el largo que fija la institución. */
   fromDocument?: boolean;
 
   status?: ActivityStatus;

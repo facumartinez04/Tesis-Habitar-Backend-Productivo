@@ -1,10 +1,8 @@
 import { PDFDocument } from 'pdf-lib';
 import { BadRequestError } from './http-error';
 
-/** Máximo de páginas que se leen de una vez con IA. */
 export const MAX_AI_PAGES = 60;
 
-/** «1, 3,4» → [1, 3, 4]. Devuelve null si no se indicó ninguna (se usa todo el documento). */
 export function parsePageList(raw: string | undefined): number[] | null {
   if (!raw?.trim()) return null;
   const pages = [...new Set(raw.split(',').map((p) => Number.parseInt(p, 10)))].filter((n) => Number.isInteger(n) && n >= 1 && n <= 5000);
@@ -16,13 +14,8 @@ export function isPdf(data: Buffer): boolean {
   return data.subarray(0, 5).toString('latin1') === '%PDF-';
 }
 
-/** Páginas por tanda cuando se lee en paralelo: tandas chicas terminan antes porque el modelo escribe menos texto en cada una. */
 export const AI_CHUNK_PAGES = 3;
 
-/**
- * Arma PDF nuevos solo con las páginas elegidas, en tandas de `chunkSize` páginas (en orden): de Habitar sale
- * únicamente lo que el docente marcó. Sin selección usa todo el documento.
- */
 export async function splitPdfPages(
   data: Buffer,
   pages: number[] | null,
@@ -48,13 +41,11 @@ export async function splitPdfPages(
   return { chunks, pageCount, used: indices.length };
 }
 
-/** Un solo PDF con las páginas elegidas. */
 export async function selectPdfPages(data: Buffer, pages: number[] | null): Promise<{ data: Buffer; pageCount: number; used: number }> {
   const { chunks, pageCount, used } = await splitPdfPages(data, pages, MAX_AI_PAGES);
   return { data: chunks[0], pageCount, used };
 }
 
-/** Ejecuta `task` sobre cada elemento con hasta `limit` en simultáneo y devuelve los resultados en el mismo orden. */
 export async function mapWithLimit<T, R>(items: T[], limit: number, task: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const results = new Array<R>(items.length);
   let next = 0;

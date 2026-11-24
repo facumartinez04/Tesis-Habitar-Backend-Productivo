@@ -1,8 +1,3 @@
-/**
- * Límite de correos por destinatario y por tipo, para que un error de la interfaz,
- * un doble clic o un uso indebido no inunden la casilla de una persona ni consuman
- * la cuota de envío de Resend.
- */
 export type EmailKind = 'INVITACION' | 'CAMBIO_ROL' | 'ALERTA';
 
 export interface EmailLimitPolicy {
@@ -23,7 +18,6 @@ export class EmailLimiter {
 
   constructor(private readonly limits: Record<EmailKind, EmailLimitPolicy> = EMAIL_LIMITS) {}
 
-  /** Registra el envío y devuelve true si todavía está dentro del límite. */
   allow(kind: EmailKind, to: string, now = Date.now()): boolean {
     const { max, windowMs } = this.limits[kind];
     const key = `${kind}:${to.trim().toLowerCase()}`;

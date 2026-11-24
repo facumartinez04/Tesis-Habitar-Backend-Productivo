@@ -238,7 +238,6 @@ function buildScannedPagePrompt(rawText: string, language: Locale): { system: st
   };
 }
 
-/** Lo que responde el modelo cuando el documento no tiene texto de lectura. */
 const NO_READING_TEXT = '[[SIN_TEXTO]]';
 
 function buildDocumentReadingPrompt(language: Locale): { system: string; user: string } {
@@ -450,10 +449,6 @@ export class AiQuestionGeneratorService {
     return { text: parsed.data.text.trim(), legible: parsed.data.legible && parsed.data.text.trim().length > 0 };
   }
 
-  /**
-   * Lee un PDF con DeepSeek (sin OCR propio): sube el documento a la API de archivos, le pide la transcripción del
-   * texto de la lectura y borra el archivo siempre, aunque la lectura falle. Solo funciona con DeepSeek.
-   */
   async readDocument(pdf: Buffer, options: GenerateWithAiOptions, language: Locale = 'es'): Promise<ScannedPageResult> {
     const { provider, apiKey } = options;
     if (provider !== 'DEEPSEEK') throw new UpstreamError('La lectura de documentos con IA solo está disponible con DeepSeek');
@@ -477,8 +472,6 @@ export class AiQuestionGeneratorService {
               { role: 'system', content: prompt.system },
               { role: 'user', content: [{ type: 'file', file_id: fileId }, { type: 'text', text: prompt.user }] },
             ],
-            // Copiar texto no necesita razonar: con el razonamiento activado (el valor por defecto de DeepSeek)
-            // el modelo escribe una cadena de pensamiento larga antes de responder y la lectura tarda mucho más.
             thinking: { type: 'disabled' },
             temperature: 0,
             max_tokens: 8000,
@@ -507,7 +500,6 @@ export class AiQuestionGeneratorService {
       );
       return { text: empty ? '' : content, legible: !empty };
     } finally {
-      // No se espera: el borrado no tiene por qué demorar la respuesta (si falla, el archivo vence solo a la hora).
       void deleteDeepseekFile({ apiKey, chatApiUrl: apiUrl, fileId });
     }
   }

@@ -4,18 +4,12 @@ import { pool } from '../src/config/db';
 const biodiversidadText =
   'La biodiversidad es el conjunto de formas de vida que habitan nuestro planeta. Cada ecosistema alberga especies que dependen entre sí para sobrevivir. Cuando una especie desaparece, las consecuencias se propagan en cadena hacia el resto del sistema. Proteger la biodiversidad no es solo una cuestión ambiental, sino también cultural y económica.';
 
-/**
- * El seed BORRA las tablas antes de cargar los datos de ejemplo: solo puede correr contra una base local.
- * Contra cualquier otra (o con NODE_ENV=production) se niega, salvo que se confirme a propósito con
- * HABITAR_PERMITIR_SEED=si.
- */
 function assertBaseLocal(): void {
   if (process.env.HABITAR_PERMITIR_SEED === 'si') return;
   let host = '';
   try {
     host = new URL(process.env.DATABASE_URL ?? '').hostname.replace(/^\[|\]$/g, '');
   } catch {
-    /* sin DATABASE_URL válida: se trata como no local */
   }
   const local = ['localhost', '127.0.0.1', '::1'].includes(host);
   if (process.env.NODE_ENV === 'production' || !local) {
@@ -96,7 +90,6 @@ async function main() {
     const teacherRuiz = await createUser('Ruiz, T.', 'RT', 't.ruiz@colegiobelgranonorte.edu.ar', 'DOCENTE', 'MICROSOFT', belgranoNorte.id);
     const teacherMolina = await createUser('Molina, S.', 'MS', 's.molina@colegiobelgranonorte.edu.ar', 'DOCENTE', 'MICROSOFT', belgranoNorte.id);
 
-    // Cada aula necesita su QR fijo (obligatorio desde la migración 007): AULA-4B, AULA-5A…
     const createCourse = (name: string, teacherId: string) => {
       const [grade, division] = [name.slice(0, name.indexOf('°') + 1), name.slice(name.indexOf('°') + 1)];
       return one<{ id: string }>(
@@ -321,7 +314,6 @@ async function main() {
       ]);
     }
 
-    // Los usuarios de ejemplo figuran como que ya ingresaron (no como invitaciones pendientes).
     await client.query('UPDATE "User" SET "lastLoginAt" = now() WHERE "lastLoginAt" IS NULL');
 
     await client.query('COMMIT');

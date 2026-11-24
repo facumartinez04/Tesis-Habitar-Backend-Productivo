@@ -3,13 +3,6 @@ import { env } from '../config/env';
 import type { LoginIdentity } from './auth.service';
 import type { MicrosoftIdentity } from './microsoft-identity';
 
-/**
- * Ingreso pendiente: la persona se identificó con Google o Microsoft, pero todavía no puede entrar a Habitar
- * (su cuenta no está vinculada a ninguna institución o fue desactivada). Se guarda su identidad verificada
- * para que pueda «volver a validar» sin pasar otra vez por el proveedor.
- *
- * Usa un secreto propio y una audiencia propia: este token nunca sirve como sesión de Habitar.
- */
 export const PENDING_LOGIN_DAYS = 7;
 const AUDIENCE = 'habitar-ingreso-pendiente';
 
@@ -40,7 +33,6 @@ function isMicrosoftIdentity(value: unknown): value is MicrosoftIdentity {
   return typeof v.email === 'string' && typeof v.tenantId === 'string' && typeof v.personal === 'boolean' && typeof v.domainVerified === 'boolean';
 }
 
-/** Devuelve la identidad guardada, o null si el token no es válido, venció o no es de ingreso pendiente. */
 export function verifyPendingLogin(token: string | undefined): LoginIdentity | null {
   if (!token) return null;
   try {

@@ -44,12 +44,10 @@ function loginErrorCode(err: unknown): string {
   return 'auth_failed';
 }
 
-/** Solo se recuerda la identidad cuando el proveedor la verificó y lo único que falta es el alta en Habitar. */
 const PENDING_CODES = new Set(['institution_not_allowed', 'account_disabled']);
 
 function logRejectedLogin(provider: OAuthProviderId, err: unknown, errorCode: string, extra = ''): void {
   const tag = (err ?? {}) as { loginEmail?: string | null; loginUserId?: string | null; loginInstitutionId?: string | null; loginTenantId?: string | null };
-  // El tenant de Microsoft queda en la bitácora para que el administrador pueda copiarlo al configurar la institución.
   const tenantNote = tag.loginTenantId ? `; organización de Microsoft ${tag.loginTenantId}` : '';
   void logService.event({
     actor: { userId: tag.loginUserId ?? null, role: null, institutionId: tag.loginInstitutionId ?? null, impersonated: false, userEmail: tag.loginEmail ?? null },
@@ -151,7 +149,6 @@ export class AuthController {
       }).toString();
       res.redirect(redirectTo.toString());
     } catch (err) {
-      // Cuenta en más de una institución: no es un rechazo, la persona elige a cuál entra desde el login.
       if (identity && err instanceof ChooseInstitutionError) {
         setPendingLoginCookie(res, signPendingLogin(identity), PENDING_LOGIN_DAYS);
         const redirectTo = new URL('/login', env.frontendUrl);
@@ -172,7 +169,6 @@ export class AuthController {
     }
   }
 
-  /** Ingreso pendiente: quién se identificó y todavía no puede entrar (204 si no hay ninguno). */
   async getPendingLogin(req: Request, res: Response): Promise<void> {
     const raw = readPendingLoginCookie(req);
     const identity = verifyPendingLogin(raw);
@@ -181,12 +177,10 @@ export class AuthController {
       res.status(204).send();
       return;
     }
-    // Si la persona tiene cuenta en más de una institución, se le ofrece elegir (solo las suyas y usables).
     const choices = await authService.institutionChoices(identity);
     res.json({ email: identity.email, name: identity.name, provider: identity.provider, choices });
   }
 
-  /** «Volver a validar»: reintenta el ingreso con la identidad guardada, sin pasar otra vez por el proveedor. */
   async retryPendingLogin(req: Request, res: Response): Promise<void> {
     const origin = req.header('origin')?.replace(/\/$/, '');
     if (origin && !env.corsOrigins.includes(origin)) throw new ForbiddenError('Origen no permitido');
@@ -213,7 +207,6 @@ export class AuthController {
     }
   }
 
-  /** «Usar otra cuenta»: olvida el ingreso pendiente. */
   clearPendingLogin(_req: Request, res: Response): void {
     clearPendingLoginCookie(res);
     res.status(204).send();

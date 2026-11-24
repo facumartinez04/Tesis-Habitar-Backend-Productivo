@@ -33,7 +33,6 @@ import type { QuestionType } from '../domain/question';
 import type { ScannedPageResult } from '../services/ai-question-generator.service';
 import { AI_CHUNK_PAGES, isPdf, mapWithLimit, parsePageList, splitPdfPages } from '../utils/pdf-pages';
 
-/** Tandas que se leen en simultáneo por pedido (DeepSeek admite 15 análisis de documentos a la vez en toda la cuenta). */
 const AI_PARALLEL_CHUNKS = 3;
 import { activityDocumentService, MAX_DOCUMENT_BYTES } from './activity-document.service';
 
@@ -244,14 +243,8 @@ export function allowedTypes(requested?: QuestionType[]): QuestionType[] {
   return closed.length ? closed : ['OPCION_UNICA'];
 }
 
-/**
- * Tope de caracteres del texto leído de un documento. El largo que fija la institución vale para el texto pegado a mano;
- * un documento se limita por su peso (15 MB) y por las páginas que se eligen, y este es sólo el techo técnico para que
- * la IA no reciba un texto desmedido. Coincide con el máximo que se puede configurar en una institución.
- */
 export const DOCUMENT_READING_MAX_CHARS = 50000;
 
-/** Largo permitido: el de la institución para el texto pegado; el techo técnico si el texto sale de un documento. */
 export function readingLimit(institutionMaxChars: number | null | undefined, fromDocument?: boolean): number {
   const own = institutionMaxChars ?? DEFAULT_READING_MAX_CHARS;
   return fromDocument ? Math.max(own, DOCUMENT_READING_MAX_CHARS) : own;
@@ -289,11 +282,6 @@ export class DefaultActivityService implements ActivityService {
     }
   }
 
-  /**
-   * Lee un PDF con la IA (DeepSeek) en lugar del OCR del navegador. Solo se sube lo que el docente eligió: se recorta el
-   * PDF a esas páginas, se lee y el archivo se borra de DeepSeek enseguida. Si la IA no está disponible, responde 409 y
-   * el navegador lee las páginas con OCR.
-   */
   async readDocument(
     data: unknown,
     pagesHeader: string | undefined,
@@ -312,7 +300,6 @@ export class DefaultActivityService implements ActivityService {
     }
     const selection = await splitPdfPages(data, parsePageList(pagesHeader), AI_CHUNK_PAGES);
     const provider = access.options.provider.toLowerCase();
-    // Las tandas se leen en paralelo y el uso (tokens) se suma de todas.
     const total = { model: undefined as string | undefined, promptTokens: 0, completionTokens: 0 };
     const options = {
       ...access.options,

@@ -32,12 +32,10 @@ export class ActivityController {
     res.json(await activityService.cleanScannedPage(rawText, req.auth!.institutionId, language ?? req.locale));
   }
 
-  /** Lee con IA las páginas elegidas de un PDF (cuerpo = el PDF, cabecera x-pages = páginas elegidas). */
   async readDocument(req: Request, res: Response): Promise<void> {
     res.json(await activityService.readDocument(req.body, req.header('x-pages') ?? undefined, req.auth!.institutionId, req.locale));
   }
 
-  /** Qué respondió un alumno en cada pregunta y si está bien (para la docente). */
   async responseDetail(req: Request, res: Response): Promise<void> {
     res.json(await responseDetailService.get(String(req.params.id), String(req.params.responseId)));
   }

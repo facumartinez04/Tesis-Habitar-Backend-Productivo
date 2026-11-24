@@ -9,13 +9,11 @@ export interface TeacherResponseDetail {
   studentDisplayName: string;
   submittedAt: string;
   scores: { literal: number | null; inferencial: number | null; critico: number | null; criticoPending: boolean };
-  /** Resumen de las preguntas de respuesta cerrada y de las abiertas. */
   summary: { closed: number; correct: number; partial: number; incorrect: number; open: number; openPending: number };
   questions: TeacherQuestionResult[];
 }
 
 export class ResponseDetailService {
-  /** Qué respondió un alumno en cada pregunta y si está bien (para la docente). La respuesta tiene que ser de esa actividad. */
   async get(activityId: string, responseId: string): Promise<TeacherResponseDetail> {
     const response = await queryOne<{ id: string; submittedAt: Date; studentName: string }>(
       `SELECT r."id", r."submittedAt", s."name" AS "studentName"

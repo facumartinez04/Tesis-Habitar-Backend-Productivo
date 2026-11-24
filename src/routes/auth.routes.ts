@@ -14,7 +14,6 @@ authRouter.post('/logout', optionalAuth, authController.logout.bind(authControll
 authRouter.post('/refresh', rateLimit({ windowMs: 15 * 60 * 1000, max: 120, name: 'refresh' }), authController.refresh.bind(authController));
 
 const loginLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, name: 'login' });
-// Ingreso pendiente (antes de /:provider para que no lo tome como proveedor).
 authRouter.get('/pending', authController.getPendingLogin.bind(authController));
 authRouter.post('/pending/retry', loginLimit, authController.retryPendingLogin.bind(authController));
 authRouter.delete('/pending', authController.clearPendingLogin.bind(authController));

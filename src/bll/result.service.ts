@@ -24,7 +24,6 @@ import type {
 import { readingHelpRepository } from '../dal/reading-help.repository';
 import { normalizeStudentName } from './student-identity';
 
-/** Agrupa las preguntas de ayuda por actividad: la más reciente primero, y dentro de cada una en el orden en que las hizo. */
 export function groupHelpByActivity(
   rows: { activityId: string; activityName: string; question: string; answer: string; declined: boolean; createdAt: Date }[],
 ): StudentHelpActivity[] {

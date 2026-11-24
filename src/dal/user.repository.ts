@@ -16,7 +16,6 @@ const COLUMNS = '"id", "name", "initials", "email", "role", "provider", "institu
 
 export interface UserRepository {
   findById(id: string): Promise<User | null>;
-  /** Todas las cuentas de una persona (una por institución), de la más antigua a la más nueva. */
   findAllByEmail(email: string): Promise<User[]>;
   findByEmailInInstitution(email: string, institutionId: string): Promise<User | null>;
   findFirstByProviderAndRole(provider: OAuthProviderId, role: Role): Promise<User | null>;

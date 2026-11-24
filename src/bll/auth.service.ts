@@ -14,13 +14,11 @@ import { assertMicrosoftEmailTrusted, microsoftIdentityFromClaims, type Microsof
 import { selectMembership } from './membership';
 import type { User } from '../domain/user';
 
-/** Una institución entre las que la persona puede elegir al ingresar. */
 export interface InstitutionChoice {
   id: string;
   name: string;
 }
 
-/** La persona tiene cuenta en más de una institución y tiene que elegir a cuál entra. */
 export class ChooseInstitutionError extends Error {
   constructor(public readonly choices: InstitutionChoice[]) {
     super('Elegí la institución a la que querés entrar');
@@ -41,7 +39,6 @@ export interface HandleOAuthCallbackInput {
   codeVerifier: string;
 }
 
-/** Identidad ya verificada por Google o Microsoft, antes de decidir si puede entrar a Habitar. */
 export interface LoginIdentity {
   provider: OAuthProviderId;
   email: string;
@@ -122,7 +119,6 @@ export class DefaultAuthService implements AuthService {
     return this.sessionForIdentity(await this.identityFromCallback(input));
   }
 
-  /** Canjea el código del proveedor y devuelve la identidad verificada (correo, nombre y, con Microsoft, su organización). */
   async identityFromCallback(input: HandleOAuthCallbackInput): Promise<LoginIdentity> {
     const client = await loadClient();
     const config = await getProviderConfig(input.provider);
@@ -163,11 +159,6 @@ export class DefaultAuthService implements AuthService {
     return { provider: input.provider, email, name, microsoft };
   }
 
-  /**
-   * Por qué una cuenta (la de una persona en una institución) no puede entrar; null si puede.
-   * Con Microsoft, antes que nada se verifica que el correo sea confiable (cuenta personal, dominio verificado por la
-   * organización u organización vinculada): así no se revela si un correo ajeno existe o está desactivado.
-   */
   private membershipProblem(user: User | null, institution: Institution | null, identity: LoginIdentity): Error | null {
     const tagged = (err: Error, institutionId: string | null) =>
       Object.assign(err, { loginEmail: identity.email, loginUserId: user?.id ?? null, loginInstitutionId: institutionId, loginTenantId: identity.microsoft?.tenantId ?? null });
@@ -185,23 +176,17 @@ export class DefaultAuthService implements AuthService {
     return null;
   }
 
-  /** Las cuentas de la persona (una por institución) con su institución. */
   private async membershipsOf(email: string): Promise<{ user: User; institution: Institution | null }[]> {
     const users = await userRepository.findAllByEmail(email);
     return Promise.all(users.map(async (user) => ({ user, institution: await institutionRepository.findById(user.institutionId) })));
   }
 
-  /** Instituciones entre las que la persona tiene que elegir al ingresar (vacío si entra directo). */
   async institutionChoices(identity: LoginIdentity): Promise<InstitutionChoice[]> {
     const memberships = await this.membershipsOf(identity.email);
     const choice = selectMembership(memberships, (m) => m.user.institutionId, (m) => !this.membershipProblem(m.user, m.institution, identity));
     return choice.kind === 'choose' ? choice.options.map((m) => ({ id: m.user.institutionId, name: m.institution?.name ?? '' })) : [];
   }
 
-  /**
-   * Decide si la identidad puede entrar a Habitar y, si puede, crea o actualiza el usuario y emite la sesión.
-   * Si la persona tiene cuenta en más de una institución y no indica a cuál entra, responde ChooseInstitutionError.
-   */
   async sessionForIdentity(identity: LoginIdentity, chosenInstitutionId?: string): Promise<Session> {
     const { email } = identity;
     const memberships = await this.membershipsOf(email);
