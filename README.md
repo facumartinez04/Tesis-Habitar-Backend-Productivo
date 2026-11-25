@@ -1,137 +1,83 @@
 # Habitar — Backend
 
-API REST del proyecto Habitar, construida en capas con Node.js, Express, TypeScript y SQL plano
-(`pg`) sobre PostgreSQL.
+API REST de Habitar, la plataforma de comprensión lectora con IA. Está hecha con Node.js, Express 5
+y TypeScript, usa PostgreSQL con SQL escrito a mano (`pg`, sin ORM) y Socket.IO para el tiempo real.
+
+El frontend está en [Tesis-Habitar-Frontend-Productivo](https://github.com/facumartinez04/Tesis-Habitar-Frontend-Productivo).
 
 ## Arquitectura en capas
 
 ```
 src/
-  domain/         Entidades y tipos de negocio puros (sin dependencias de pg ni Express)
-  dto/            Esquemas Zod para validar el body de las requests
-  repositories/   Acceso a datos — SQL plano vía `pg` detrás de interfaces (Data Access Layer)
-  services/       Lógica de negocio — orquesta repositorios, aplica reglas de dominio
-  controllers/    Capa HTTP — parsea el request, llama al service, arma la respuesta
-  routes/         Registro de rutas de Express, aplica middlewares por endpoint
-  middlewares/    Auth (JWT), validación de body, manejo centralizado de errores
-  config/         Variables de entorno, pool de conexión (`config/db.ts`)
-  utils/          JWT, errores HTTP tipados
-db/
-  migrations/     Migraciones SQL versionadas, numeradas y aplicadas en orden
-scripts/
-  migrate.ts      Corre las migraciones pendientes (tracking en la tabla "_migrations")
-  seed.ts         Carga los datos de ejemplo que usa el frontend
+  routes/        Rutas de Express y middlewares de cada endpoint
+  middlewares/   Autenticación (JWT), permisos por rol, validación, idioma y errores
+  controllers/   Capa HTTP: lee la solicitud, llama a la lógica de negocio y arma la respuesta
+  bll/           Lógica de negocio (reglas de actividades, corrección, sesiones, costos de IA…)
+  dal/           Acceso a datos: repositorios con SQL sobre PostgreSQL
+  services/      Integraciones externas: IA (DeepSeek/OpenAI), Mercado Pago, correo, identidad
+  domain/        Entidades y tipos del negocio
+  dto/           Esquemas Zod de los datos de entrada
+  realtime/      Socket.IO y reloj de las actividades
+  i18n/          Mensajes en español e inglés
+  config/        Variables de entorno, conexión a la base y migraciones
+db/migrations/   Migraciones SQL numeradas
+scripts/         migrate.ts y seed.ts
+tests/           Pruebas con node:test
 ```
 
-Flujo de una request: `routes → middlewares → controller → service → repository → pg → PostgreSQL`.
+Flujo de una solicitud: `routes → middlewares → controllers → bll → dal → PostgreSQL`.
 
-Cada capa solo conoce la inmediatamente inferior. Los `domain/*.ts` no importan nada de `pg` —
-los repositorios son responsables de mapear las filas devueltas por Postgres al tipo de dominio.
+## Cómo correrlo
 
-## Stack
-
-- **Express 5** — enrutamiento y HTTP
-- **pg (node-postgres) + PostgreSQL** — acceso a datos por SQL plano, sin ORM
-- **Zod** — validación de DTOs de entrada
-- **jsonwebtoken** — sesión vía JWT (login OAuth simulado, igual que el frontend)
-
-## Cómo correrlo (con una base PostgreSQL ya disponible)
+Requiere Node.js 22 y una base PostgreSQL.
 
 ```bash
 npm install
-# completá DATABASE_URL en .env (ver .env.example) apuntando a tu Postgres
-npm run db:migrate   # aplica las migraciones de db/migrations/ (idempotente)
-npm run db:seed      # carga los mismos datos de ejemplo que usa el frontend
-npm run dev            # levanta la API en http://localhost:4000
+cp .env.example .env   # completar DATABASE_URL y JWT_SECRET como mínimo
+npm run dev            # API en http://localhost:4000
 ```
 
-Otros scripts:
-- `npm run build` / `npm start` — build de producción y ejecución de `dist/` (`start` corre
-  `db:migrate` antes de levantar el server, así que las migraciones nuevas se aplican solas en cada deploy).
+Al iniciar, el servidor aplica las migraciones pendientes de `db/migrations/`.
+
+| Comando | Acción |
+| :--- | :--- |
+| `npm run dev` | Servidor de desarrollo con recarga automática |
+| `npm run build` / `npm start` | Compila a `dist/` y lo ejecuta |
+| `npm run db:migrate` | Aplica las migraciones a mano |
+| `npm run db:seed` | Carga datos de ejemplo (solo contra una base local) |
+| `npm test` | Corre las pruebas de `tests/` |
 
 ## Autenticación
 
-### Login real (CU-01-01)
+El ingreso es con Google o Microsoft 365 (OAuth 2.0 / OpenID Connect con PKCE). La institución se
+resuelve por el dominio del correo o por la cuenta dada de alta; con Microsoft además se controla
+la organización (tenant) de la institución. La sesión usa un token de acceso JWT y un token de
+renovación en una cookie httpOnly que rota en cada uso.
 
-`GET /api/auth/google` y `GET /api/auth/microsoft` arrancan el flujo real de OAuth 2.0 / OIDC
-(Authorization Code + PKCE, vía `openid-client`) — el navegador termina en la pantalla de login
-real de Google/Microsoft. El backend valida el `id_token`, resuelve la institución por el **dominio
-del email** (`Institution.domain`) y crea al usuario si no existía (rol DOCENTE por defecto). Si el
-dominio no corresponde a ninguna institución activa, o el usuario está desactivado, se rechaza.
+Los alumnos no tienen cuenta: entran a la actividad con el QR del aula o el código, y se
+identifican con nombre y apellido.
 
-Requiere `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` y/o `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET`
-configurados (ver `.env.example`). Sin esas credenciales, esos endpoints devuelven error, pero el
-resto de la app sigue funcionando con el login simulado.
+## Rutas
 
-- Google: credenciales en [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials),
-  tipo "Web application", con `GOOGLE_REDIRECT_URI` como Authorized redirect URI.
-- Microsoft: registrar la app en [Azure Portal → Microsoft Entra ID → App registrations](https://portal.azure.com),
-  con `MICROSOFT_REDIRECT_URI` como Redirect URI (tipo Web).
+Todas cuelgan de `/api`:
 
-### Login simulado (desarrollo/demo)
+| Prefijo | Contenido |
+| :--- | :--- |
+| `/auth` | Ingreso con Google y Microsoft, sesión, renovación y cierre |
+| `/institutions` | Instituciones, configuración, usuarios y alertas |
+| `/courses` | Aulas, QR fijo, docentes y alumnos |
+| `/activities` | Actividades, preguntas, documento, respuestas y ayuda de lectura |
+| `/results`, `/dashboard`, `/feedback` | Resultados, tablero y devolución |
+| `/roles` | Roles y permisos |
+| `/compliance` | Consentimientos y derechos ARCO |
+| `/subscriptions`, `/finances` | Planes, pagos y Mercado Pago |
+| `/logs`, `/monitoring`, `/status` | Bitácoras, monitoreo y estado del servicio |
+| `/admin` | Datos de cada institución para el administrador de la plataforma |
+| `/oauth`, `/jira` | Activación de proveedores e integración con Jira |
 
-`POST /api/auth/login` con `{ "provider": "GOOGLE" | "MICROSOFT" }` devuelve un JWT sin pasar por
-ningún proveedor real — resuelve a un usuario semilla fijo (`GOOGLE` → docente, `MICROSOFT` →
-coordinador). Útil para probar sin configurar credenciales OAuth. Las rutas protegidas requieren
-`Authorization: Bearer <token>` en ambos casos.
+## IA
 
-## Endpoints principales
-
-| Método | Ruta | Rol requerido |
-|---|---|---|
-| POST | `/api/auth/login` | público |
-| GET | `/api/auth/me` | autenticado |
-| GET/POST | `/api/institutions` | ADMIN |
-| GET | `/api/institutions/:slug` | autenticado |
-| GET | `/api/institutions/:id/alerts` | COORDINADOR/ADMIN |
-| GET | `/api/institutions/:id/results` | COORDINADOR/ADMIN |
-| POST | `/api/activities/generate-questions` | DOCENTE |
-| POST | `/api/activities` | DOCENTE |
-| GET | `/api/activities/:code` | público |
-| POST | `/api/activities/:code/responses` | público (alumno sin login) |
-| GET | `/api/results/courses/:courseId` | DOCENTE/COORDINADOR/ADMIN |
-| GET | `/api/results/students/:studentId` | DOCENTE/COORDINADOR/ADMIN |
-| GET/POST/DELETE | `/api/compliance/*` | COORDINADOR/ADMIN |
-| GET/PATCH/POST | `/api/subscriptions/*` | ADMIN |
-| GET/POST | `/api/oauth/:institutionId/*` | ADMIN |
-| GET | `/api/monitoring` | ADMIN |
-
-## Generación de preguntas con IA
-
-`question-generator.service.ts` expone la interfaz `QuestionGenerator`. Si hay `DEEPSEEK_API_KEY`
-configurada, se usa la API real de DeepSeek (`deepseek-question-generator.service.ts`); si no, cae
-al `TemplateQuestionGenerator` (opción múltiple con distractores reales, sin proveedor externo).
-
-## Base de datos
-
-PostgreSQL, sin ORM — las queries están escritas a mano en cada repository usando `pg`. No requiere
-nada instalado localmente: alcanza con apuntar `DATABASE_URL` a cualquier Postgres accesible
-(Neon, Coolify, Railway, RDS, un contenedor propio, etc).
-
-Los ids de todas las tablas se generan del lado de la base (`gen_random_uuid()`, vía la extensión
-`pgcrypto`) — los repositories no arman los ids en JS, solo hacen `INSERT ... RETURNING`.
-
-### Migraciones
-
-`db/migrations/*.sql`, aplicadas en orden por nombre de archivo. `npm run db:migrate` (o
-`tsx scripts/migrate.ts`) crea una tabla `_migrations` que trackea cuáles ya corrieron, así que es
-seguro correrlo en cada deploy — las que ya se aplicaron se saltean.
-
-Para agregar un cambio de schema: crear un nuevo archivo `db/migrations/00N_descripcion.sql` con el
-`ALTER TABLE`/`CREATE TABLE` que corresponda y correr `npm run db:migrate`.
-
-### Deploy en Coolify (con Neon como base de datos)
-
-La base de datos recomendada es **Neon** (neon.tech, Postgres administrado en la nube) — no
-requiere Postgres propio en Coolify.
-
-1. Creá un proyecto en Neon y copiá la connection string **"direct"** (no la "pooled"/PgBouncer).
-   Tiene que incluir `sslmode=require`:
-   `postgresql://usuario:password@ep-xxxx.region.aws.neon.tech/neondb?sslmode=require`
-2. En el servicio del backend en Coolify (pestaña **Environment Variables**), seteá `DATABASE_URL`
-   con esa string, junto con `JWT_SECRET` (cualquier string random) y el resto de `.env.example`.
-3. El comando `start` (`npm run db:migrate && node dist/server.js`) aplica las migraciones
-   automáticamente contra Neon en cada arranque — no hace falta correrlas a mano.
-4. (Opcional, solo en desarrollo) `npm run db:seed` para cargar los datos de ejemplo. Borra las tablas antes de cargarlos, así que se niega a correr contra una base que no sea `localhost` o con `NODE_ENV=production`.
-
-# Tesis-Habitar-Backend
+Las preguntas, la corrección de respuestas abiertas, la ayuda de lectura y la lectura de PDF usan
+DeepSeek u OpenAI. Cada institución puede usar la clave de la plataforma (con un tope de gasto
+mensual) o la propia. Sin IA disponible, las preguntas salen de plantillas y la corrección queda a
+cargo del docente.
